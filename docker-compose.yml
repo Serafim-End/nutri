@@ -1,0 +1,93 @@
+services:
+  # PostgreSQL Database
+  # Used for local development; for Supabase, set DATABASE_URL in .env
+  postgres:
+    image: postgres:15-alpine
+    container_name: nutrimatch-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-nutrimatch}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nutrimatch-network
+
+  # Flask Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nutrimatch-backend
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-development}
+      - FLASK_DEBUG=${FLASK_DEBUG:-1}
+      # DATABASE_URL: Use Supabase URL from .env, or fallback to local postgres
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/nutrimatch}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-jwt-secret-key-change-in-production}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:80,http://client:80}
+      - PAYMENT_WEBHOOK_SECRET=${PAYMENT_WEBHOOK_SECRET:-webhook-secret}
+      - SLOT_HOLD_MINUTES=${SLOT_HOLD_MINUTES:-10}
+    volumes:
+      - ./backend:/app
+    ports:
+      - "5000:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo '================================================' &&
+        echo 'NutriMatch Backend Starting...' &&
+        echo '================================================' &&
+        echo 'Waiting for database connection...' &&
+        sleep 3 &&
+        echo 'Running database migrations...' &&
+        flask db upgrade &&
+        echo '================================================' &&
+        echo 'Starting Gunicorn server...' &&
+        echo '================================================' &&
+        gunicorn --bind 0.0.0.0:5000 --workers 2 --reload --timeout 120 wsgi:app
+      "
+    networks:
+      - nutrimatch-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # React Frontend (Development)
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile.dev
+    container_name: nutrimatch-client
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - nutrimatch-network
+
+volumes:
+  postgres_data:
+
+networks:
+  nutrimatch-network:
+    driver: bridge

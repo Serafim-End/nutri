@@ -1,0 +1,21 @@
+# Production Docker Compose configuration
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+
+services:
+  backend:
+    environment:
+      - FLASK_ENV=production
+      - FLASK_DEBUG=0
+    command: gunicorn --bind 0.0.0.0:5000 --workers 4 --timeout 120 wsgi:app
+    volumes: []  # Don't mount source in production
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "80:80"
+    volumes: []  # Don't mount source in production
+
