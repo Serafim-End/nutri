@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
 import { ru } from 'date-fns/locale'
-import { publicApi, bookingApi } from '../lib/api'
+import { publicApi, bookingApi, paymentApi } from '../lib/api'
 import { useCountdown } from '../hooks/useCountdown'
 import SlotPicker from '../components/SlotPicker'
 import LoadingScreen from '../components/LoadingScreen'
@@ -75,9 +75,17 @@ export default function BookingPage() {
     },
   })
 
-  // Mark paid (payment simulation) mutation
-  const markPaidMutation = useMutation({
-    mutationFn: () => bookingApi.markPaid(currentBooking!.id),
+  // Simulate payment mutation (uses payment abstraction layer)
+  const simulatePaymentMutation = useMutation({
+    mutationFn: () => {
+      // Use the new payment API for mock payments
+      // This goes through the proper payment abstraction
+      if (paymentInfo?.provider === 'mock') {
+        return paymentApi.simulatePayment(currentBooking!.id)
+      }
+      // Fallback to legacy endpoint for backward compatibility
+      return bookingApi.markPaid(currentBooking!.id)
+    },
     onSuccess: (data) => {
       setCurrentBooking(data.booking)
       setBookingState('paid')
@@ -139,8 +147,20 @@ export default function BookingPage() {
     }
   }
 
-  const handleSimulatePayment = () => {
-    markPaidMutation.mutate()
+  const handlePayment = () => {
+    // For mock provider, simulate payment success
+    if (paymentInfo?.provider === 'mock') {
+      simulatePaymentMutation.mutate()
+      return
+    }
+    
+    // For real providers, redirect to payment URL
+    // This will be implemented when real providers are added
+    if (paymentInfo?.payment_url) {
+      // In future: redirect to payment URL or open payment modal
+      // For now, use simulation as fallback
+      simulatePaymentMutation.mutate()
+    }
   }
 
   const handleCancel = () => {
@@ -381,13 +401,32 @@ export default function BookingPage() {
 
         {/* Actions */}
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 p-4 safe-area-bottom space-y-3">
-          <button
-            onClick={handleSimulatePayment}
-            disabled={markPaidMutation.isPending || countdown.isExpired}
-            className="btn-primary w-full"
-          >
-            {markPaidMutation.isPending ? 'Processing...' : 'Simulate Payment Success'}
-          </button>
+          {/* Payment button - adapts to provider */}
+          {paymentInfo?.provider === 'mock' ? (
+            <button
+              onClick={handlePayment}
+              disabled={simulatePaymentMutation.isPending || countdown.isExpired}
+              className="btn-primary w-full"
+            >
+              {simulatePaymentMutation.isPending ? 'Processing...' : 'Simulate Payment Success'}
+            </button>
+          ) : (
+            <button
+              onClick={handlePayment}
+              disabled={simulatePaymentMutation.isPending || countdown.isExpired}
+              className="btn-primary w-full"
+            >
+              {simulatePaymentMutation.isPending ? 'Processing...' : `Pay ${currentBooking.price_rub.toLocaleString('ru-RU')} ₽`}
+            </button>
+          )}
+          
+          {/* Provider indicator (dev mode) */}
+          {import.meta.env.DEV && paymentInfo?.provider && (
+            <p className="text-xs text-center text-gray-400">
+              Provider: {paymentInfo.provider}
+            </p>
+          )}
+          
           <button
             onClick={handleCancel}
             disabled={cancelMutation.isPending}

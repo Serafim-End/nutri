@@ -83,11 +83,29 @@ export interface IntakeAnswers {
 
 export interface PaymentIntent {
   payment_id: string
-  provider: string
+  provider: 'mock' | 'telegram' | 'yookassa' | 'cloudpayments'
   amount_rub: number
   currency: string
   payment_url: string
   expires_at: string | null
+}
+
+export interface Payment {
+  id: string
+  booking_id: string
+  provider: string
+  provider_payment_id: string | null
+  amount_rub: number
+  currency: string
+  status: 'created' | 'succeeded' | 'failed' | 'refunded'
+  created_at: string
+  updated_at: string
+}
+
+export interface PaymentResponse {
+  payment: Payment
+  booking?: Booking
+  message: string
 }
 
 // Filter Types

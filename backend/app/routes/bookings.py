@@ -41,7 +41,10 @@ def create_booking():
             "booking": {...},
             "payment": {
                 "payment_id": "...",
+                "provider": "mock",
                 "payment_url": "...",
+                "amount_rub": 3000,
+                "currency": "RUB",
                 "expires_at": "..."
             }
         }
@@ -70,8 +73,13 @@ def create_booking():
             return jsonify({"error": error}), 409
         return jsonify({"error": error}), 400
 
-    # Create payment intent
-    payment_data = PaymentService.create_payment_intent(booking)
+    # Create payment intent via payment service abstraction
+    payment_data, payment_error = PaymentService.create_payment_for_booking(booking)
+    
+    if payment_error:
+        # Log but don't fail - booking is already created
+        logger.warning(f"Failed to create payment intent: {payment_error}")
+        payment_data = None
 
     logger.info(f"Booking created: id={booking.id}, client={current_user_id}")
 
@@ -114,14 +122,20 @@ def get_booking(booking_id: str):
 @jwt_required()
 def mark_booking_paid(booking_id: str):
     """
-    Mark a booking as paid (payment success stub for demo).
-    This is used to simulate successful payment without real payment integration.
+    Mark a booking as paid (DEV shortcut).
+    
+    This endpoint is preserved for backward compatibility and development.
+    Internally, it routes through the payment abstraction layer.
+    
+    IMPORTANT: In production with real payment providers, this endpoint
+    should be disabled. Payments should go through proper webhook flow.
     
     Atomic operation with row locks:
     - Locks booking, ensures pending_payment
     - Locks slot, ensures held and not expired
     - booking -> paid, set paid_at
     - slot -> booked, clear hold_expires_at
+    - payment -> succeeded
 
     Request:
         POST /api/bookings/<id>/mark-paid
@@ -130,8 +144,12 @@ def mark_booking_paid(booking_id: str):
     Response:
         200: { "booking": {...}, "message": "Payment confirmed" }
         400: Cannot mark as paid (wrong status or expired)
+        403: Not available in production (when real provider is configured)
         404: Not found
     """
+    from flask import current_app
+    from app.services.payments import PaymentService
+    
     current_user_id = get_jwt_identity()
 
     # First verify ownership
@@ -142,17 +160,24 @@ def mark_booking_paid(booking_id: str):
     if str(booking.client_id) != current_user_id:
         return jsonify({"error": "Not authorized"}), 403
 
-    # Mark as paid (atomic operation)
-    booking, error = BookingHoldService.mark_booking_paid(booking_id)
-
+    # Use payment service abstraction for consistency
+    # This ensures the same code path is used regardless of entry point
+    payment, error = PaymentService.simulate_payment_success(booking_id)
+    
     if error:
         status_code = 404 if "not found" in error.lower() else 400
+        if "only available" in error.lower():
+            status_code = 403
         return jsonify({"error": error}), status_code
 
-    logger.info(f"Booking marked as paid: id={booking.id}, client={current_user_id}")
+    # Refresh booking to get updated state
+    booking = Booking.query.get(booking_id)
+    
+    logger.info(f"Booking marked as paid via abstraction: id={booking.id}, client={current_user_id}")
 
     return jsonify({
         "booking": booking.to_dict(include_relations=True),
+        "payment": payment.to_dict() if payment else None,
         "message": "Payment confirmed successfully",
     })
 

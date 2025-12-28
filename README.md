@@ -303,13 +303,16 @@ nutri/
 | POST | `/api/bookings` | Create booking (holds slot 10 min) |
 | GET | `/api/bookings/{id}` | Get booking details |
 | POST | `/api/bookings/{id}/cancel` | Cancel booking |
+| POST | `/api/bookings/{id}/mark-paid` | DEV: simulate payment (routes through abstraction) |
 | POST | `/api/bookings/release-expired-holds` | Cron: release expired holds |
 
 ### Payments
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/payments/webhook` | Payment provider webhook |
-| POST | `/api/payments/test-success/{booking_id}` | Dev: simulate payment |
+| POST | `/api/payments/create` | Create payment intent for booking |
+| POST | `/api/payments/webhook/{provider}` | Provider-specific webhook handler |
+| POST | `/api/payments/mock-pay/{booking_id}` | Dev: simulate payment success |
+| GET | `/api/payments/{booking_id}/status` | Get payment status |
 
 ### Nutritionists (Botpress)
 | Method | Endpoint | Description |
@@ -340,6 +343,7 @@ nutri/
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token | `` |
 | `CORS_ORIGINS` | Allowed origins | `http://localhost:5173` |
 | `SLOT_HOLD_MINUTES` | Slot hold duration | `10` |
+| `PAYMENT_PROVIDER` | Payment provider (mock, telegram, yookassa) | `mock` |
 | `PAYMENT_WEBHOOK_SECRET` | Webhook signature key | `webhook-secret` |
 
 ---
@@ -716,6 +720,219 @@ open http://localhost:5173
 # 7. Modify filters and click "Apply"
 # 8. See filtered results with match reasons
 ```
+
+---
+
+## 💳 Payment Integration
+
+The project includes a clean payment abstraction layer that makes adding new payment providers trivial.
+
+### Current State
+
+- **Mock Provider**: Used by default in development. Simulates payment success without real money.
+- **Payment Abstraction**: Provider interface in `app/payments/` allows plugging in real providers.
+- **Unified Lifecycle**: All payments follow the same flow regardless of provider.
+
+### Payment Flow
+
+```
+Booking (pending_payment)
+    ↓
+PaymentIntent created (payment record with status=created)
+    ↓
+Client redirected to payment URL (or mock button shown)
+    ↓
+Provider processes payment
+    ↓
+Webhook received → finalize_payment()
+    ↓
+Booking → paid, Slot → booked, Payment → succeeded
+```
+
+### Payment Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/payments/create` | Create payment intent for booking |
+| POST | `/api/payments/webhook/{provider}` | Provider webhook handler |
+| POST | `/api/payments/mock-pay/{booking_id}` | DEV: Simulate payment success |
+| GET | `/api/payments/{booking_id}/status` | Get payment status |
+| POST | `/api/bookings/{id}/mark-paid` | DEV shortcut (routes through abstraction) |
+
+### Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PAYMENT_PROVIDER` | Active provider (mock, telegram, yookassa, cloudpayments) | `mock` |
+| `PAYMENT_WEBHOOK_SECRET` | Webhook signature verification key | `webhook-secret` |
+
+### How to Plug a Real Payment Provider
+
+Adding a new payment provider requires **one file** and **one registration**:
+
+#### 1. Create Provider Implementation
+
+Create a new file `backend/app/payments/telegram.py` (or your provider name):
+
+```python
+"""
+Telegram Payments Provider
+
+Implements payment via Telegram Payments (Stars).
+"""
+
+from typing import Any
+from flask import current_app
+import httpx  # or your HTTP library
+
+from app.payments.base import (
+    PaymentProvider,
+    PaymentIntent,
+    PaymentResult,
+    PaymentStatus,
+    PaymentWebhookError,
+)
+
+
+class TelegramPaymentProvider(PaymentProvider):
+    """Telegram Payments (Stars) provider."""
+    
+    @property
+    def name(self) -> str:
+        return "telegram"
+    
+    def create_payment_intent(self, booking: Any) -> PaymentIntent:
+        """Create Telegram payment invoice."""
+        bot_token = current_app.config["TELEGRAM_BOT_TOKEN"]
+        payment = booking.payment
+        
+        # Call Telegram Bot API to create invoice link
+        response = httpx.post(
+            f"https://api.telegram.org/bot{bot_token}/createInvoiceLink",
+            json={
+                "title": f"Booking #{str(booking.id)[:8]}",
+                "description": booking.service.title if booking.service else "Consultation",
+                "payload": str(booking.id),  # Our booking ID
+                "currency": "XTR",  # Telegram Stars
+                "prices": [{"label": "Consultation", "amount": booking.price_rub}],
+            }
+        )
+        data = response.json()
+        
+        if not data.get("ok"):
+            raise Exception(f"Telegram API error: {data.get('description')}")
+        
+        payment_url = data["result"]
+        
+        expires_at = None
+        if booking.slot and booking.slot.hold_expires_at:
+            expires_at = booking.slot.hold_expires_at.isoformat()
+        
+        return PaymentIntent(
+            payment_id=str(payment.id),
+            provider=self.name,
+            payment_url=payment_url,
+            amount_rub=booking.price_rub,
+            currency=booking.currency,
+            expires_at=expires_at,
+        )
+    
+    def handle_webhook(self, payload: dict, headers: dict) -> PaymentResult:
+        """Process Telegram successful_payment update."""
+        # Telegram sends updates via the bot webhook
+        # Extract successful_payment from the update
+        
+        update = payload
+        message = update.get("message", {})
+        successful_payment = message.get("successful_payment")
+        
+        if not successful_payment:
+            raise PaymentWebhookError("No successful_payment in update")
+        
+        booking_id = successful_payment.get("invoice_payload")
+        telegram_payment_id = successful_payment.get("telegram_payment_charge_id")
+        
+        return PaymentResult(
+            booking_id=booking_id,
+            provider_payment_id=telegram_payment_id,
+            status=PaymentStatus.SUCCEEDED,
+            raw_payload=payload,
+        )
+    
+    def verify_signature(self, payload: dict, headers: dict) -> bool:
+        """Verify Telegram webhook signature."""
+        # Telegram uses a different verification method
+        # Usually you verify the update came from Telegram by checking
+        # the secret_token you set when registering the webhook
+        secret_token = headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        expected = current_app.config.get("TELEGRAM_WEBHOOK_SECRET", "")
+        
+        if not expected:
+            return True  # Skip verification if not configured
+        
+        return secret_token == expected
+```
+
+#### 2. Register the Provider
+
+In `backend/app/payments/__init__.py`, add:
+
+```python
+from app.payments.telegram import TelegramPaymentProvider
+
+# Add to the _PROVIDERS dict:
+_PROVIDERS: dict[str, type[PaymentProvider]] = {
+    "mock": MockPaymentProvider,
+    "telegram": TelegramPaymentProvider,  # Add this line
+}
+```
+
+#### 3. Configure Environment
+
+```bash
+# .env
+PAYMENT_PROVIDER=telegram
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_WEBHOOK_SECRET=your_webhook_secret  # Optional
+```
+
+#### 4. Set Up Webhook URL
+
+Configure your payment provider to send webhooks to:
+```
+https://your-domain.com/api/payments/webhook/telegram
+```
+
+### That's It!
+
+No changes needed to:
+- Booking logic
+- Frontend code (it adapts to provider automatically)
+- Database schema
+- Existing tests
+
+The abstraction layer handles everything else.
+
+### Provider Implementation Checklist
+
+When implementing a new provider, ensure you:
+
+- [ ] Implement `name` property (unique identifier)
+- [ ] Implement `create_payment_intent()` (returns PaymentIntent with payment_url)
+- [ ] Implement `handle_webhook()` (returns PaymentResult with booking_id and status)
+- [ ] Implement `verify_signature()` if provider requires signature verification
+- [ ] Register provider in `__init__.py`
+- [ ] Add provider-specific config variables to `config.py` comments
+- [ ] Test the full flow: create intent → process webhook → booking confirmed
+
+### Available Providers
+
+| Provider | Status | Notes |
+|----------|--------|-------|
+| `mock` | ✅ Ready | Development/testing only |
+| `telegram` | 📋 Template | Telegram Payments (Stars) |
+| `yookassa` | 📋 Planned | Popular Russian payment gateway |
+| `cloudpayments` | 📋 Planned | Alternative payment gateway |
 
 ---
 

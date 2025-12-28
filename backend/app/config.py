@@ -158,8 +158,18 @@ class Config:
     SLOT_HOLD_MINUTES = int(os.environ.get("SLOT_HOLD_MINUTES", "10"))
     BOOKING_HOLD_MINUTES = int(os.environ.get("BOOKING_HOLD_MINUTES", "10"))
 
-    # Payment Providers (stubs for now)
+    # Payment Configuration
+    # Available providers: mock, telegram, yookassa, cloudpayments
+    # Default: mock (for development)
+    PAYMENT_PROVIDER = os.environ.get("PAYMENT_PROVIDER", "mock")
     PAYMENT_WEBHOOK_SECRET = os.environ.get("PAYMENT_WEBHOOK_SECRET", "webhook-secret")
+    
+    # Provider-specific configuration (used when provider is implemented)
+    # TELEGRAM_PAYMENTS_TOKEN - Telegram Bot Payments token (same as TELEGRAM_BOT_TOKEN)
+    # YOOKASSA_SHOP_ID - YooKassa shop identifier
+    # YOOKASSA_SECRET_KEY - YooKassa secret key
+    # CLOUDPAYMENTS_PUBLIC_ID - CloudPayments public ID
+    # CLOUDPAYMENTS_API_SECRET - CloudPayments API secret
 
     # Development mode flag
     DEV_MODE = os.environ.get("FLASK_ENV", "production") == "development"
