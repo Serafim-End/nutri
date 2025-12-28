@@ -1,67 +1,123 @@
 """
 Booking Hold Service
-Manages slot holds and releases expired holds.
+Manages slot holds and releases expired holds with race-condition safety.
+Uses row-level locks (SELECT FOR UPDATE) for atomic operations.
 """
 
-from datetime import datetime, timedelta
+import logging
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 from flask import current_app
+from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 from app.extensions import db
 from app.models import AvailabilitySlot, Booking, Service
 from app.services.notifications import NotificationService
 
 
+logger = logging.getLogger(__name__)
+
+
+def utc_now() -> datetime:
+    """Get current UTC time as timezone-aware datetime."""
+    return datetime.now(timezone.utc)
+
+
 class BookingHoldService:
     """
     Service for managing booking holds.
     Implements 10-minute hold window for payment processing.
+    All operations are atomic and race-condition safe.
     """
+
+    # Valid slot state transitions
+    SLOT_TRANSITIONS = {
+        "free": ["held"],
+        "held": ["booked", "free"],
+        "booked": ["cancelled"],  # admin only
+        "cancelled": [],
+    }
+
+    # Valid booking state transitions
+    BOOKING_TRANSITIONS = {
+        "pending_payment": ["paid", "cancelled"],
+        "paid": ["completed", "refunded"],
+        "cancelled": [],
+        "completed": [],
+        "refunded": [],
+        "no_show": [],
+    }
+
+    @classmethod
+    def _can_transition_slot(cls, from_status: str, to_status: str) -> bool:
+        """Check if slot transition is valid."""
+        return to_status in cls.SLOT_TRANSITIONS.get(from_status, [])
+
+    @classmethod
+    def _can_transition_booking(cls, from_status: str, to_status: str) -> bool:
+        """Check if booking transition is valid."""
+        return to_status in cls.BOOKING_TRANSITIONS.get(from_status, [])
 
     @staticmethod
     def create_booking_with_hold(
         client_id: str,
         service_id: str,
         slot_id: str,
+        client_note: Optional[str] = None,
     ) -> Tuple[Optional[Booking], Optional[str]]:
         """
         Create a booking and hold the slot for payment.
+        Uses SELECT FOR UPDATE to prevent race conditions.
 
         Args:
             client_id: UUID of the client
             service_id: UUID of the service
             slot_id: UUID of the availability slot
+            client_note: Optional note from client
 
         Returns:
             Tuple of (booking or None, error message or None)
         """
-        hold_minutes = current_app.config.get("SLOT_HOLD_MINUTES", 10)
-
-        # Verify service exists and is active
-        service = Service.query.get(service_id)
-        if not service or not service.is_active:
-            return None, "Service not found or inactive"
-
-        # Verify slot exists and is free
-        slot = AvailabilitySlot.query.get(slot_id)
-        if not slot:
-            return None, "Slot not found"
-
-        if slot.status != "free":
-            return None, "Slot is not available"
-
-        # Verify slot belongs to the service's nutritionist
-        if str(slot.nutritionist_id) != str(service.nutritionist_id):
-            return None, "Slot does not belong to this nutritionist"
-
-        # Check if slot is in the future
-        if slot.start_at <= datetime.utcnow():
-            return None, "Cannot book a slot in the past"
+        hold_minutes = current_app.config.get("BOOKING_HOLD_MINUTES", 10)
+        now = utc_now()
 
         try:
-            # Hold the slot
+            # Start transaction
+            # Verify service exists and is active
+            service = Service.query.get(service_id)
+            if not service or not service.is_active:
+                return None, "Service not found or inactive"
+
+            # Lock the slot row for update (prevents concurrent modifications)
+            slot = db.session.query(AvailabilitySlot).filter(
+                AvailabilitySlot.id == slot_id
+            ).with_for_update(nowait=True).first()
+
+            if not slot:
+                return None, "Slot not found"
+
+            if slot.status != "free":
+                logger.info(f"Slot {slot_id} not available, status={slot.status}")
+                return None, "Slot is not available (already held or booked)"
+
+            # Verify slot belongs to the service's nutritionist
+            if str(slot.nutritionist_id) != str(service.nutritionist_id):
+                return None, "Slot does not belong to this nutritionist"
+
+            # Check if slot is in the future
+            slot_start = slot.start_at
+            if slot_start.tzinfo is None:
+                slot_start = slot_start.replace(tzinfo=timezone.utc)
+            if slot_start <= now:
+                return None, "Cannot book a slot in the past"
+
+            # Transition slot to held state
+            if not BookingHoldService._can_transition_slot("free", "held"):
+                return None, "Invalid slot state transition"
+
             slot.status = "held"
-            slot.hold_expires_at = datetime.utcnow() + timedelta(minutes=hold_minutes)
+            slot.hold_expires_at = now + timedelta(minutes=hold_minutes)
 
             # Create booking
             booking = Booking(
@@ -77,14 +133,31 @@ class BookingHoldService:
             db.session.add(booking)
             db.session.commit()
 
-            # Send notification (placeholder)
-            NotificationService.booking_created(booking)
+            logger.info(
+                f"Booking created: id={booking.id}, slot={slot_id}, "
+                f"hold_expires_at={slot.hold_expires_at.isoformat()}"
+            )
+
+            # Send notification (async/non-blocking in production)
+            try:
+                NotificationService.booking_created(booking)
+            except Exception as e:
+                logger.warning(f"Failed to send booking notification: {e}")
 
             return booking, None
 
+        except OperationalError as e:
+            db.session.rollback()
+            # Lock acquisition failed - slot is being modified by another transaction
+            if "could not obtain lock" in str(e) or "LockNotAvailable" in str(e):
+                logger.warning(f"Slot {slot_id} locked by concurrent transaction")
+                return None, "Slot is currently being booked by another user"
+            logger.error(f"Database error creating booking: {e}")
+            return None, "Failed to create booking"
+
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error creating booking: {e}")
+            logger.error(f"Error creating booking: {e}")
             return None, "Failed to create booking"
 
     @staticmethod
@@ -92,53 +165,66 @@ class BookingHoldService:
         """
         Release all expired slot holds and cancel associated bookings.
         This is designed to be called by a cron job.
+        Idempotent and safe for concurrent execution.
 
         Returns:
             Number of slots released
         """
-        now = datetime.utcnow()
-
-        # Find expired held slots
-        expired_slots = AvailabilitySlot.query.filter(
-            AvailabilitySlot.status == "held",
-            AvailabilitySlot.hold_expires_at <= now,
-        ).all()
-
+        now = utc_now()
         released_count = 0
 
-        for slot in expired_slots:
-            try:
-                # Find and cancel associated pending booking
-                booking = Booking.query.filter(
-                    Booking.slot_id == slot.id,
-                    Booking.status == "pending_payment",
-                ).first()
+        try:
+            # Find expired held slots with lock
+            expired_slots = db.session.query(AvailabilitySlot).filter(
+                AvailabilitySlot.status == "held",
+                AvailabilitySlot.hold_expires_at <= now,
+            ).with_for_update(skip_locked=True).all()
 
-                if booking:
-                    booking.status = "cancelled"
-                    booking.cancelled_at = now
-                    NotificationService.booking_cancelled(booking, "Payment timeout")
+            for slot in expired_slots:
+                try:
+                    # Find and cancel associated pending booking
+                    booking = Booking.query.filter(
+                        Booking.slot_id == slot.id,
+                        Booking.status == "pending_payment",
+                    ).first()
 
-                # Release the slot
-                slot.status = "free"
-                slot.hold_expires_at = None
+                    if booking:
+                        booking.status = "cancelled"
+                        booking.cancelled_at = now
+                        logger.info(
+                            f"Booking cancelled due to hold expiry: id={booking.id}"
+                        )
+                        try:
+                            NotificationService.booking_cancelled(booking, "Payment timeout")
+                        except Exception as e:
+                            logger.warning(f"Failed to send cancellation notification: {e}")
 
-                released_count += 1
+                    # Release the slot
+                    slot.status = "free"
+                    slot.hold_expires_at = None
 
-            except Exception as e:
-                current_app.logger.error(f"Error releasing slot {slot.id}: {e}")
-                continue
+                    logger.info(f"Slot released from expired hold: id={slot.id}")
+                    released_count += 1
 
-        if released_count > 0:
-            db.session.commit()
-            current_app.logger.info(f"Released {released_count} expired holds")
+                except Exception as e:
+                    logger.error(f"Error releasing slot {slot.id}: {e}")
+                    continue
+
+            if released_count > 0:
+                db.session.commit()
+                logger.info(f"Released {released_count} expired holds")
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error in release_expired_holds: {e}")
 
         return released_count
 
     @staticmethod
-    def confirm_booking(booking_id: str) -> Tuple[Optional[Booking], Optional[str]]:
+    def mark_booking_paid(booking_id: str) -> Tuple[Optional[Booking], Optional[str]]:
         """
-        Confirm a booking after successful payment.
+        Mark a booking as paid after successful payment.
+        Atomic operation with row locks.
 
         Args:
             booking_id: UUID of the booking
@@ -146,38 +232,90 @@ class BookingHoldService:
         Returns:
             Tuple of (booking or None, error message or None)
         """
-        booking = Booking.query.get(booking_id)
-
-        if not booking:
-            return None, "Booking not found"
-
-        if booking.status != "pending_payment":
-            return None, f"Booking status is {booking.status}, cannot confirm"
-
-        slot = AvailabilitySlot.query.get(booking.slot_id)
-        if not slot:
-            return None, "Slot not found"
+        now = utc_now()
 
         try:
-            # Update booking status
-            booking.status = "paid"
-            booking.paid_at = datetime.utcnow()
+            # Lock booking row
+            booking = db.session.query(Booking).filter(
+                Booking.id == booking_id
+            ).with_for_update(nowait=True).first()
 
-            # Update slot status
+            if not booking:
+                return None, "Booking not found"
+
+            if booking.status != "pending_payment":
+                return None, f"Booking status is {booking.status}, cannot mark as paid"
+
+            # Lock slot row
+            slot = db.session.query(AvailabilitySlot).filter(
+                AvailabilitySlot.id == booking.slot_id
+            ).with_for_update(nowait=True).first()
+
+            if not slot:
+                return None, "Slot not found"
+
+            if slot.status != "held":
+                return None, f"Slot status is {slot.status}, expected 'held'"
+
+            # Check if hold has expired
+            if slot.hold_expires_at:
+                hold_expires = slot.hold_expires_at
+                if hold_expires.tzinfo is None:
+                    hold_expires = hold_expires.replace(tzinfo=timezone.utc)
+                if hold_expires < now:
+                    return None, "Slot hold has expired, please book again"
+
+            # Validate transitions
+            if not BookingHoldService._can_transition_booking("pending_payment", "paid"):
+                return None, "Invalid booking state transition"
+            if not BookingHoldService._can_transition_slot("held", "booked"):
+                return None, "Invalid slot state transition"
+
+            # Update booking
+            booking.status = "paid"
+            booking.paid_at = now
+
+            # Update slot
             slot.status = "booked"
             slot.hold_expires_at = None
 
             db.session.commit()
 
+            logger.info(f"Booking marked as paid: id={booking.id}")
+
             # Send notifications
-            NotificationService.booking_confirmed(booking)
+            try:
+                NotificationService.booking_confirmed(booking)
+            except Exception as e:
+                logger.warning(f"Failed to send confirmation notification: {e}")
 
             return booking, None
 
+        except OperationalError as e:
+            db.session.rollback()
+            if "could not obtain lock" in str(e) or "LockNotAvailable" in str(e):
+                logger.warning(f"Booking {booking_id} locked by concurrent transaction")
+                return None, "Booking is being processed, please try again"
+            logger.error(f"Database error marking booking paid: {e}")
+            return None, "Failed to process payment"
+
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error confirming booking: {e}")
-            return None, "Failed to confirm booking"
+            logger.error(f"Error marking booking paid: {e}")
+            return None, "Failed to process payment"
+
+    @staticmethod
+    def confirm_booking(booking_id: str) -> Tuple[Optional[Booking], Optional[str]]:
+        """
+        Confirm a booking after successful payment (alias for mark_booking_paid).
+
+        Args:
+            booking_id: UUID of the booking
+
+        Returns:
+            Tuple of (booking or None, error message or None)
+        """
+        return BookingHoldService.mark_booking_paid(booking_id)
 
     @staticmethod
     def cancel_booking(
@@ -185,6 +323,7 @@ class BookingHoldService:
     ) -> Tuple[Optional[Booking], Optional[str]]:
         """
         Cancel a booking and release the slot.
+        Only pending_payment bookings can be cancelled by clients.
 
         Args:
             booking_id: UUID of the booking
@@ -194,39 +333,71 @@ class BookingHoldService:
         Returns:
             Tuple of (booking or None, error message or None)
         """
-        booking = Booking.query.get(booking_id)
-
-        if not booking:
-            return None, "Booking not found"
-
-        # Verify ownership
-        if str(booking.client_id) != user_id:
-            return None, "Not authorized to cancel this booking"
-
-        if booking.status in ("cancelled", "completed", "refunded"):
-            return None, f"Booking already {booking.status}"
+        now = utc_now()
 
         try:
-            # Release the slot
-            slot = AvailabilitySlot.query.get(booking.slot_id)
-            if slot:
-                slot.status = "free"
-                slot.hold_expires_at = None
+            # Lock booking row
+            booking = db.session.query(Booking).filter(
+                Booking.id == booking_id
+            ).with_for_update(nowait=True).first()
+
+            if not booking:
+                return None, "Booking not found"
+
+            # Verify ownership
+            if str(booking.client_id) != user_id:
+                return None, "Not authorized to cancel this booking"
+
+            # Check if already cancelled or completed
+            if booking.status in ("cancelled", "completed", "refunded"):
+                return None, f"Booking already {booking.status}"
+
+            # Only allow cancellation of pending_payment bookings by clients
+            if booking.status == "paid":
+                return None, "Cannot cancel a paid booking. Please contact support for refunds."
+
+            # Validate transition
+            if not BookingHoldService._can_transition_booking(booking.status, "cancelled"):
+                return None, f"Cannot cancel booking with status {booking.status}"
+
+            # Lock and release the slot
+            slot = db.session.query(AvailabilitySlot).filter(
+                AvailabilitySlot.id == booking.slot_id
+            ).with_for_update(nowait=True).first()
+
+            if slot and slot.status == "held":
+                if BookingHoldService._can_transition_slot("held", "free"):
+                    slot.status = "free"
+                    slot.hold_expires_at = None
+                    logger.info(f"Slot released due to booking cancellation: id={slot.id}")
 
             # Cancel booking
             booking.status = "cancelled"
-            booking.cancelled_at = datetime.utcnow()
+            booking.cancelled_at = now
 
             db.session.commit()
 
+            logger.info(
+                f"Booking cancelled: id={booking.id}, reason={reason or 'not specified'}"
+            )
+
             # Send notification
-            NotificationService.booking_cancelled(booking, reason)
+            try:
+                NotificationService.booking_cancelled(booking, reason)
+            except Exception as e:
+                logger.warning(f"Failed to send cancellation notification: {e}")
 
             return booking, None
 
-        except Exception as e:
+        except OperationalError as e:
             db.session.rollback()
-            current_app.logger.error(f"Error cancelling booking: {e}")
+            if "could not obtain lock" in str(e) or "LockNotAvailable" in str(e):
+                logger.warning(f"Booking {booking_id} locked by concurrent transaction")
+                return None, "Booking is being processed, please try again"
+            logger.error(f"Database error cancelling booking: {e}")
             return None, "Failed to cancel booking"
 
-
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error cancelling booking: {e}")
+            return None, "Failed to cancel booking"

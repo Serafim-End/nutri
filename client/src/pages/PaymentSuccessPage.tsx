@@ -27,8 +27,7 @@ export default function PaymentSuccessPage() {
   }
 
   const handleViewBookings = () => {
-    // In a real app, navigate to bookings list
-    navigate('/intake')
+    navigate('/my-bookings')
   }
 
   return (
@@ -94,7 +93,7 @@ export default function PaymentSuccessPage() {
           onClick={handleViewBookings}
           className="w-full py-3 px-6 bg-white text-primary-600 font-semibold rounded-xl transition-all duration-200 hover:bg-white/90 active:scale-[0.98]"
         >
-          Back to Home
+          View My Bookings
         </button>
 
         <button

@@ -2,6 +2,7 @@
 Booking Schemas
 """
 
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -10,6 +11,7 @@ class BookingCreateRequest(BaseModel):
 
     service_id: str = Field(..., description="UUID of the service to book")
     slot_id: str = Field(..., description="UUID of the availability slot")
+    client_note: Optional[str] = Field(None, description="Optional note from client")
 
 
 class PaymentWebhookRequest(BaseModel):

@@ -8,6 +8,7 @@ from flask import Blueprint, request, jsonify
 
 from app.models import NutritionistProfile, Service, AvailabilitySlot
 from app.services.matching import MatchingService
+from app.services.filters import FILTER_OPTIONS, validate_filters, get_empty_filters
 
 
 public_bp = Blueprint("public", __name__)
@@ -132,5 +133,86 @@ def list_slots(nutritionist_id: str):
     return jsonify({
         "slots": [s.to_dict() for s in slots],
     })
+
+
+@public_bp.route("/nutritionists/search", methods=["POST"])
+def search_nutritionists():
+    """
+    Search nutritionists by filters with scoring.
+
+    Request:
+        POST /api/public/nutritionists/search
+        {
+            "filters": {
+                "goals": ["weight_loss", "muscle_gain"],
+                "topics": ["nutrition_basics"],
+                "budget_max_rub": 5000,
+                "dietary": ["vegetarian"],
+                "help_mode": "one_time",
+                "specializations": [],
+                "tags": []
+            }
+        }
+
+    Response:
+        200: {
+            "nutritionists": [
+                {
+                    "nutritionist_id": "...",
+                    "profile": {...},
+                    "bio": "...",
+                    "specializations": [...],
+                    "tags": [...],
+                    "rating": 4.5,
+                    "reviews_count": 10,
+                    "score": 8.5,
+                    "matched_reasons": ["Specializes in weight loss", "Within budget"]
+                }
+            ],
+            "total": 5
+        }
+    """
+    data = request.get_json() or {}
+    raw_filters = data.get("filters", {})
+
+    # Validate filters (or use empty defaults)
+    filters = validate_filters(raw_filters) if raw_filters else get_empty_filters()
+
+    # Search with scoring
+    results = MatchingService.search_with_filters(filters)
+
+    # Build response
+    nutritionists = []
+    for r in results:
+        n = r["nutritionist"]
+        nutritionist_data = n.to_dict(include_profile=True)
+        nutritionist_data["score"] = r["score"]
+        nutritionist_data["matched_reasons"] = r["matched_reasons"]
+        nutritionists.append(nutritionist_data)
+
+    return jsonify({
+        "nutritionists": nutritionists,
+        "total": len(nutritionists),
+    })
+
+
+@public_bp.route("/filters/options", methods=["GET"])
+def get_filter_options():
+    """
+    Get available filter options for the UI.
+
+    Request:
+        GET /api/public/filters/options
+
+    Response:
+        200: {
+            "goals": [{"id": "weight_loss", "label": "Weight Loss"}, ...],
+            "topics": [...],
+            "dietary": [...],
+            "help_modes": [...],
+            "budget_ranges": [...]
+        }
+    """
+    return jsonify(FILTER_OPTIONS)
 
 

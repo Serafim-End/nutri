@@ -60,6 +60,7 @@ export interface Booking {
   cancelled_at: string | null
   service?: Service
   slot?: AvailabilitySlot
+  nutritionist?: NutritionistProfile
 }
 
 export interface Intake {
@@ -89,6 +90,47 @@ export interface PaymentIntent {
   expires_at: string | null
 }
 
+// Filter Types
+export interface SearchFilters {
+  goals: string[]
+  topics: string[]
+  budget_max_rub: number | null
+  dietary: string[]
+  help_mode: 'one_time' | 'plan' | 'long_term' | null
+  specializations: string[]
+  tags: string[]
+}
+
+export interface FilterOption {
+  id: string
+  label: string
+}
+
+export interface BudgetRangeOption {
+  id: string
+  max: number | null
+  label: string
+}
+
+export interface FilterOptions {
+  goals: FilterOption[]
+  topics: FilterOption[]
+  dietary: FilterOption[]
+  help_modes: FilterOption[]
+  budget_ranges: BudgetRangeOption[]
+}
+
+export interface FiltersResponse {
+  intake_id: string | null
+  filters: SearchFilters
+  defaults: SearchFilters
+}
+
+export interface NutritionistSearchResult extends NutritionistProfile {
+  score: number
+  matched_reasons: string[]
+}
+
 // API Response Types
 export interface AuthResponse {
   access_token: string
@@ -99,6 +141,13 @@ export interface AuthResponse {
 export interface BookingResponse {
   booking: Booking
   payment: PaymentIntent
+}
+
+export interface IntakeResponse {
+  intake: Intake
+  intake_id: string
+  normalized_filters: SearchFilters
+  message: string
 }
 
 

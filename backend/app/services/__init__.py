@@ -7,6 +7,12 @@ from app.services.matching import MatchingService
 from app.services.booking_hold import BookingHoldService
 from app.services.payments import PaymentService
 from app.services.notifications import NotificationService
+from app.services.filters import (
+    normalize_filters_from_intake,
+    validate_filters,
+    get_empty_filters,
+    FILTER_OPTIONS,
+)
 
 __all__ = [
     "TelegramAuthService",
@@ -14,6 +20,10 @@ __all__ = [
     "BookingHoldService",
     "PaymentService",
     "NotificationService",
+    "normalize_filters_from_intake",
+    "validate_filters",
+    "get_empty_filters",
+    "FILTER_OPTIONS",
 ]
 
 

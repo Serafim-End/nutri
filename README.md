@@ -158,6 +158,7 @@ Located in `backend/migrations/versions/`:
 |-----------|-------------|
 | `20241225_000001_initial_migration.py` | Base schema with all tables |
 | `20241227_000001_add_status_indexes_and_constraints.py` | Performance indexes and CHECK constraints |
+| `20241227_000002_add_client_filter_state.py` | Client filter state for persistent search filters |
 
 ### Resetting Database (DANGER!)
 
@@ -280,9 +281,11 @@ nutri/
 ### Clients
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/clients/intakes` | Submit intake questionnaire |
+| POST | `/api/clients/intakes` | Submit intake questionnaire (creates filter state) |
 | GET | `/api/clients/matches?intake_id=...` | Get matched nutritionists |
 | GET | `/api/clients/bookings` | List client's bookings |
+| GET | `/api/clients/me/filters` | Get current filters and defaults |
+| PUT | `/api/clients/me/filters` | Update current filters |
 
 ### Public
 | Method | Endpoint | Description |
@@ -291,6 +294,8 @@ nutri/
 | GET | `/api/public/nutritionists/{id}` | Get nutritionist details |
 | GET | `/api/public/nutritionists/{id}/services` | List services |
 | GET | `/api/public/nutritionists/{id}/slots` | List available slots |
+| POST | `/api/public/nutritionists/search` | Search with filters and scoring |
+| GET | `/api/public/filters/options` | Get available filter options |
 
 ### Bookings
 | Method | Endpoint | Description |
@@ -422,6 +427,295 @@ For development auth, use initData: `test_200000001_Elena`
 - Payment webhooks require valid signatures
 - CORS is configured for allowed origins only
 - SSL is enforced for Supabase connections
+
+---
+
+## 🎯 Stage 6: Atomic Booking & Slot Hold
+
+Stage 6 implements the complete booking flow with race-condition safe slot holds.
+
+### Key Features
+
+- **Atomic Booking**: Uses PostgreSQL row-level locks (`SELECT FOR UPDATE`) to prevent double-booking
+- **Slot Hold System**: 10-minute hold window for payment (configurable via `BOOKING_HOLD_MINUTES`)
+- **State Machines**: Enforced valid transitions for slots and bookings
+- **Dev Login**: Development-only endpoint for testing without Telegram
+
+### Slot States & Transitions
+
+```
+free → held → booked → cancelled (admin only)
+     ↓
+    free (hold expired or cancelled)
+```
+
+### Booking States & Transitions
+
+```
+pending_payment → paid → completed
+       ↓           ↓
+   cancelled    refunded
+```
+
+### Running the Stage 6 Flow Locally
+
+```bash
+# 1. Start services
+docker compose up --build
+
+# 2. Run migrations
+make migrate
+
+# 3. Seed database with test data
+make seed
+
+# 4. Open client in browser
+open http://localhost:5173
+
+# 5. Use the "Dev Login" button (bottom-right) to authenticate
+#    This calls POST /api/auth/dev-login with the seeded client user
+```
+
+### Testing the Booking Flow
+
+1. **Browse nutritionists**: Go to `/results` to see available nutritionists
+2. **Select a service**: Click on a nutritionist, then select a service
+3. **Choose a slot**: Pick an available time slot
+4. **Create booking**: Click "Confirm Booking" to hold the slot
+5. **View hold timer**: See countdown timer (10 min default)
+6. **Simulate payment**: Click "Simulate Payment Success" to confirm
+7. **View bookings**: Go to `/my-bookings` to see all bookings
+
+### API Examples (curl)
+
+```bash
+# Dev login (development only)
+curl -X POST http://localhost:5000/api/auth/dev-login \
+  -H "Content-Type: application/json" \
+  -d '{"telegram_user_id": 300000001}'
+
+# List nutritionists
+curl http://localhost:5000/api/public/nutritionists
+
+# Get nutritionist services
+curl http://localhost:5000/api/public/nutritionists/{nutritionist_id}/services
+
+# Get available slots
+curl "http://localhost:5000/api/public/nutritionists/{nutritionist_id}/slots?service_id={service_id}"
+
+# Create booking (requires JWT)
+curl -X POST http://localhost:5000/api/bookings \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"service_id": "<uuid>", "slot_id": "<uuid>"}'
+
+# Mark booking as paid (simulate payment)
+curl -X POST http://localhost:5000/api/bookings/{booking_id}/mark-paid \
+  -H "Authorization: Bearer <token>"
+
+# Cancel booking
+curl -X POST http://localhost:5000/api/bookings/{booking_id}/cancel \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "Changed my mind"}'
+
+# Get my bookings
+curl http://localhost:5000/api/clients/me/bookings \
+  -H "Authorization: Bearer <token>"
+
+# Release expired holds (cron job)
+curl -X POST http://localhost:5000/api/bookings/release-expired-holds
+```
+
+### Running Release Expired Holds (Cron)
+
+The expired holds release endpoint should be called periodically:
+
+```bash
+# Manual call
+curl -X POST http://localhost:5000/api/bookings/release-expired-holds
+
+# Cron job (every 5 minutes)
+*/5 * * * * curl -X POST http://localhost:5000/api/bookings/release-expired-holds
+
+# With Docker
+docker compose exec backend python -c "
+from app import create_app
+from app.services.booking_hold import BookingHoldService
+app = create_app()
+with app.app_context():
+    count = BookingHoldService.release_expired_holds()
+    print(f'Released {count} expired holds')
+"
+```
+
+### Development Login
+
+In development mode (`FLASK_ENV=development`), you can bypass Telegram auth:
+
+```bash
+# Using curl
+curl -X POST http://localhost:5000/api/auth/dev-login \
+  -H "Content-Type: application/json" \
+  -d '{"telegram_user_id": 300000001}'
+
+# Available test users (after make seed):
+# - Client: telegram_user_id = 300000001
+# - Nutritionist (Elena): telegram_user_id = 200000001
+# - Nutritionist (Michael): telegram_user_id = 200000002
+# - Admin: telegram_user_id = 100000001
+```
+
+The frontend also shows a "Dev Login" button in development mode when not running inside Telegram.
+
+### Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BOOKING_HOLD_MINUTES` | How long a slot is held pending payment | `10` |
+| `FLASK_ENV` | Set to `development` to enable dev login | `production` |
+
+---
+
+## 🔍 Stage 7: Results with Filters
+
+Stage 7 implements a filterable results page that persists client search preferences.
+
+### Key Features
+
+- **Persistent Filters**: Client filter preferences are saved to the database
+- **Onboarding Integration**: After completing onboarding, filters are auto-populated from intake answers
+- **Scored Results**: Nutritionists are scored based on filter matches
+- **Match Reasons**: UI shows why each nutritionist matched (e.g., "Specializes in weight loss")
+- **Real-time Updates**: Filters update search results on apply
+
+### Data Model
+
+```sql
+-- New table: client_filter_states
+CREATE TABLE client_filter_states (
+    client_id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
+    intake_id UUID REFERENCES intakes(id) ON DELETE SET NULL,
+    filters JSONB NOT NULL DEFAULT '{}',
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+### Filter Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `goals` | string[] | Health goals (weight_loss, muscle_gain, etc.) |
+| `topics` | string[] | Topics of interest (meal_planning, supplements, etc.) |
+| `budget_max_rub` | number \| null | Maximum budget per session |
+| `dietary` | string[] | Dietary preferences (vegetarian, vegan, etc.) |
+| `help_mode` | string \| null | Type of help needed (one_time, plan, long_term) |
+| `specializations` | string[] | Additional specializations |
+| `tags` | string[] | Additional tags |
+
+### Scoring Algorithm
+
+The search endpoint scores nutritionists based on filter matches:
+
+| Match Type | Points |
+|------------|--------|
+| Goal matches specialization | +3 per match |
+| Topic/dietary matches tags | +1 per match |
+| Has service within budget | +2 |
+| Help mode matches service type | +1 |
+| Rating bonus | +0.5 per rating point |
+
+### API Examples
+
+```bash
+# Get current filters and defaults
+curl http://localhost:5000/api/clients/me/filters \
+  -H "Authorization: Bearer <token>"
+
+# Response:
+# {
+#   "intake_id": "...",
+#   "filters": {"goals": ["weight_loss"], "budget_max_rub": 5000, ...},
+#   "defaults": {"goals": ["weight_loss"], ...}
+# }
+
+# Update filters
+curl -X PUT http://localhost:5000/api/clients/me/filters \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filters": {
+      "goals": ["weight_loss", "muscle_gain"],
+      "budget_max_rub": 3000,
+      "dietary": ["vegetarian"],
+      "help_mode": "plan"
+    }
+  }'
+
+# Search nutritionists with filters
+curl -X POST http://localhost:5000/api/public/nutritionists/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filters": {
+      "goals": ["weight_loss"],
+      "budget_max_rub": 5000,
+      "dietary": ["vegetarian"],
+      "help_mode": "one_time"
+    }
+  }'
+
+# Response:
+# {
+#   "nutritionists": [
+#     {
+#       "nutritionist_id": "...",
+#       "profile": {...},
+#       "score": 8.5,
+#       "matched_reasons": ["Specializes in weight loss", "Within budget"]
+#     }
+#   ],
+#   "total": 2
+# }
+
+# Get available filter options
+curl http://localhost:5000/api/public/filters/options
+
+# Response:
+# {
+#   "goals": [{"id": "weight_loss", "label": "Weight Loss"}, ...],
+#   "topics": [...],
+#   "dietary": [...],
+#   "help_modes": [...],
+#   "budget_ranges": [{"id": "up_to_2000", "max": 2000, "label": "Up to 2,000 ₽"}, ...]
+# }
+```
+
+### Frontend Usage
+
+1. **After Onboarding**: IntakePage submits answers → backend creates filter_state → redirects to /results
+2. **On Results Page**: Load filters from `/api/clients/me/filters` → search with filters → display results
+3. **Filter Drawer**: User can modify filters → Apply saves to backend → re-search
+
+### Testing the Filter Flow
+
+```bash
+# 1. Start services
+docker compose up --build
+
+# 2. Run migrations (including new filter state table)
+make migrate
+
+# 3. Seed database
+make seed
+
+# 4. Open client
+open http://localhost:5173
+
+# 5. Complete onboarding (or skip to /results)
+# 6. Click "Filters" button to open drawer
+# 7. Modify filters and click "Apply"
+# 8. See filtered results with match reasons
+```
 
 ---
 

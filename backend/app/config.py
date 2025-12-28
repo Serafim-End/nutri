@@ -156,9 +156,13 @@ class Config:
 
     # Booking Configuration
     SLOT_HOLD_MINUTES = int(os.environ.get("SLOT_HOLD_MINUTES", "10"))
+    BOOKING_HOLD_MINUTES = int(os.environ.get("BOOKING_HOLD_MINUTES", "10"))
 
     # Payment Providers (stubs for now)
     PAYMENT_WEBHOOK_SECRET = os.environ.get("PAYMENT_WEBHOOK_SECRET", "webhook-secret")
+
+    # Development mode flag
+    DEV_MODE = os.environ.get("FLASK_ENV", "production") == "development"
 
 
 class DevelopmentConfig(Config):

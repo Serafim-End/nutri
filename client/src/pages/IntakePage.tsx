@@ -63,7 +63,7 @@ export default function IntakePage() {
   const submitMutation = useMutation({
     mutationFn: () => clientApi.createIntake(answers),
     onSuccess: (data) => {
-      setIntakeId(data.intake.id)
+      setIntakeId(data.intake_id)
       navigate('/results')
     },
   })
@@ -259,13 +259,18 @@ export default function IntakePage() {
         {/* Error message */}
         {submitMutation.isError && (
           <div className="mt-4 p-4 rounded-xl bg-red-50 text-red-600 text-sm">
-            Failed to submit. Please try again.
+            <p className="font-medium">Failed to submit. Please try again.</p>
+            <p className="mt-1 text-xs opacity-75">
+              {submitMutation.error instanceof Error 
+                ? submitMutation.error.message 
+                : 'Unknown error'}
+            </p>
           </div>
         )}
       </div>
 
-      {/* Fallback button for non-Telegram environments */}
-      {!window.Telegram?.WebApp && (
+      {/* Fallback button: Show when not in real Telegram (no initData) */}
+      {(!window.Telegram?.WebApp?.initData) && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100">
           <button
             onClick={handleNext}

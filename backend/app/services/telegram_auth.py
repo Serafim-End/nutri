@@ -38,6 +38,9 @@ class TelegramAuthService:
             # In development, allow bypass with special test data
             if current_app.debug and init_data.startswith("test_"):
                 return TelegramAuthService._parse_test_data(init_data)
+            current_app.logger.error(
+                "TELEGRAM_BOT_TOKEN not set. Real Telegram auth requires the bot token."
+            )
             return False, None
 
         try:

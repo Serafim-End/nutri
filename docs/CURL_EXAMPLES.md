@@ -17,6 +17,21 @@ curl -X POST http://localhost:5000/api/auth/telegram/verify \
   -d '{"init_data": "test_123456789_John_Doe"}'
 ```
 
+### Dev Login (Stage 6 - Development Only)
+
+```bash
+# Login as the seeded client user (no Telegram required)
+curl -X POST http://localhost:5000/api/auth/dev-login \
+  -H "Content-Type: application/json" \
+  -d '{"telegram_user_id": 300000001}'
+
+# Available test users (after make seed):
+# - Client: telegram_user_id = 300000001
+# - Nutritionist (Elena): telegram_user_id = 200000001  
+# - Nutritionist (Michael): telegram_user_id = 200000002
+# - Admin: telegram_user_id = 100000001
+```
+
 Save the token:
 ```bash
 export TOKEN="your-access-token-here"
@@ -93,16 +108,26 @@ curl -X POST http://localhost:5000/api/bookings \
   }'
 ```
 
-### 8. Simulate Payment (Dev Only)
+### 8. Simulate Payment Success (Stage 6)
 
 ```bash
+# Mark a pending booking as paid (atomic operation with slot lock)
+curl -X POST http://localhost:5000/api/bookings/BOOKING_ID/mark-paid \
+  -H "Authorization: Bearer $TOKEN"
+
+# Legacy endpoint (still works)
 curl -X POST http://localhost:5000/api/payments/test-success/BOOKING_ID
 ```
 
 ### 9. View Bookings
 
 ```bash
+# List bookings (basic)
 curl http://localhost:5000/api/clients/bookings \
+  -H "Authorization: Bearer $TOKEN"
+
+# List bookings with full details (Stage 6 - includes nutritionist info)
+curl http://localhost:5000/api/clients/me/bookings \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -314,6 +339,88 @@ curl http://localhost:5000/health
 Response:
 ```json
 {"status": "healthy", "service": "nutrimatch-api"}
+```
+
+---
+
+## Stage 6: Complete Booking Flow Example
+
+Here's a complete flow from start to finish:
+
+```bash
+# 1. Dev login (get token)
+TOKEN=$(curl -s -X POST http://localhost:5000/api/auth/dev-login \
+  -H "Content-Type: application/json" \
+  -d '{"telegram_user_id": 300000001}' | jq -r '.access_token')
+
+echo "Token: $TOKEN"
+
+# 2. List nutritionists
+curl -s http://localhost:5000/api/public/nutritionists | jq '.nutritionists[0]'
+
+# 3. Get nutritionist ID and services
+NUTRI_ID=$(curl -s http://localhost:5000/api/public/nutritionists | jq -r '.nutritionists[0].nutritionist_id')
+curl -s http://localhost:5000/api/public/nutritionists/$NUTRI_ID/services | jq
+
+# 4. Get service ID and available slots
+SERVICE_ID=$(curl -s http://localhost:5000/api/public/nutritionists/$NUTRI_ID/services | jq -r '.services[0].id')
+curl -s "http://localhost:5000/api/public/nutritionists/$NUTRI_ID/slots?service_id=$SERVICE_ID" | jq
+
+# 5. Get slot ID and create booking
+SLOT_ID=$(curl -s "http://localhost:5000/api/public/nutritionists/$NUTRI_ID/slots?service_id=$SERVICE_ID" | jq -r '.slots[0].id')
+BOOKING=$(curl -s -X POST http://localhost:5000/api/bookings \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d "{\"service_id\": \"$SERVICE_ID\", \"slot_id\": \"$SLOT_ID\"}")
+echo "$BOOKING" | jq
+
+# 6. Extract booking ID and hold expiration
+BOOKING_ID=$(echo "$BOOKING" | jq -r '.booking.id')
+HOLD_EXPIRES=$(echo "$BOOKING" | jq -r '.booking.slot.hold_expires_at')
+echo "Booking ID: $BOOKING_ID"
+echo "Hold expires at: $HOLD_EXPIRES"
+
+# 7. Simulate payment success (before hold expires!)
+curl -s -X POST http://localhost:5000/api/bookings/$BOOKING_ID/mark-paid \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# 8. View my bookings
+curl -s http://localhost:5000/api/clients/me/bookings \
+  -H "Authorization: Bearer $TOKEN" | jq
+```
+
+### Testing Hold Expiration
+
+```bash
+# 1. Create a booking (as above)
+# 2. Wait for hold to expire (10 minutes by default)
+# 3. Release expired holds
+curl -X POST http://localhost:5000/api/bookings/release-expired-holds
+
+# 4. Check booking status (should be cancelled)
+curl -s http://localhost:5000/api/bookings/$BOOKING_ID \
+  -H "Authorization: Bearer $TOKEN" | jq '.booking.status'
+```
+
+### Testing Race Conditions
+
+```bash
+# Open two terminals and run simultaneously:
+
+# Terminal 1:
+SLOT_ID="your-slot-id"
+curl -X POST http://localhost:5000/api/bookings \
+  -H "Authorization: Bearer $TOKEN1" \
+  -H "Content-Type: application/json" \
+  -d "{\"service_id\": \"$SERVICE_ID\", \"slot_id\": \"$SLOT_ID\"}"
+
+# Terminal 2:
+curl -X POST http://localhost:5000/api/bookings \
+  -H "Authorization: Bearer $TOKEN2" \
+  -H "Content-Type: application/json" \
+  -d "{\"service_id\": \"$SERVICE_ID\", \"slot_id\": \"$SLOT_ID\"}"
+
+# Only one should succeed (201), the other gets 409 Conflict
 ```
 
 

@@ -79,6 +79,9 @@ class Booking(db.Model):
                 data["service"] = self.service.to_dict()
             if self.slot:
                 data["slot"] = self.slot.to_dict()
+            # Include nutritionist profile info
+            if self.nutritionist_profile:
+                data["nutritionist"] = self.nutritionist_profile.to_dict(include_profile=True)
         return data
 
 

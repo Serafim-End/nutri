@@ -19,23 +19,37 @@ export function useTelegramAuth() {
 
     try {
       const tg = window.Telegram?.WebApp
-      let initData: string
 
       if (tg?.initData) {
         // Real Telegram Mini App environment
-        initData = tg.initData
+        console.log('Authenticating with Telegram initData')
+        const response = await authApi.verifyTelegram(tg.initData)
+        setAuth(response.access_token, response.profile)
+        tg.ready()
+      } else if (import.meta.env.DEV) {
+        // Development mode fallback - use dev login endpoint
+        console.log('Development mode: Using dev login endpoint')
+        try {
+          const response = await authApi.devLogin()
+          setAuth(response.access_token, response.profile)
+          console.log('Dev login successful:', response.profile.full_name)
+        } catch (devError) {
+          console.error('Dev login failed:', devError)
+          // Try legacy test initData as fallback
+          const initData = 'test_300000001_Test_Client'
+          try {
+            const response = await authApi.verifyTelegram(initData)
+            setAuth(response.access_token, response.profile)
+          } catch {
+            throw new Error('Development authentication failed. Make sure to run "make seed" first.')
+          }
+        }
       } else {
-        // Development fallback - use test data
-        // Format: test_<telegram_user_id>_<first_name>_<last_name>
-        initData = 'test_123456789_Test_User'
-        console.log('Development mode: Using test initData')
+        // Production mode without Telegram - show error
+        setError('Please open this app in Telegram.')
+        setLoading(false)
+        return
       }
-
-      const response = await authApi.verifyTelegram(initData)
-      setAuth(response.access_token, response.profile)
-
-      // Notify Telegram that we're ready
-      tg?.ready()
     } catch (err) {
       console.error('Authentication failed:', err)
       setError('Failed to authenticate. Please try again.')
@@ -45,11 +59,36 @@ export function useTelegramAuth() {
     }
   }, [token, setAuth, setLoading])
 
+  /**
+   * Manual dev login (for UI button in development)
+   */
+  const devLogin = useCallback(async (telegramUserId?: number) => {
+    if (!import.meta.env.DEV) {
+      setError('Dev login is only available in development mode.')
+      return false
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await authApi.devLogin(telegramUserId)
+      setAuth(response.access_token, response.profile)
+      console.log('Dev login successful:', response.profile.full_name)
+      return true
+    } catch (err) {
+      console.error('Dev login failed:', err)
+      setError('Dev login failed. Make sure backend is running and seeded.')
+      return false
+    } finally {
+      setIsLoading(false)
+    }
+  }, [setAuth])
+
   return {
     authenticate,
+    devLogin,
     isLoading,
     error,
   }
 }
-
-

@@ -35,6 +35,12 @@ from app.models import (
 ADMIN_TELEGRAM_ID = 100000001
 NUTRI1_TELEGRAM_ID = 200000001
 NUTRI2_TELEGRAM_ID = 200000002
+NUTRI3_TELEGRAM_ID = 200000003
+NUTRI4_TELEGRAM_ID = 200000004
+NUTRI5_TELEGRAM_ID = 200000005
+NUTRI6_TELEGRAM_ID = 200000006
+NUTRI7_TELEGRAM_ID = 200000007
+NUTRI8_TELEGRAM_ID = 200000008
 CLIENT_TELEGRAM_ID = 300000001
 
 
@@ -247,6 +253,162 @@ def seed_nutritionist_2() -> Profile:
     return profile
 
 
+# Additional nutritionists data for variety
+ADDITIONAL_NUTRITIONISTS = [
+    {
+        "telegram_id": NUTRI3_TELEGRAM_ID,
+        "name": "Dr. Anna Sokolova",
+        "seed": "anna",
+        "bio": "Specialist in sports nutrition with 8 years of experience. Former Olympic team nutritionist. Helping athletes achieve peak performance through optimal nutrition.",
+        "tags": ["sports_nutrition", "performance", "supplements", "muscle_gain"],
+        "specializations": ["sports_nutrition", "muscle_gain", "weight_loss", "performance"],
+        "rating": 4.91,
+        "reviews": 63,
+        "services": [
+            ("Sports Performance Consultation", "Comprehensive nutritional assessment for athletes. Includes body composition analysis and personalized fueling strategies.", 60, 4500),
+            ("Athlete Meal Plan", "Custom weekly meal plan designed for your training schedule and competition goals.", 45, 3500),
+            ("Pre-Competition Strategy", "Optimize your nutrition for peak performance on competition day.", 30, 2500),
+        ],
+    },
+    {
+        "telegram_id": NUTRI4_TELEGRAM_ID,
+        "name": "Maria Ivanova, PhD",
+        "seed": "maria",
+        "bio": "PhD in Nutritional Sciences. Research-backed approach to gut health and digestive wellness. Published author and lecturer.",
+        "tags": ["gut_health", "digestive_wellness", "research", "ibs"],
+        "specializations": ["gut_health", "better_nutrition", "diabetes", "chronic_conditions"],
+        "rating": 4.88,
+        "reviews": 42,
+        "services": [
+            ("Gut Health Assessment", "Comprehensive evaluation of digestive health with personalized recommendations.", 60, 4000),
+            ("IBS Management Program", "6-week program to manage IBS symptoms through diet and lifestyle.", 45, 3000),
+            ("Follow-up Consultation", "Progress check and plan adjustments.", 30, 1500),
+        ],
+    },
+    {
+        "telegram_id": NUTRI5_TELEGRAM_ID,
+        "name": "Alexei Volkov",
+        "seed": "alexei",
+        "bio": "Certified nutritionist specializing in diabetes management and metabolic health. 12 years of clinical experience helping patients manage chronic conditions.",
+        "tags": ["diabetes", "metabolic_health", "clinical", "weight_management"],
+        "specializations": ["diabetes", "weight_loss", "chronic_conditions", "better_nutrition"],
+        "rating": 4.79,
+        "reviews": 89,
+        "services": [
+            ("Diabetes Nutrition Consultation", "Personalized nutrition plan for blood sugar management.", 60, 3500),
+            ("Metabolic Health Assessment", "Comprehensive metabolic health evaluation with action plan.", 75, 4500),
+            ("Monthly Support Session", "Ongoing support for diabetes management.", 30, 2000),
+        ],
+    },
+    {
+        "telegram_id": NUTRI6_TELEGRAM_ID,
+        "name": "Olga Kuznetsova",
+        "seed": "olga",
+        "bio": "Passionate about pregnancy and pediatric nutrition. Helping families raise healthy eaters from conception through childhood.",
+        "tags": ["pregnancy", "pediatric", "family", "breastfeeding"],
+        "specializations": ["pregnancy", "better_nutrition", "gut_health"],
+        "rating": 4.95,
+        "reviews": 37,
+        "services": [
+            ("Pregnancy Nutrition Plan", "Trimester-specific nutrition guidance for a healthy pregnancy.", 60, 3800),
+            ("Postpartum & Breastfeeding", "Nutritional support for new mothers and breastfeeding.", 45, 3000),
+            ("Pediatric Nutrition Consultation", "Age-appropriate nutrition for infants and children.", 45, 2800),
+        ],
+    },
+    {
+        "telegram_id": NUTRI7_TELEGRAM_ID,
+        "name": "Dmitry Novikov",
+        "seed": "dmitry",
+        "bio": "Budget-friendly nutrition expert. Proving that healthy eating doesn't have to be expensive. Meal prep specialist.",
+        "tags": ["budget_friendly", "meal_prep", "practical", "weight_management"],
+        "specializations": ["weight_loss", "better_nutrition", "meal_planning"],
+        "rating": 4.67,
+        "reviews": 124,
+        "services": [
+            ("Budget Nutrition Consultation", "Learn to eat healthy on any budget.", 45, 1500),
+            ("Meal Prep Masterclass", "Weekly meal prep strategies that save time and money.", 60, 2000),
+            ("Quick Check-in", "15-minute progress check and tips.", 15, 800),
+        ],
+    },
+    {
+        "telegram_id": NUTRI8_TELEGRAM_ID,
+        "name": "Victoria Smirnova",
+        "seed": "victoria",
+        "bio": "Holistic nutritionist combining Eastern and Western approaches. Certified in Ayurvedic nutrition and functional medicine.",
+        "tags": ["holistic", "ayurveda", "functional", "mental_wellness"],
+        "specializations": ["mental_wellness", "gut_health", "detox", "better_nutrition"],
+        "rating": 4.82,
+        "reviews": 56,
+        "services": [
+            ("Holistic Health Assessment", "Mind-body-nutrition evaluation with personalized wellness plan.", 90, 5000),
+            ("Ayurvedic Consultation", "Discover your dosha and receive personalized dietary recommendations.", 60, 3500),
+            ("Stress & Nutrition Session", "How nutrition impacts mental health and stress management.", 45, 2800),
+        ],
+    },
+]
+
+
+def seed_additional_nutritionist(data: dict) -> Profile:
+    """Create or get an additional nutritionist."""
+    profile, created = get_or_create_profile(
+        telegram_user_id=data["telegram_id"],
+        full_name=data["name"],
+        role="nutritionist",
+        photo_url=f"https://api.dicebear.com/7.x/personas/svg?seed={data['seed']}",
+    )
+    
+    if created:
+        db.session.flush()
+        
+        # Create nutritionist profile
+        nutri_profile = NutritionistProfile(
+            nutritionist_id=profile.id,
+            bio=data["bio"],
+            tags=data["tags"],
+            specializations=data["specializations"],
+            verification_status="approved",
+            rating=data["rating"],
+            reviews_count=data["reviews"],
+            is_active=True,
+            verified_at=utc_now(),
+        )
+        db.session.add(nutri_profile)
+        
+        # Create services
+        for title, description, duration, price in data["services"]:
+            service = Service(
+                id=uuid4(),
+                nutritionist_id=profile.id,
+                title=title,
+                description=description,
+                duration_minutes=duration,
+                price_rub=price,
+                is_active=True,
+            )
+            db.session.add(service)
+        
+        print(f"✓ Created nutritionist: {profile.full_name} with {len(data['services'])} services")
+    else:
+        if not profile.nutritionist_profile:
+            nutri_profile = NutritionistProfile(
+                nutritionist_id=profile.id,
+                bio=data["bio"],
+                tags=data["tags"],
+                specializations=data["specializations"],
+                verification_status="approved",
+                rating=data["rating"],
+                reviews_count=data["reviews"],
+                is_active=True,
+                verified_at=utc_now(),
+            )
+            db.session.add(nutri_profile)
+            print(f"✓ Added nutritionist profile for: {profile.full_name}")
+        else:
+            print(f"• Nutritionist already exists: {profile.full_name}")
+    
+    return profile
+
+
 def seed_availability_slots(profile: Profile, slot_hours: list[int], slots_per_day: int = 5) -> int:
     """
     Create future availability slots for a nutritionist.
@@ -311,6 +473,12 @@ def seed_database():
         nutri1 = seed_nutritionist_1()
         nutri2 = seed_nutritionist_2()
         
+        # Seed additional nutritionists
+        additional_nutris = []
+        for nutri_data in ADDITIONAL_NUTRITIONISTS:
+            nutri = seed_additional_nutritionist(nutri_data)
+            additional_nutris.append(nutri)
+        
         # Commit users and profiles
         db.session.commit()
         
@@ -335,6 +503,22 @@ def seed_database():
         if slots2 > 0:
             print(f"  ✓ Created {slots2} slots for {nutri2.full_name}")
         
+        # Additional nutritionists: varied schedules
+        slot_schedules = [
+            [8, 9, 10, 11, 12],      # Early morning
+            [11, 13, 15, 17, 19],    # Midday to evening
+            [9, 11, 14, 16, 18],     # Mixed
+            [10, 12, 14, 16, 18],    # Afternoon focus
+            [8, 10, 12, 14, 16],     # Morning to afternoon
+            [12, 14, 16, 18, 20],    # Afternoon to evening
+        ]
+        
+        for i, nutri in enumerate(additional_nutris):
+            schedule = slot_schedules[i % len(slot_schedules)]
+            slots = seed_availability_slots(nutri, slot_hours=schedule, slots_per_day=5)
+            if slots > 0:
+                print(f"  ✓ Created {slots} slots for {nutri.full_name}")
+        
         # Final commit
         db.session.commit()
         
@@ -347,6 +531,7 @@ def seed_database():
         print(f"  Client:       telegram_user_id = {CLIENT_TELEGRAM_ID}")
         print(f"  Nutritionist: telegram_user_id = {NUTRI1_TELEGRAM_ID} (Elena)")
         print(f"  Nutritionist: telegram_user_id = {NUTRI2_TELEGRAM_ID} (Michael)")
+        print(f"  + {len(ADDITIONAL_NUTRITIONISTS)} more nutritionists")
         print("\nFor debug mode auth, use init_data like: test_200000001_Elena")
         print()
 

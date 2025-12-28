@@ -3,10 +3,18 @@ Matching Service
 Simple rule-based matching of clients with nutritionists.
 """
 
-from typing import List
+from typing import List, Dict, Any, Tuple
 from sqlalchemy import and_, or_
 
 from app.models import NutritionistProfile, Service, Intake
+
+
+# Help mode to service title keyword mapping
+HELP_MODE_KEYWORDS = {
+    "one_time": ["консультация", "consultation", "разовая", "single", "первичная"],
+    "plan": ["план", "plan", "программа", "program", "рацион", "меню"],
+    "long_term": ["сопровождение", "support", "курс", "course", "месяц", "month"],
+}
 
 
 class MatchingService:
@@ -183,5 +191,126 @@ class MatchingService:
         )
 
         return nutritionists[:limit]
+
+    @staticmethod
+    def search_with_filters(
+        filters: Dict[str, Any],
+        limit: int = 50,
+    ) -> List[Dict[str, Any]]:
+        """
+        Search nutritionists by filters with scoring and matched reasons.
+        
+        Args:
+            filters: Filter dict with keys:
+                - goals: List of goal IDs
+                - topics: List of topic IDs
+                - budget_max_rub: Max budget or None
+                - dietary: List of dietary restriction IDs
+                - help_mode: "one_time" | "plan" | "long_term" | None
+                - specializations: List of specialization strings
+                - tags: List of tag strings
+            limit: Maximum results to return
+            
+        Returns:
+            List of dicts with nutritionist data, score, and matched_reasons
+        """
+        # Base query: approved and active nutritionists
+        query = NutritionistProfile.query.filter(
+            NutritionistProfile.verification_status == "approved",
+            NutritionistProfile.is_active == True,  # noqa: E712
+        )
+        
+        # Join with profile for data
+        query = query.join(NutritionistProfile.profile)
+        
+        nutritionists = query.all()
+        
+        # Extract filter values
+        goals = filters.get("goals", []) or []
+        topics = filters.get("topics", []) or []
+        budget_max = filters.get("budget_max_rub")
+        dietary = filters.get("dietary", []) or []
+        help_mode = filters.get("help_mode")
+        filter_specs = filters.get("specializations", []) or []
+        filter_tags = filters.get("tags", []) or []
+        
+        # Combine goals with specializations for matching
+        all_specs = set(goals) | set(filter_specs)
+        # Combine dietary with tags for matching
+        all_tags = set(dietary) | set(topics) | set(filter_tags)
+        
+        results = []
+        
+        for n in nutritionists:
+            score = 0
+            matched_reasons = []
+            
+            n_specs = set(n.specializations or [])
+            n_tags = set(n.tags or [])
+            
+            # Score: +3 per overlap between goals and nutritionist specializations
+            goal_overlaps = all_specs & n_specs
+            if goal_overlaps:
+                score += len(goal_overlaps) * 3
+                for g in list(goal_overlaps)[:2]:  # Show max 2 reasons
+                    matched_reasons.append(f"Specializes in {g.replace('_', ' ')}")
+            
+            # Score: +1 per overlap between topics/dietary and nutritionist tags
+            tag_overlaps = all_tags & (n_tags | n_specs)
+            if tag_overlaps:
+                score += len(tag_overlaps) * 1
+                for t in list(tag_overlaps)[:2]:
+                    if t not in goal_overlaps:  # Don't duplicate
+                        matched_reasons.append(f"Experience with {t.replace('_', ' ')}")
+            
+            # Score: +2 if any service price <= budget_max_rub (if budget provided)
+            if budget_max is not None:
+                services = Service.query.filter(
+                    Service.nutritionist_id == n.nutritionist_id,
+                    Service.is_active == True,  # noqa: E712
+                ).all()
+                
+                has_affordable = any(s.price_rub <= budget_max for s in services)
+                if has_affordable:
+                    score += 2
+                    matched_reasons.append("Within budget")
+            
+            # Score: +1 if help_mode matches service_type (inferred from title)
+            if help_mode:
+                services = Service.query.filter(
+                    Service.nutritionist_id == n.nutritionist_id,
+                    Service.is_active == True,  # noqa: E712
+                ).all()
+                
+                keywords = HELP_MODE_KEYWORDS.get(help_mode, [])
+                for service in services:
+                    title_lower = (service.title or "").lower()
+                    if any(kw in title_lower for kw in keywords):
+                        score += 1
+                        mode_labels = {
+                            "one_time": "one-time consultations",
+                            "plan": "meal planning",
+                            "long_term": "long-term support",
+                        }
+                        matched_reasons.append(f"Offers {mode_labels.get(help_mode, help_mode)}")
+                        break
+            
+            # Add rating bonus (0.5 per rating point)
+            if n.rating:
+                score += float(n.rating) * 0.5
+            
+            results.append({
+                "nutritionist": n,
+                "score": round(score, 1),
+                "matched_reasons": matched_reasons[:4],  # Limit to 4 reasons
+            })
+        
+        # Sort by score desc, then rating desc
+        results.sort(
+            key=lambda x: (x["score"], float(x["nutritionist"].rating or 0)),
+            reverse=True,
+        )
+        
+        return results[:limit]
 
 

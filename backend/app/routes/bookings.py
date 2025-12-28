@@ -1,8 +1,10 @@
 """
 Booking Routes
-Handles booking creation, cancellation, and hold management.
+Handles booking creation, cancellation, payment confirmation, and hold management.
+All slot operations are atomic and race-condition safe.
 """
 
+import logging
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from pydantic import ValidationError
@@ -13,6 +15,7 @@ from app.services.payments import PaymentService
 from app.models import Booking
 
 
+logger = logging.getLogger(__name__)
 bookings_bp = Blueprint("bookings", __name__)
 
 
@@ -21,14 +24,16 @@ bookings_bp = Blueprint("bookings", __name__)
 def create_booking():
     """
     Create a booking and hold the slot for payment.
-    Slot is held for 10 minutes by default.
+    Slot is held for BOOKING_HOLD_MINUTES (default 10) minutes.
+    Uses row-level locking to prevent race conditions.
 
     Request:
         POST /api/bookings
         Authorization: Bearer <token>
         {
             "service_id": "uuid",
-            "slot_id": "uuid"
+            "slot_id": "uuid",
+            "client_note": "optional note"
         }
 
     Response:
@@ -41,6 +46,7 @@ def create_booking():
             }
         }
         400: Validation error or slot unavailable
+        409: Slot already taken (race condition)
     """
     current_user_id = get_jwt_identity()
 
@@ -50,18 +56,24 @@ def create_booking():
     except ValidationError as e:
         return jsonify({"error": "Validation error", "details": e.errors()}), 400
 
-    # Create booking with slot hold
+    # Create booking with slot hold (atomic operation)
     booking, error = BookingHoldService.create_booking_with_hold(
         client_id=current_user_id,
         service_id=schema.service_id,
         slot_id=schema.slot_id,
+        client_note=getattr(schema, "client_note", None),
     )
 
     if error:
+        # Determine status code based on error type
+        if "not available" in error.lower() or "already" in error.lower():
+            return jsonify({"error": error}), 409
         return jsonify({"error": error}), 400
 
     # Create payment intent
     payment_data = PaymentService.create_payment_intent(booking)
+
+    logger.info(f"Booking created: id={booking.id}, client={current_user_id}")
 
     return jsonify({
         "booking": booking.to_dict(include_relations=True),
@@ -98,11 +110,60 @@ def get_booking(booking_id: str):
     })
 
 
+@bookings_bp.route("/<booking_id>/mark-paid", methods=["POST"])
+@jwt_required()
+def mark_booking_paid(booking_id: str):
+    """
+    Mark a booking as paid (payment success stub for demo).
+    This is used to simulate successful payment without real payment integration.
+    
+    Atomic operation with row locks:
+    - Locks booking, ensures pending_payment
+    - Locks slot, ensures held and not expired
+    - booking -> paid, set paid_at
+    - slot -> booked, clear hold_expires_at
+
+    Request:
+        POST /api/bookings/<id>/mark-paid
+        Authorization: Bearer <token>
+
+    Response:
+        200: { "booking": {...}, "message": "Payment confirmed" }
+        400: Cannot mark as paid (wrong status or expired)
+        404: Not found
+    """
+    current_user_id = get_jwt_identity()
+
+    # First verify ownership
+    booking = Booking.query.get(booking_id)
+    if not booking:
+        return jsonify({"error": "Booking not found"}), 404
+
+    if str(booking.client_id) != current_user_id:
+        return jsonify({"error": "Not authorized"}), 403
+
+    # Mark as paid (atomic operation)
+    booking, error = BookingHoldService.mark_booking_paid(booking_id)
+
+    if error:
+        status_code = 404 if "not found" in error.lower() else 400
+        return jsonify({"error": error}), status_code
+
+    logger.info(f"Booking marked as paid: id={booking.id}, client={current_user_id}")
+
+    return jsonify({
+        "booking": booking.to_dict(include_relations=True),
+        "message": "Payment confirmed successfully",
+    })
+
+
 @bookings_bp.route("/<booking_id>/cancel", methods=["POST"])
 @jwt_required()
 def cancel_booking(booking_id: str):
     """
     Cancel a booking and release the slot.
+    Only pending_payment bookings can be cancelled by clients.
+    Paid bookings cannot be cancelled (must contact support for refunds).
 
     Request:
         POST /api/bookings/<id>/cancel
@@ -113,7 +174,7 @@ def cancel_booking(booking_id: str):
 
     Response:
         200: { "booking": {...}, "message": "Booking cancelled" }
-        400: Cannot cancel
+        400: Cannot cancel (paid booking or other error)
         404: Not found
     """
     current_user_id = get_jwt_identity()
@@ -130,6 +191,8 @@ def cancel_booking(booking_id: str):
         status_code = 404 if "not found" in error.lower() else 400
         return jsonify({"error": error}), status_code
 
+    logger.info(f"Booking cancelled: id={booking.id}, client={current_user_id}")
+
     return jsonify({
         "booking": booking.to_dict(include_relations=True),
         "message": "Booking cancelled successfully",
@@ -141,6 +204,7 @@ def release_expired_holds():
     """
     Release expired slot holds.
     Designed to be called by a cron job.
+    Idempotent and safe for concurrent execution.
 
     Request:
         POST /api/bookings/release-expired-holds
@@ -153,9 +217,9 @@ def release_expired_holds():
 
     released_count = BookingHoldService.release_expired_holds()
 
+    logger.info(f"Released {released_count} expired holds via cron endpoint")
+
     return jsonify({
         "released_count": released_count,
         "message": f"Released {released_count} expired holds",
     })
-
-

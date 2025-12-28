@@ -11,6 +11,7 @@ from app.models.payment import Payment
 from app.models.nutritionist_document import NutritionistDocument
 from app.models.policy_acknowledgement import PolicyAcknowledgement
 from app.models.intake import Intake
+from app.models.client_filter_state import ClientFilterState
 
 __all__ = [
     "Profile",
@@ -22,6 +23,7 @@ __all__ = [
     "NutritionistDocument",
     "PolicyAcknowledgement",
     "Intake",
+    "ClientFilterState",
 ]
 
 
