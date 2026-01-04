@@ -58,8 +58,8 @@ def get_nutritionist(nutritionist_id: str):
     if not nutritionist:
         return jsonify({"error": "Nutritionist not found"}), 404
 
-    # Only show approved nutritionists publicly
-    if nutritionist.verification_status != "approved":
+    # Only show approved and active nutritionists publicly
+    if nutritionist.verification_status != "approved" or not nutritionist.is_active:
         return jsonify({"error": "Nutritionist not found"}), 404
 
     return jsonify({
@@ -83,7 +83,8 @@ def list_services(nutritionist_id: str):
     if not nutritionist:
         return jsonify({"error": "Nutritionist not found"}), 404
 
-    if nutritionist.verification_status != "approved":
+    # Only show approved and active nutritionists publicly
+    if nutritionist.verification_status != "approved" or not nutritionist.is_active:
         return jsonify({"error": "Nutritionist not found"}), 404
 
     services = Service.query.filter(
@@ -114,7 +115,8 @@ def list_slots(nutritionist_id: str):
     if not nutritionist:
         return jsonify({"error": "Nutritionist not found"}), 404
 
-    if nutritionist.verification_status != "approved":
+    # Only show approved and active nutritionists publicly
+    if nutritionist.verification_status != "approved" or not nutritionist.is_active:
         return jsonify({"error": "Nutritionist not found"}), 404
 
     # If service_id provided, verify it belongs to this nutritionist

@@ -189,7 +189,9 @@ export function NutritionistDetailPage() {
                   </span>
                 </div>
                 <p className="text-slate-400 text-sm">
-                  {nutritionist.years_experience} years of experience • {nutritionist.currency} {nutritionist.hourly_rate}/hr
+                  {nutritionist.years_experience ? `${nutritionist.years_experience} years of experience` : ''}
+                  {nutritionist.years_experience && nutritionist.currency && nutritionist.hourly_rate ? ' • ' : ''}
+                  {nutritionist.currency && nutritionist.hourly_rate ? `${nutritionist.currency} ${nutritionist.hourly_rate}/hr` : ''}
                 </p>
               </div>
             </div>

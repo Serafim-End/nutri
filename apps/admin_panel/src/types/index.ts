@@ -18,14 +18,14 @@ export interface AuthResponse {
 
 export interface Nutritionist {
   id: string
-  profile_id: string
+  nutritionist_id: string
   full_name: string
   bio: string | null
   specializations: string[]
-  languages: string[]
-  hourly_rate: number
-  currency: string
-  years_experience: number
+  languages?: string[] // Optional - not currently stored in backend
+  hourly_rate?: number // Optional - not currently stored in backend
+  currency?: string // Optional - not currently stored in backend
+  years_experience?: number // Optional - not currently stored in backend
   verification_status: 'pending' | 'approved' | 'rejected' | 'needs_update'
   is_active: boolean
   submitted_at: string | null

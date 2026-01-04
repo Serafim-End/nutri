@@ -61,6 +61,7 @@ class NutritionistProfile(db.Model):
     def to_dict(self, include_profile=True):
         """Serialize nutritionist profile to dictionary."""
         data = {
+            "id": str(self.nutritionist_id),  # Add id alias for frontend compatibility
             "nutritionist_id": str(self.nutritionist_id),
             "bio": self.bio,
             "tags": self.tags or [],
@@ -73,6 +74,9 @@ class NutritionistProfile(db.Model):
             "verified_at": self.verified_at.isoformat() if self.verified_at else None,
         }
         if include_profile and self.profile:
+            # Promote commonly used fields to root level for frontend convenience
+            data["full_name"] = self.profile.full_name
+            data["created_at"] = self.profile.created_at.isoformat()
             data["profile"] = self.profile.to_dict()
         return data
 

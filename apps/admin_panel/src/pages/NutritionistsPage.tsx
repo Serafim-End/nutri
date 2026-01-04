@@ -133,7 +133,9 @@ export function NutritionistsPage() {
                       </div>
                       <div>
                         <p className="font-medium text-white">{n.full_name}</p>
-                        <p className="text-sm text-slate-500">{n.years_experience} years exp.</p>
+                        {n.years_experience && (
+                          <p className="text-sm text-slate-500">{n.years_experience} years exp.</p>
+                        )}
                       </div>
                     </div>
                   </td>
@@ -155,7 +157,7 @@ export function NutritionistsPage() {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-300">
-                    {n.currency} {n.hourly_rate}/hr
+                    {n.currency && n.hourly_rate ? `${n.currency} ${n.hourly_rate}/hr` : '—'}
                   </td>
                   <td className="px-6 py-4">
                     <span
