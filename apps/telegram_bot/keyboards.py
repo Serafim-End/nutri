@@ -3,6 +3,7 @@ Keyboard Builders
 Creates inline keyboards for bot navigation.
 """
 
+from typing import Optional
 from aiogram.types import (
     InlineKeyboardMarkup,
     InlineKeyboardButton,
@@ -81,12 +82,15 @@ def get_main_menu_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     
     # WebApp button (opens Mini App)
-    builder.row(
-        InlineKeyboardButton(
-            text="🍎 Открыть мини-приложение",
-            web_app=WebAppInfo(url=config.webapp_url),
+    # Only show if URL is valid (starts with https://)
+    webapp_url = config.webapp_url
+    if webapp_url and webapp_url.startswith("https://") and webapp_url != "https://t.me/your_bot/app":
+        builder.row(
+            InlineKeyboardButton(
+                text="🍎 Открыть мини-приложение",
+                web_app=WebAppInfo(url=webapp_url),
+            )
         )
-    )
     
     # For nutritionists button
     builder.row(
@@ -492,7 +496,7 @@ def get_reviews_keyboard(
     return builder.as_markup()
 
 
-def get_calendar_keyboard(oauth_url: str | None = None) -> InlineKeyboardMarkup:
+def get_calendar_keyboard(oauth_url: Optional[str] = None) -> InlineKeyboardMarkup:
     """Calendar connection keyboard."""
     builder = InlineKeyboardBuilder()
     

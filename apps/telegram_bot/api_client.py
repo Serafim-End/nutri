@@ -1,11 +1,11 @@
 """
 Backend API Client
 Handles all HTTP communication with the NutriMatch backend.
-Uses aiohttp for async requests.
+Uses aiohttp for async requests with correlation ID logging.
 """
 
 import logging
-from typing import Any
+from typing import Any, Optional
 from dataclasses import dataclass
 
 import aiohttp
@@ -16,12 +16,21 @@ from config import get_config
 logger = logging.getLogger(__name__)
 
 
+def _get_correlation_id() -> str:
+    """Get correlation ID from middleware context."""
+    try:
+        from middleware import get_correlation_id
+        return get_correlation_id()
+    except Exception:
+        return ""
+
+
 @dataclass
 class APIResponse:
     """Wrapper for API response."""
     success: bool
-    data: dict[str, Any] | None
-    error: str | None
+    data: Optional[dict[str, Any]]
+    error: Optional[str]
     status_code: int
 
 
@@ -29,19 +38,27 @@ class BackendAPIClient:
     """
     Async HTTP client for backend API.
     All methods are retry-safe and handle errors gracefully.
+    Includes correlation ID logging for request tracing.
     """
     
     def __init__(self):
         self.config = get_config()
         self.base_url = self.config.backend_url
-        self.session: aiohttp.ClientSession | None = None
+        self.session: Optional[aiohttp.ClientSession] = None
     
     def _get_headers(self) -> dict[str, str]:
         """Get default headers with service token."""
-        return {
+        headers = {
             "Content-Type": "application/json",
             "X-Service-Token": self.config.service_token,
         }
+        
+        # Add correlation ID if available
+        corr_id = _get_correlation_id()
+        if corr_id:
+            headers["X-Correlation-ID"] = corr_id
+        
+        return headers
     
     async def _ensure_session(self) -> aiohttp.ClientSession:
         """Ensure aiohttp session exists."""
@@ -59,14 +76,19 @@ class BackendAPIClient:
         self,
         method: str,
         endpoint: str,
-        data: dict[str, Any] | None = None,
-        params: dict[str, Any] | None = None,
+        data: Optional[dict[str, Any]] = None,
+        params: Optional[dict[str, Any]] = None,
     ) -> APIResponse:
-        """Make HTTP request to backend."""
+        """Make HTTP request to backend with structured logging."""
         url = f"{self.base_url}{endpoint}"
         session = await self._ensure_session()
+        corr_id = _get_correlation_id()
         
         try:
+            logger.debug(
+                f"[API] corr_id={corr_id} method={method} endpoint={endpoint}"
+            )
+            
             async with session.request(
                 method=method,
                 url=url,
@@ -84,8 +106,10 @@ class BackendAPIClient:
                     error_msg = "Request failed"
                     if response_data and "error" in response_data:
                         error_msg = response_data["error"]
+                    
                     logger.warning(
-                        f"API request failed: {method} {endpoint} -> {response.status}: {error_msg}"
+                        f"[API] corr_id={corr_id} {method} {endpoint} "
+                        f"status={response.status} error={error_msg}"
                     )
                     return APIResponse(
                         success=False,
@@ -94,7 +118,10 @@ class BackendAPIClient:
                         status_code=response.status,
                     )
                 
-                logger.debug(f"API request success: {method} {endpoint} -> {response.status}")
+                logger.debug(
+                    f"[API] corr_id={corr_id} {method} {endpoint} "
+                    f"status={response.status} OK"
+                )
                 return APIResponse(
                     success=True,
                     data=response_data,
@@ -103,7 +130,10 @@ class BackendAPIClient:
                 )
                 
         except aiohttp.ClientError as e:
-            logger.error(f"API connection error: {method} {endpoint} -> {e}")
+            logger.error(
+                f"[API] corr_id={corr_id} {method} {endpoint} "
+                f"connection_error={e}"
+            )
             return APIResponse(
                 success=False,
                 data=None,
@@ -111,11 +141,47 @@ class BackendAPIClient:
                 status_code=0,
             )
         except Exception as e:
-            logger.error(f"API unexpected error: {method} {endpoint} -> {e}")
+            logger.error(
+                f"[API] corr_id={corr_id} {method} {endpoint} "
+                f"unexpected_error={e}"
+            )
             return APIResponse(
                 success=False,
                 data=None,
                 error=f"Unexpected error: {str(e)}",
+                status_code=0,
+            )
+    
+    # ==========================================
+    # Health Check (for smoke tests)
+    # ==========================================
+    
+    async def health_check(self) -> APIResponse:
+        """
+        Check backend health.
+        GET /health/db
+        """
+        url = f"{self.base_url}/health/db"
+        session = await self._ensure_session()
+        
+        try:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=5)) as response:
+                try:
+                    data = await response.json()
+                except Exception:
+                    data = None
+                
+                return APIResponse(
+                    success=response.status == 200,
+                    data=data,
+                    error=None if response.status == 200 else "Health check failed",
+                    status_code=response.status,
+                )
+        except Exception as e:
+            return APIResponse(
+                success=False,
+                data=None,
+                error=str(e),
                 status_code=0,
             )
     
@@ -142,10 +208,10 @@ class BackendAPIClient:
         self,
         telegram_user_id: int,
         full_name: str,
-        photo_url: str | None = None,
-        bio: str | None = None,
-        tags: list[str] | None = None,
-        specializations: list[str] | None = None,
+        photo_url: Optional[str] = None,
+        bio: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+        specializations: Optional[list[str]] = None,
         submit_for_verification: bool = False,
     ) -> APIResponse:
         """
@@ -187,6 +253,7 @@ class BackendAPIClient:
         """
         url = f"{self.base_url}/api/bot/nutritionists/{nutritionist_id}/upload-photo"
         session = await self._ensure_session()
+        corr_id = _get_correlation_id()
         
         try:
             form_data = aiohttp.FormData()
@@ -198,6 +265,86 @@ class BackendAPIClient:
             )
             
             headers = {"X-Service-Token": self.config.service_token}
+            if corr_id:
+                headers["X-Correlation-ID"] = corr_id
+            
+            async with session.post(url, data=form_data, headers=headers) as response:
+                response_data = None
+                try:
+                    response_data = await response.json()
+                except Exception:
+                    pass
+                
+                if response.status >= 400:
+                    error_msg = response_data.get("error", "Upload failed") if response_data else "Upload failed"
+                    logger.warning(
+                        f"[API] corr_id={corr_id} POST upload-photo "
+                        f"status={response.status} error={error_msg}"
+                    )
+                    return APIResponse(
+                        success=False,
+                        data=response_data,
+                        error=error_msg,
+                        status_code=response.status,
+                    )
+                
+                logger.debug(
+                    f"[API] corr_id={corr_id} POST upload-photo "
+                    f"status={response.status} OK"
+                )
+                return APIResponse(
+                    success=True,
+                    data=response_data,
+                    error=None,
+                    status_code=response.status,
+                )
+                
+        except Exception as e:
+            logger.error(f"[API] corr_id={corr_id} Photo upload error: {e}")
+            return APIResponse(
+                success=False,
+                data=None,
+                error=f"Upload error: {str(e)}",
+                status_code=0,
+            )
+    
+    async def upload_document(
+        self,
+        nutritionist_id: str,
+        file_bytes: bytes,
+        filename: str,
+        document_type: str,
+    ) -> APIResponse:
+        """
+        Upload document to backend.
+        POST /api/bot/nutritionists/<id>/documents/upload (multipart)
+        """
+        url = f"{self.base_url}/api/bot/nutritionists/{nutritionist_id}/documents/upload"
+        session = await self._ensure_session()
+        corr_id = _get_correlation_id()
+        
+        try:
+            # Determine content type
+            content_type = "application/octet-stream"
+            if filename.lower().endswith(".pdf"):
+                content_type = "application/pdf"
+            elif filename.lower().endswith((".jpg", ".jpeg")):
+                content_type = "image/jpeg"
+            elif filename.lower().endswith(".png"):
+                content_type = "image/png"
+            
+            form_data = aiohttp.FormData()
+            form_data.add_field(
+                "file",
+                file_bytes,
+                filename=filename,
+                content_type=content_type,
+            )
+            form_data.add_field("type", document_type)
+            
+            headers = {"X-Service-Token": self.config.service_token}
+            if corr_id:
+                headers["X-Correlation-ID"] = corr_id
             
             async with session.post(url, data=form_data, headers=headers) as response:
                 response_data = None
@@ -223,7 +370,7 @@ class BackendAPIClient:
                 )
                 
         except Exception as e:
-            logger.error(f"Photo upload error: {e}")
+            logger.error(f"[API] corr_id={corr_id} Document upload error: {e}")
             return APIResponse(
                 success=False,
                 data=None,
@@ -248,7 +395,7 @@ class BackendAPIClient:
         title: str,
         duration_minutes: int,
         price_rub: int,
-        description: str | None = None,
+        description: Optional[str] = None,
         is_active: bool = True,
     ) -> APIResponse:
         """
@@ -274,11 +421,11 @@ class BackendAPIClient:
         self,
         nutritionist_id: str,
         service_id: str,
-        title: str | None = None,
-        duration_minutes: int | None = None,
-        price_rub: int | None = None,
-        description: str | None = None,
-        is_active: bool | None = None,
+        title: Optional[str] = None,
+        duration_minutes: Optional[int] = None,
+        price_rub: Optional[int] = None,
+        description: Optional[str] = None,
+        is_active: Optional[bool] = None,
     ) -> APIResponse:
         """
         Update a service.
@@ -400,7 +547,7 @@ class BackendAPIClient:
 
 
 # Global client instance
-_client: BackendAPIClient | None = None
+_client: Optional[BackendAPIClient] = None
 
 
 def get_api_client() -> BackendAPIClient:
@@ -417,4 +564,3 @@ async def close_api_client():
     if _client is not None:
         await _client.close()
         _client = None
-

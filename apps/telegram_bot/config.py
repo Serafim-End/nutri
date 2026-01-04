@@ -5,7 +5,19 @@ Handles environment variables and settings.
 
 import os
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Optional
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load .env file from bot directory or project root
+env_path = Path(__file__).parent / ".env"
+if env_path.exists():
+    load_dotenv(env_path)
+else:
+    # Try project root
+    root_env = Path(__file__).parent.parent.parent / ".env"
+    if root_env.exists():
+        load_dotenv(root_env)
 
 
 @dataclass
@@ -21,7 +33,7 @@ class BotConfig:
     
     # Mode: polling (dev) or webhook (prod)
     mode: Literal["polling", "webhook"]
-    webhook_url: str | None
+    webhook_url: Optional[str]
     webhook_path: str
     webhook_host: str
     webhook_port: int
@@ -79,7 +91,7 @@ class BotConfig:
 
 
 # Global config instance (lazy loaded)
-_config: BotConfig | None = None
+_config: Optional[BotConfig] = None
 
 
 def get_config() -> BotConfig:

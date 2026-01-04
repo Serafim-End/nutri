@@ -6,7 +6,7 @@ Persists bot conversation states across restarts.
 import json
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional, Union
 
 from aiogram.fsm.state import State
 from aiogram.fsm.storage.base import BaseStorage, StorageKey
@@ -31,7 +31,7 @@ class PostgresFSMStorage(BaseStorage):
     
     def __init__(self, database_url: str):
         self.database_url = database_url
-        self.pool: asyncpg.Pool | None = None
+        self.pool: Optional[asyncpg.Pool] = None
     
     async def connect(self):
         """Initialize database connection pool and create table if needed."""
@@ -84,7 +84,7 @@ class PostgresFSMStorage(BaseStorage):
         """Convert StorageKey to (user_id, chat_id) tuple."""
         return (key.user_id, key.chat_id)
     
-    async def set_state(self, key: StorageKey, state: State | str | None = None) -> None:
+    async def set_state(self, key: StorageKey, state: Optional[Union[State, str]] = None) -> None:
         """Set FSM state for user."""
         user_id, chat_id = self._make_key(key)
         state_str = state.state if isinstance(state, State) else state
@@ -99,7 +99,7 @@ class PostgresFSMStorage(BaseStorage):
                     updated_at = $4
             """, user_id, chat_id, state_str, datetime.utcnow())
     
-    async def get_state(self, key: StorageKey) -> str | None:
+    async def get_state(self, key: StorageKey) -> Optional[str]:
         """Get FSM state for user."""
         user_id, _ = self._make_key(key)
         
