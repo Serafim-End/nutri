@@ -5,8 +5,12 @@ import { useAuthStore } from '@/store/auth'
 import { LoginPage } from '@/pages/LoginPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { NutritionistsPage } from '@/pages/NutritionistsPage'
+import { NutritionistDetailPage } from '@/pages/NutritionistDetailPage'
 import { UsersPage } from '@/pages/UsersPage'
 import { BookingsPage } from '@/pages/BookingsPage'
+import { PaymentsPage } from '@/pages/PaymentsPage'
+import { ReviewsPage } from '@/pages/ReviewsPage'
+import { SupportPage } from '@/pages/SupportPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 
 import { Layout } from '@/components/Layout'
@@ -42,8 +46,12 @@ function App() {
       >
         <Route index element={<DashboardPage />} />
         <Route path="nutritionists" element={<NutritionistsPage />} />
+        <Route path="nutritionists/:id" element={<NutritionistDetailPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="bookings" element={<BookingsPage />} />
+        <Route path="payments" element={<PaymentsPage />} />
+        <Route path="reviews" element={<ReviewsPage />} />
+        <Route path="support" element={<SupportPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
 

@@ -16,50 +16,50 @@ import {
 } from '../design-system'
 import clsx from 'clsx'
 
-// Available options for the intake form
+// Доступные опции для анкеты
 const GOALS = [
-  { id: 'weight_loss', label: 'Weight Loss', emoji: '⚖️' },
-  { id: 'muscle_gain', label: 'Muscle Gain', emoji: '💪' },
-  { id: 'better_nutrition', label: 'Better Nutrition', emoji: '🥗' },
-  { id: 'gut_health', label: 'Gut Health', emoji: '🌿' },
-  { id: 'sports_nutrition', label: 'Sports Nutrition', emoji: '🏃' },
-  { id: 'diabetes', label: 'Diabetes Management', emoji: '📊' },
-  { id: 'mental_wellness', label: 'Mental Wellness', emoji: '🧠' },
-  { id: 'pregnancy', label: 'Pregnancy Nutrition', emoji: '🤰' },
+  { id: 'weight_loss', label: 'Снижение веса', emoji: '⚖️' },
+  { id: 'muscle_gain', label: 'Набор массы', emoji: '💪' },
+  { id: 'better_nutrition', label: 'Здоровое питание', emoji: '🥗' },
+  { id: 'gut_health', label: 'Здоровье ЖКТ', emoji: '🌿' },
+  { id: 'sports_nutrition', label: 'Спортивное питание', emoji: '🏃' },
+  { id: 'diabetes', label: 'Контроль диабета', emoji: '📊' },
+  { id: 'mental_wellness', label: 'Ментальное здоровье', emoji: '🧠' },
+  { id: 'pregnancy', label: 'Питание при беременности', emoji: '🤰' },
 ]
 
 const DIETARY_RESTRICTIONS = [
-  { id: 'vegetarian', label: 'Vegetarian', emoji: '🥬' },
-  { id: 'vegan', label: 'Vegan', emoji: '🌱' },
-  { id: 'gluten_free', label: 'Gluten Free', emoji: '🌾' },
-  { id: 'lactose_free', label: 'Lactose Free', emoji: '🥛' },
-  { id: 'halal', label: 'Halal', emoji: '☪️' },
-  { id: 'kosher', label: 'Kosher', emoji: '✡️' },
-  { id: 'none', label: 'No Restrictions', emoji: '✅' },
+  { id: 'vegetarian', label: 'Вегетарианство', emoji: '🥬' },
+  { id: 'vegan', label: 'Веганство', emoji: '🌱' },
+  { id: 'gluten_free', label: 'Без глютена', emoji: '🌾' },
+  { id: 'lactose_free', label: 'Без лактозы', emoji: '🥛' },
+  { id: 'halal', label: 'Халяль', emoji: '☪️' },
+  { id: 'kosher', label: 'Кошер', emoji: '✡️' },
+  { id: 'none', label: 'Без ограничений', emoji: '✅' },
 ]
 
 const BUDGET_RANGES = [
-  { min: 0, max: 2000, label: 'Up to 2,000 ₽' },
-  { min: 2000, max: 4000, label: '2,000 - 4,000 ₽' },
-  { min: 4000, max: 6000, label: '4,000 - 6,000 ₽' },
-  { min: 6000, max: null, label: '6,000+ ₽' },
+  { min: 0, max: 2000, label: 'До 2 000 ₽' },
+  { min: 2000, max: 4000, label: '2 000 – 4 000 ₽' },
+  { min: 4000, max: 6000, label: '4 000 – 6 000 ₽' },
+  { min: 6000, max: null, label: 'От 6 000 ₽' },
 ]
 
 const SCHEDULES = [
-  { id: 'weekdays', label: 'Weekdays', emoji: '📅' },
-  { id: 'weekends', label: 'Weekends', emoji: '🌴' },
-  { id: 'evenings', label: 'Evenings', emoji: '🌙' },
-  { id: 'flexible', label: 'Flexible', emoji: '🔄' },
+  { id: 'weekdays', label: 'Будни', emoji: '📅' },
+  { id: 'weekends', label: 'Выходные', emoji: '🌴' },
+  { id: 'evenings', label: 'Вечером', emoji: '🌙' },
+  { id: 'flexible', label: 'Гибкий график', emoji: '🔄' },
 ]
 
 const STEPS = [
-  { title: 'Your Goals', subtitle: 'What would you like to achieve?' },
-  { title: 'Dietary Needs', subtitle: 'Any dietary restrictions?' },
-  { title: 'Budget', subtitle: "What's your budget per session?" },
-  { title: 'Schedule', subtitle: 'When do you prefer consultations?' },
+  { title: 'Ваши цели', subtitle: 'Чего вы хотите достичь?' },
+  { title: 'Особенности питания', subtitle: 'Есть ли ограничения в рационе?' },
+  { title: 'Бюджет', subtitle: 'Какой бюджет на консультацию?' },
+  { title: 'Расписание', subtitle: 'Когда вам удобно заниматься?' },
 ]
 
-// Selection card component
+// Компонент карточки выбора
 interface SelectionCardProps {
   emoji?: string
   label: string
@@ -102,7 +102,7 @@ function SelectionCard({ emoji, label, selected, onClick, checkmark = false }: S
   )
 }
 
-// Progress indicator
+// Индикатор прогресса
 function ProgressBar({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) {
   return (
     <div className="flex items-center gap-2">
@@ -154,7 +154,7 @@ export default function IntakePage() {
   }, [currentStep, isLastStep, setStep, submitMutation])
 
   useTelegramMainButton({
-    text: isLastStep ? 'Find Nutritionists' : 'Continue',
+    text: isLastStep ? 'Найти нутрициолога' : 'Продолжить',
     onClick: handleNext,
     isVisible: true,
     isActive: canProceed && !submitMutation.isPending,
@@ -197,7 +197,7 @@ export default function IntakePage() {
 
   return (
     <PageContainer background="gradient" withBottomNav>
-      {/* Header */}
+      {/* Заголовок */}
       <Section spacing="sm">
         <Stack gap={4}>
           <ProgressBar currentStep={currentStep} totalSteps={STEPS.length} />
@@ -212,9 +212,9 @@ export default function IntakePage() {
         </Stack>
       </Section>
 
-      {/* Content */}
+      {/* Контент */}
       <Section spacing="none" className="pb-32">
-        {/* Step 1: Goals */}
+        {/* Шаг 1: Цели */}
         {currentStep === 0 && (
           <Grid cols={2} gap={3} className="animate-fade-in">
             {GOALS.map((goal) => (
@@ -237,7 +237,7 @@ export default function IntakePage() {
           </Grid>
         )}
 
-        {/* Step 2: Dietary Restrictions */}
+        {/* Шаг 2: Особенности питания */}
         {currentStep === 1 && (
           <Stack gap={3} className="animate-fade-in">
             {DIETARY_RESTRICTIONS.map((restriction) => (
@@ -253,7 +253,7 @@ export default function IntakePage() {
           </Stack>
         )}
 
-        {/* Step 3: Budget */}
+        {/* Шаг 3: Бюджет */}
         {currentStep === 2 && (
           <Stack gap={3} className="animate-fade-in">
             {BUDGET_RANGES.map((range, index) => (
@@ -267,7 +267,7 @@ export default function IntakePage() {
           </Stack>
         )}
 
-        {/* Step 4: Schedule */}
+        {/* Шаг 4: Расписание */}
         {currentStep === 3 && (
           <Grid cols={2} gap={3} className="animate-fade-in">
             {SCHEDULES.map((schedule) => (
@@ -290,19 +290,19 @@ export default function IntakePage() {
           </Grid>
         )}
 
-        {/* Error message */}
+        {/* Сообщение об ошибке */}
         {submitMutation.isError && (
           <div className="mt-4">
-            <Alert variant="error" title="Submission failed">
+            <Alert variant="error" title="Не удалось отправить">
               {submitMutation.error instanceof Error
                 ? submitMutation.error.message
-                : 'Please try again.'}
+                : 'Пожалуйста, попробуйте ещё раз.'}
             </Alert>
           </div>
         )}
       </Section>
 
-      {/* Fallback button: Show when not in real Telegram */}
+      {/* Резервная кнопка: показывать вне Telegram */}
       {!window.Telegram?.WebApp?.initData && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-surface-primary border-t border-border-light safe-area-bottom">
           <Button
@@ -311,7 +311,7 @@ export default function IntakePage() {
             loading={submitMutation.isPending}
             fullWidth
           >
-            {isLastStep ? 'Find Nutritionists' : 'Continue'}
+            {isLastStep ? 'Найти нутрициолога' : 'Продолжить'}
           </Button>
         </div>
       )}

@@ -1,7 +1,11 @@
 export { LoginPage } from './LoginPage'
 export { DashboardPage } from './DashboardPage'
 export { NutritionistsPage } from './NutritionistsPage'
+export { NutritionistDetailPage } from './NutritionistDetailPage'
 export { UsersPage } from './UsersPage'
 export { BookingsPage } from './BookingsPage'
+export { PaymentsPage } from './PaymentsPage'
+export { ReviewsPage } from './ReviewsPage'
+export { SupportPage } from './SupportPage'
 export { SettingsPage } from './SettingsPage'
 

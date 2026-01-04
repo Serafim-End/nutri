@@ -13,13 +13,13 @@ import MyBookingsPage from './pages/MyBookingsPage'
 import LoadingScreen from './components/LoadingScreen'
 import { colors } from './design-system/tokens'
 
-// Dev login button component
+// Компонент кнопки для разработки
 function DevLoginButton() {
   const { devLogin, isLoading, error } = useTelegramAuth()
   const [showButton, setShowButton] = useState(false)
 
   useEffect(() => {
-    // Only show in development and when not in Telegram
+    // Показывать только в режиме разработки и вне Telegram
     const tg = window.Telegram?.WebApp
     if (import.meta.env.DEV && !tg?.initData) {
       setShowButton(true)
@@ -40,7 +40,7 @@ function DevLoginButton() {
         disabled={isLoading}
         className="px-4 py-2 bg-neutral-800 text-white text-sm rounded-xl shadow-lg hover:bg-neutral-700 disabled:opacity-50 transition-colors"
       >
-        {isLoading ? 'Logging in...' : '🔧 Dev Login'}
+        {isLoading ? 'Вход...' : '🔧 Тестовый вход'}
       </button>
     </div>
   )
@@ -51,17 +51,17 @@ function App() {
   const { isLoading } = useAuthStore()
 
   useEffect(() => {
-    // Attempt authentication on mount
+    // Попытка аутентификации при загрузке
     authenticate()
   }, [authenticate])
 
-  // Initialize Telegram WebApp
+  // Инициализация Telegram WebApp
   useEffect(() => {
     const tg = window.Telegram?.WebApp
     if (tg) {
       tg.ready()
       tg.expand()
-      // Set header color to match design system primary
+      // Установка цвета заголовка в соответствии с дизайн-системой
       tg.setHeaderColor(colors.primary[500])
       tg.setBackgroundColor(colors.background.primary)
     }

@@ -28,7 +28,7 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div className={clsx('text-center py-12 px-4', className)}>
-      {/* Icon or Emoji */}
+      {/* Иконка или эмодзи */}
       {(icon || emoji) && (
         <div className="mb-4">
           {icon ? (
@@ -41,17 +41,17 @@ export function EmptyState({
         </div>
       )}
 
-      {/* Title */}
+      {/* Заголовок */}
       <h3 className="text-lg font-semibold text-text-primary">{title}</h3>
 
-      {/* Description */}
+      {/* Описание */}
       {description && (
         <p className="mt-2 text-sm text-text-secondary max-w-xs mx-auto">
           {description}
         </p>
       )}
 
-      {/* Actions */}
+      {/* Действия */}
       {(action || secondaryAction) && (
         <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
           {action && (
@@ -69,12 +69,12 @@ export function EmptyState({
 }
 
 // ============================================================================
-// PRESET EMPTY STATES
+// ГОТОВЫЕ СОСТОЯНИЯ
 // ============================================================================
 
 export function NoResultsState({
   onAction,
-  actionLabel = 'Adjust Filters',
+  actionLabel = 'Изменить фильтры',
 }: {
   onAction?: () => void
   actionLabel?: string
@@ -82,8 +82,8 @@ export function NoResultsState({
   return (
     <EmptyState
       emoji="🔍"
-      title="No results found"
-      description="Try adjusting your filters to see more results."
+      title="Ничего не найдено"
+      description="Попробуйте изменить параметры поиска, чтобы увидеть больше результатов."
       action={onAction ? { label: actionLabel, onClick: onAction } : undefined}
     />
   )
@@ -102,9 +102,9 @@ export function NoBookingsState({ onAction }: { onAction?: () => void }) {
           />
         </svg>
       }
-      title="No bookings yet"
-      description="Book your first consultation with a nutritionist to get started."
-      action={onAction ? { label: 'Find a Nutritionist', onClick: onAction } : undefined}
+      title="Бронирований пока нет"
+      description="Забронируйте первую консультацию с нутрициологом."
+      action={onAction ? { label: 'Найти нутрициолога', onClick: onAction } : undefined}
     />
   )
 }
@@ -113,15 +113,15 @@ export function NoSlotsState() {
   return (
     <EmptyState
       emoji="📅"
-      title="No available slots"
-      description="This nutritionist doesn't have any available time slots at the moment. Please check back later."
+      title="Нет доступных слотов"
+      description="У этого специалиста сейчас нет свободного времени. Попробуйте позже."
     />
   )
 }
 
 export function ErrorState({
-  title = 'Something went wrong',
-  description = 'An error occurred. Please try again.',
+  title = 'Что-то пошло не так',
+  description = 'Произошла ошибка. Пожалуйста, попробуйте ещё раз.',
   onRetry,
 }: {
   title?: string
@@ -133,7 +133,7 @@ export function ErrorState({
       emoji="⚠️"
       title={title}
       description={description}
-      action={onRetry ? { label: 'Try Again', onClick: onRetry } : undefined}
+      action={onRetry ? { label: 'Попробовать снова', onClick: onRetry } : undefined}
     />
   )
 }
@@ -142,13 +142,11 @@ export function NotFoundState({ onBack }: { onBack?: () => void }) {
   return (
     <EmptyState
       emoji="🔎"
-      title="Not found"
-      description="The page or item you're looking for doesn't exist."
-      action={onBack ? { label: 'Go Back', onClick: onBack } : undefined}
+      title="Не найдено"
+      description="Страница или элемент, который вы ищете, не существует."
+      action={onBack ? { label: 'Назад', onClick: onBack } : undefined}
     />
   )
 }
 
 export default EmptyState
-
-

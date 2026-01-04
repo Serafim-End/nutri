@@ -128,7 +128,7 @@ export interface PageLoaderProps {
   logo?: React.ReactNode
 }
 
-export function PageLoader({ text = 'Loading...', logo }: PageLoaderProps) {
+export function PageLoader({ text = 'Загрузка...', logo }: PageLoaderProps) {
   return (
     <div className="min-h-screen bg-bg-primary flex flex-col items-center justify-center gap-6">
       {logo ? (
@@ -159,5 +159,3 @@ export function PageLoader({ text = 'Loading...', logo }: PageLoaderProps) {
 }
 
 export default Spinner
-
-

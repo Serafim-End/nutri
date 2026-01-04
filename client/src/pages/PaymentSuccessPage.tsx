@@ -21,12 +21,12 @@ export default function PaymentSuccessPage() {
   } | null
 
   useEffect(() => {
-    // Haptic feedback on success
+    // Тактильная обратная связь при успехе
     window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
   }, [])
 
   const handleClose = () => {
-    // Try to close the Telegram Mini App
+    // Попытка закрыть Telegram Mini App
     if (window.Telegram?.WebApp) {
       window.Telegram.WebApp.close()
     } else {
@@ -40,20 +40,20 @@ export default function PaymentSuccessPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary-500 to-primary-600 flex flex-col items-center justify-center px-4 text-white">
-      {/* Success animation */}
+      {/* Анимация успеха */}
       <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-8 animate-scale-in shadow-xl">
         <Icons.CheckCircle size="xl" className="w-14 h-14 text-primary-500" />
       </div>
 
       <Heading level="h1" size="2xl" className="text-white text-center animate-fade-in">
-        Booking Confirmed!
+        Бронирование подтверждено!
       </Heading>
 
       <Text className="text-white/80 text-center mt-2 animate-fade-in" style={{ animationDelay: '100ms' }}>
-        Your appointment has been successfully booked.
+        Ваша консультация успешно забронирована.
       </Text>
 
-      {/* Booking details */}
+      {/* Детали бронирования */}
       {state?.booking && (
         <Card
           variant="elevated"
@@ -63,7 +63,7 @@ export default function PaymentSuccessPage() {
         >
           {state.booking.slot && (
             <div className="text-center text-white">
-              <Text size="sm" className="text-white/60">Appointment Date</Text>
+              <Text size="sm" className="text-white/60">Дата консультации</Text>
               <Text weight="semibold" size="lg" className="text-white">
                 {format(parseISO(state.booking.slot.start_at), 'EEEE, d MMMM', { locale: ru })}
               </Text>
@@ -74,7 +74,7 @@ export default function PaymentSuccessPage() {
           )}
 
           <div className="mt-4 pt-4 border-t border-white/10 text-center">
-            <Text size="sm" className="text-white/60">Amount Paid</Text>
+            <Text size="sm" className="text-white/60">Оплачено</Text>
             <Text size="xl" weight="bold" className="text-white">
               {state.booking.price_rub.toLocaleString('ru-RU')} ₽
             </Text>
@@ -82,7 +82,7 @@ export default function PaymentSuccessPage() {
         </Card>
       )}
 
-      {/* Actions */}
+      {/* Действия */}
       <Stack
         gap={3}
         className="w-full max-w-sm mt-8 animate-slide-up"
@@ -94,7 +94,7 @@ export default function PaymentSuccessPage() {
           fullWidth
           className="bg-white text-primary-600 hover:bg-white/90"
         >
-          View My Bookings
+          Мои бронирования
         </Button>
 
         <Button
@@ -103,17 +103,17 @@ export default function PaymentSuccessPage() {
           fullWidth
           className="text-white bg-white/10 hover:bg-white/20"
         >
-          Close
+          Закрыть
         </Button>
       </Stack>
 
-      {/* Reminder */}
+      {/* Напоминание */}
       <Text
         size="sm"
         className="mt-8 text-white/60 text-center max-w-xs animate-fade-in"
         style={{ animationDelay: '400ms' }}
       >
-        You'll receive a reminder before your appointment via Telegram.
+        Мы пришлём вам напоминание о консультации в Telegram.
       </Text>
     </div>
   )

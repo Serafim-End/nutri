@@ -1,16 +1,17 @@
 """
 Admin Routes
-Handles administrative functions like nutritionist verification.
+Handles administrative functions like nutritionist verification and booking management.
 """
 
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, date
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt, create_access_token
+from sqlalchemy import or_, and_
 
 from app.extensions import db
-from app.models import NutritionistProfile, NutritionistDocument, Profile
+from app.models import NutritionistProfile, NutritionistDocument, Profile, Booking, AvailabilitySlot, Service, Payment
 from app.services.notifications import NotificationService
 
 
@@ -322,6 +323,72 @@ def request_update(nutritionist_id: str):
     })
 
 
+@admin_bp.route("/nutritionists/<nutritionist_id>/disable", methods=["POST"])
+@jwt_required()
+def disable_nutritionist(nutritionist_id: str):
+    """
+    Disable an approved nutritionist.
+
+    Request:
+        POST /api/admin/nutritionists/<id>/disable
+        Authorization: Bearer <admin_token>
+
+    Response:
+        200: { "nutritionist": {...}, "message": "Nutritionist disabled" }
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    nutritionist = NutritionistProfile.query.get(nutritionist_id)
+    if not nutritionist:
+        return jsonify({"error": "Nutritionist not found"}), 404
+
+    if nutritionist.verification_status != "approved":
+        return jsonify({
+            "error": f"Cannot disable nutritionist with status: {nutritionist.verification_status}"
+        }), 400
+
+    nutritionist.is_active = False
+
+    db.session.commit()
+
+    logger.info(f"Nutritionist {nutritionist_id} disabled by admin")
+
+    return jsonify({
+        "nutritionist": nutritionist.to_dict(include_profile=True),
+        "message": "Nutritionist disabled successfully",
+    })
+
+
+@admin_bp.route("/documents/<document_id>/url", methods=["GET"])
+@jwt_required()
+def get_document_url(document_id: str):
+    """
+    Get a signed URL for downloading a document.
+
+    Request:
+        GET /api/admin/documents/<id>/url
+        Authorization: Bearer <admin_token>
+
+    Response:
+        200: { "url": "..." }
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    document = NutritionistDocument.query.get(document_id)
+    if not document:
+        return jsonify({"error": "Document not found"}), 404
+
+    # In a real app, generate a signed URL from Supabase or S3
+    # For now, return the file_path directly
+    file_url = document.file_path
+
+    return jsonify({"url": file_url})
+
+
 @admin_bp.route("/documents/<document_id>/review", methods=["POST"])
 @jwt_required()
 def review_document(document_id: str):
@@ -363,6 +430,317 @@ def review_document(document_id: str):
 
     return jsonify({
         "document": document.to_dict(),
+    })
+
+
+# ============================================================================
+# BOOKING MANAGEMENT
+# ============================================================================
+
+
+@admin_bp.route("/bookings", methods=["GET"])
+@jwt_required()
+def list_bookings():
+    """
+    List all bookings with optional filters.
+
+    Request:
+        GET /api/admin/bookings?status=paid&date_from=2024-01-01&date_to=2024-12-31&page=1&limit=20
+        Authorization: Bearer <admin_token>
+
+    Response:
+        200: { "bookings": [...], "total": 100, "page": 1, "pages": 5 }
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    # Parse query parameters
+    page = request.args.get("page", 1, type=int)
+    limit = request.args.get("limit", 20, type=int)
+    status = request.args.get("status")
+    date_from = request.args.get("date_from")
+    date_to = request.args.get("date_to")
+
+    # Build query
+    query = Booking.query
+
+    # Apply filters
+    if status:
+        query = query.filter(Booking.status == status)
+
+    if date_from:
+        try:
+            from_date = datetime.fromisoformat(date_from)
+            query = query.filter(Booking.created_at >= from_date)
+        except ValueError:
+            pass
+
+    if date_to:
+        try:
+            to_date = datetime.fromisoformat(date_to)
+            # Add 1 day to include the end date
+            to_date = datetime.combine(to_date.date(), datetime.max.time())
+            query = query.filter(Booking.created_at <= to_date)
+        except ValueError:
+            pass
+
+    # Order by most recent first
+    query = query.order_by(Booking.created_at.desc())
+
+    # Paginate
+    total = query.count()
+    pages = (total + limit - 1) // limit
+    bookings = query.offset((page - 1) * limit).limit(limit).all()
+
+    # Serialize with expanded relations
+    booking_list = []
+    for booking in bookings:
+        booking_data = booking.to_dict()
+        
+        # Add client info
+        if booking.client:
+            booking_data["client"] = {
+                "id": str(booking.client.id),
+                "full_name": booking.client.full_name,
+                "photo_url": booking.client.photo_url,
+                "telegram_user_id": booking.client.telegram_user_id,
+            }
+        
+        # Add nutritionist info
+        if booking.nutritionist_profile:
+            booking_data["nutritionist"] = {
+                "id": str(booking.nutritionist_profile.nutritionist_id),
+                "full_name": booking.nutritionist_profile.profile.full_name if booking.nutritionist_profile.profile else "Unknown",
+            }
+        
+        # Add slot info
+        if booking.slot:
+            booking_data["slot"] = booking.slot.to_dict()
+        
+        # Add service info
+        if booking.service:
+            booking_data["service"] = {
+                "id": str(booking.service.id),
+                "title": booking.service.title,
+                "duration_minutes": booking.service.duration_minutes,
+            }
+        
+        # Add payment info
+        if booking.payment:
+            booking_data["payment"] = booking.payment.to_dict()
+        
+        booking_list.append(booking_data)
+
+    return jsonify({
+        "bookings": booking_list,
+        "total": total,
+        "page": page,
+        "pages": pages,
+    })
+
+
+@admin_bp.route("/bookings/<booking_id>", methods=["GET"])
+@jwt_required()
+def get_booking_admin(booking_id: str):
+    """
+    Get detailed booking information for admin.
+
+    Request:
+        GET /api/admin/bookings/<id>
+        Authorization: Bearer <admin_token>
+
+    Response:
+        200: { "booking": {...} }
+        404: Not found
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    booking = Booking.query.get(booking_id)
+    if not booking:
+        return jsonify({"error": "Booking not found"}), 404
+
+    # Build comprehensive response
+    booking_data = booking.to_dict()
+    
+    # Add client info
+    if booking.client:
+        booking_data["client"] = booking.client.to_dict()
+    
+    # Add nutritionist info
+    if booking.nutritionist_profile:
+        booking_data["nutritionist"] = booking.nutritionist_profile.to_dict(include_profile=True)
+    
+    # Add slot info
+    if booking.slot:
+        booking_data["slot"] = booking.slot.to_dict()
+    
+    # Add service info
+    if booking.service:
+        booking_data["service"] = booking.service.to_dict()
+    
+    # Add payment info
+    if booking.payment:
+        booking_data["payment"] = booking.payment.to_dict()
+
+    return jsonify({
+        "booking": booking_data,
+    })
+
+
+@admin_bp.route("/bookings/<booking_id>/cancel", methods=["POST"])
+@jwt_required()
+def admin_cancel_booking(booking_id: str):
+    """
+    Admin cancel a booking.
+
+    Request:
+        POST /api/admin/bookings/<id>/cancel
+        Authorization: Bearer <admin_token>
+        {
+            "reason": "Optional cancellation reason"
+        }
+
+    Response:
+        200: { "booking": {...}, "message": "Booking cancelled" }
+        400: Cannot cancel
+        404: Not found
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    data = request.get_json() or {}
+    reason = data.get("reason", "Cancelled by admin")
+
+    booking = Booking.query.get(booking_id)
+    if not booking:
+        return jsonify({"error": "Booking not found"}), 404
+
+    if booking.status in ("cancelled", "completed", "refunded"):
+        return jsonify({
+            "error": f"Cannot cancel booking with status: {booking.status}"
+        }), 400
+
+    # Update booking status
+    booking.status = "cancelled"
+    booking.cancelled_at = datetime.utcnow()
+
+    # Release the slot if it was held/booked
+    if booking.slot:
+        booking.slot.status = "free"
+        booking.slot.hold_expires_at = None
+
+    db.session.commit()
+
+    # Notify parties
+    NotificationService.booking_cancelled(booking, reason)
+
+    logger.info(f"Admin cancelled booking: {booking_id}, reason: {reason}")
+
+    return jsonify({
+        "booking": booking.to_dict(include_relations=True),
+        "message": "Booking cancelled successfully",
+    })
+
+
+@admin_bp.route("/bookings/<booking_id>/complete", methods=["POST"])
+@jwt_required()
+def admin_complete_booking(booking_id: str):
+    """
+    Admin mark a booking as completed.
+
+    Request:
+        POST /api/admin/bookings/<id>/complete
+        Authorization: Bearer <admin_token>
+        {
+            "notes": "Optional completion notes"
+        }
+
+    Response:
+        200: { "booking": {...}, "message": "Booking completed" }
+        400: Cannot complete
+        404: Not found
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    data = request.get_json() or {}
+    notes = data.get("notes")
+
+    booking = Booking.query.get(booking_id)
+    if not booking:
+        return jsonify({"error": "Booking not found"}), 404
+
+    if booking.status != "paid":
+        return jsonify({
+            "error": f"Cannot complete booking with status: {booking.status}. Only paid bookings can be marked as completed."
+        }), 400
+
+    # Update booking status
+    booking.status = "completed"
+
+    db.session.commit()
+
+    logger.info(f"Admin marked booking as completed: {booking_id}")
+
+    return jsonify({
+        "booking": booking.to_dict(include_relations=True),
+        "message": "Booking marked as completed",
+    })
+
+
+@admin_bp.route("/stats", methods=["GET"])
+@jwt_required()
+def get_dashboard_stats():
+    """
+    Get dashboard statistics.
+
+    Request:
+        GET /api/admin/stats
+        Authorization: Bearer <admin_token>
+
+    Response:
+        200: { "total_users": 100, "total_nutritionists": 20, ... }
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    from sqlalchemy import func
+
+    # Count users (clients)
+    total_users = Profile.query.filter(Profile.role == "client").count()
+
+    # Count nutritionists
+    total_nutritionists = NutritionistProfile.query.count()
+
+    # Count pending verifications
+    pending_verifications = NutritionistProfile.query.filter(
+        NutritionistProfile.verification_status == "pending"
+    ).count()
+
+    # Count bookings
+    total_bookings = Booking.query.count()
+
+    # Calculate revenue this month (from completed/paid bookings)
+    first_of_month = date.today().replace(day=1)
+    revenue_this_month = db.session.query(
+        func.coalesce(func.sum(Booking.price_rub), 0)
+    ).filter(
+        Booking.status.in_(["paid", "completed"]),
+        Booking.paid_at >= first_of_month
+    ).scalar() or 0
+
+    return jsonify({
+        "total_users": total_users,
+        "total_nutritionists": total_nutritionists,
+        "pending_verifications": pending_verifications,
+        "total_bookings": total_bookings,
+        "revenue_this_month": revenue_this_month,
     })
 
 

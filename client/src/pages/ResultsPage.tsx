@@ -20,7 +20,7 @@ import {
 import { PageLoader } from '../design-system/components/Loader'
 import clsx from 'clsx'
 
-// Default empty filters
+// Пустые фильтры по умолчанию
 const EMPTY_FILTERS: SearchFilters = {
   goals: [],
   topics: [],
@@ -31,25 +31,25 @@ const EMPTY_FILTERS: SearchFilters = {
   tags: [],
 }
 
-// Label mappings for display
+// Маппинг меток для отображения
 const GOAL_LABELS: Record<string, string> = {
-  weight_loss: 'Weight Loss',
-  muscle_gain: 'Muscle Gain',
-  better_nutrition: 'Better Nutrition',
-  gut_health: 'Gut Health',
-  sports_nutrition: 'Sports Nutrition',
-  diabetes: 'Diabetes',
-  mental_wellness: 'Mental Wellness',
-  pregnancy: 'Pregnancy',
+  weight_loss: 'Снижение веса',
+  muscle_gain: 'Набор массы',
+  better_nutrition: 'Здоровое питание',
+  gut_health: 'Здоровье ЖКТ',
+  sports_nutrition: 'Спортивное питание',
+  diabetes: 'Диабет',
+  mental_wellness: 'Ментальное здоровье',
+  pregnancy: 'Беременность',
 }
 
 const HELP_MODE_LABELS: Record<string, string> = {
-  one_time: 'One-time',
-  plan: 'Meal Plan',
-  long_term: 'Long-term',
+  one_time: 'Разовая',
+  plan: 'План питания',
+  long_term: 'Сопровождение',
 }
 
-// Filter chip component
+// Компонент чипа фильтра
 function FilterChip({ children, variant = 'primary' }: { children: React.ReactNode; variant?: 'primary' | 'warning' | 'info' | 'default' }) {
   const variants = {
     primary: 'bg-primary-100 text-primary-700',
@@ -64,7 +64,7 @@ function FilterChip({ children, variant = 'primary' }: { children: React.ReactNo
   )
 }
 
-// Bottom navigation
+// Нижняя навигация
 function BottomNav({ activeTab }: { activeTab: 'browse' | 'bookings' }) {
   const navigate = useNavigate()
   
@@ -79,7 +79,7 @@ function BottomNav({ activeTab }: { activeTab: 'browse' | 'bookings' }) {
           )}
         >
           <Icons.Search size="lg" />
-          <span className={clsx('text-xs', activeTab === 'browse' && 'font-medium')}>Browse</span>
+          <span className={clsx('text-xs', activeTab === 'browse' && 'font-medium')}>Подбор</span>
         </button>
         <button
           onClick={() => navigate('/my-bookings')}
@@ -89,7 +89,7 @@ function BottomNav({ activeTab }: { activeTab: 'browse' | 'bookings' }) {
           )}
         >
           <Icons.Calendar size="lg" />
-          <span className={clsx('text-xs', activeTab === 'bookings' && 'font-medium')}>My Bookings</span>
+          <span className={clsx('text-xs', activeTab === 'bookings' && 'font-medium')}>Мои бронирования</span>
         </button>
       </div>
     </div>
@@ -102,7 +102,7 @@ export default function ResultsPage() {
   const [currentFilters, setCurrentFilters] = useState<SearchFilters | null>(null)
   const [defaultFilters, setDefaultFilters] = useState<SearchFilters>(EMPTY_FILTERS)
 
-  // Fetch client's saved filters
+  // Загрузка сохранённых фильтров клиента
   const {
     isLoading: isLoadingFilters,
   } = useQuery({
@@ -118,7 +118,7 @@ export default function ResultsPage() {
     staleTime: 30000,
   })
 
-  // Search nutritionists with current filters
+  // Поиск нутрициологов по текущим фильтрам
   const {
     data: searchData,
     isLoading: isSearching,
@@ -133,7 +133,7 @@ export default function ResultsPage() {
     enabled: currentFilters !== null,
   })
 
-  // Mutation to save filters
+  // Мутация для сохранения фильтров
   const saveFiltersMutation = useMutation({
     mutationFn: (filters: SearchFilters) => clientApi.updateFilters(filters),
     onSuccess: () => {
@@ -141,7 +141,7 @@ export default function ResultsPage() {
     },
   })
 
-  // Handle applying filters
+  // Применение фильтров
   const handleApplyFilters = useCallback(
     (filters: SearchFilters) => {
       setCurrentFilters(filters)
@@ -150,13 +150,13 @@ export default function ResultsPage() {
     [saveFiltersMutation]
   )
 
-  // Handle reset to defaults
+  // Сброс к значениям по умолчанию
   const handleResetFilters = useCallback(() => {
     setCurrentFilters(defaultFilters)
     saveFiltersMutation.mutate(defaultFilters)
   }, [defaultFilters, saveFiltersMutation])
 
-  // Count active filters
+  // Подсчёт активных фильтров
   const countActiveFilters = (filters: SearchFilters): number => {
     let count = 0
     if (filters.goals.length > 0) count += filters.goals.length
@@ -169,24 +169,24 @@ export default function ResultsPage() {
 
   const activeFilterCount = currentFilters ? countActiveFilters(currentFilters) : 0
 
-  // Loading state
+  // Состояние загрузки
   if (isLoadingFilters) {
-    return <PageLoader text="Loading your preferences..." />
+    return <PageLoader text="Загрузка настроек..." />
   }
 
   const nutritionists = searchData?.nutritionists || []
 
   return (
     <PageContainer background="gradient" withBottomNav>
-      {/* Header */}
+      {/* Заголовок */}
       <Header sticky bordered blurred>
         <Inline justify="between" align="start">
           <div>
-            <Heading level="h1" size="lg">Find Your Nutritionist</Heading>
+            <Heading level="h1" size="lg">Подбор специалиста</Heading>
             <Text size="sm" color="secondary" className="mt-0.5">
               {isSearching
-                ? 'Searching...'
-                : `${nutritionists.length} specialist${nutritionists.length !== 1 ? 's' : ''} found`}
+                ? 'Поиск...'
+                : `Найдено специалистов: ${nutritionists.length}`}
             </Text>
           </div>
           <button
@@ -199,7 +199,7 @@ export default function ResultsPage() {
             )}
           >
             <Icons.Filter size="md" />
-            <span className="text-sm">Filters</span>
+            <span className="text-sm">Фильтры</span>
             {activeFilterCount > 0 && (
               <span className="absolute -top-1 -right-1 w-5 h-5 bg-surface-primary text-primary-600 text-xs font-bold rounded-full flex items-center justify-center shadow">
                 {activeFilterCount}
@@ -208,7 +208,7 @@ export default function ResultsPage() {
           </button>
         </Inline>
 
-        {/* Active filter chips */}
+        {/* Активные чипы фильтров */}
         {currentFilters && activeFilterCount > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5 overflow-x-auto pb-1">
             {currentFilters.goals.slice(0, 3).map((goal) => (
@@ -217,11 +217,11 @@ export default function ResultsPage() {
               </FilterChip>
             ))}
             {currentFilters.goals.length > 3 && (
-              <FilterChip variant="default">+{currentFilters.goals.length - 3} more</FilterChip>
+              <FilterChip variant="default">+{currentFilters.goals.length - 3} ещё</FilterChip>
             )}
             {currentFilters.budget_max_rub && (
               <FilterChip variant="warning">
-                Up to {currentFilters.budget_max_rub.toLocaleString()} ₽
+                До {currentFilters.budget_max_rub.toLocaleString()} ₽
               </FilterChip>
             )}
             {currentFilters.help_mode && (
@@ -231,24 +231,24 @@ export default function ResultsPage() {
             )}
             {currentFilters.dietary.length > 0 && (
               <FilterChip variant="primary">
-                {currentFilters.dietary.length} dietary
+                {currentFilters.dietary.length} ограничений
               </FilterChip>
             )}
           </div>
         )}
       </Header>
 
-      {/* Results list */}
+      {/* Список результатов */}
       <Section spacing="sm">
         {searchError ? (
           <div className="text-center py-12">
             <div className="text-4xl mb-4">⚠️</div>
-            <Text weight="medium" color="error">Failed to load results</Text>
+            <Text weight="medium" color="error">Не удалось загрузить результаты</Text>
             <button
               onClick={() => refetchSearch()}
               className="mt-4 text-primary-600 font-medium hover:underline"
             >
-              Try again
+              Попробовать снова
             </button>
           </div>
         ) : isSearching ? (
@@ -272,10 +272,10 @@ export default function ResultsPage() {
         )}
       </Section>
 
-      {/* Bottom navigation */}
+      {/* Нижняя навигация */}
       <BottomNav activeTab="browse" />
 
-      {/* Filter drawer */}
+      {/* Панель фильтров */}
       <FilterDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
@@ -288,7 +288,7 @@ export default function ResultsPage() {
   )
 }
 
-// Extended nutritionist card with matched reasons
+// Расширенная карточка нутрициолога с причинами совпадения
 interface NutritionistResultCardProps {
   nutritionist: NutritionistSearchResult
   animationDelay?: number
@@ -312,7 +312,7 @@ function NutritionistResultCard({
       style={{ animationDelay: `${animationDelay}ms`, animationFillMode: 'forwards' }}
     >
       <Inline gap={4} align="start">
-        {/* Avatar */}
+        {/* Аватар */}
         <div className="flex-shrink-0">
           {profile?.photo_url ? (
             <img
@@ -323,22 +323,22 @@ function NutritionistResultCard({
           ) : (
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
               <span className="text-white text-xl font-bold">
-                {profile?.full_name?.charAt(0) || 'N'}
+                {profile?.full_name?.charAt(0) || 'Н'}
               </span>
             </div>
           )}
         </div>
 
-        {/* Content */}
+        {/* Контент */}
         <div className="flex-1 min-w-0">
           <Inline justify="between" gap={2}>
             <Text weight="semibold" truncate>
-              {profile?.full_name || 'Nutritionist'}
+              {profile?.full_name || 'Нутрициолог'}
             </Text>
             <Inline gap={2} className="flex-shrink-0">
               {nutritionist.score > 0 && (
                 <Badge variant="primary" size="sm">
-                  {nutritionist.score.toFixed(0)}% match
+                  {nutritionist.score.toFixed(0)}% совпадение
                 </Badge>
               )}
               <Inline gap={1}>
@@ -349,10 +349,10 @@ function NutritionistResultCard({
           </Inline>
 
           <Text size="sm" color="secondary" lineClamp={2} className="mt-1">
-            {nutritionist.bio || 'Professional nutritionist ready to help you.'}
+            {nutritionist.bio || 'Профессиональный нутрициолог, готовый помочь вам.'}
           </Text>
 
-          {/* Matched reasons */}
+          {/* Причины совпадения */}
           {matchedReasons.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {matchedReasons.slice(0, 3).map((reason, idx) => (
@@ -363,7 +363,7 @@ function NutritionistResultCard({
             </div>
           )}
 
-          {/* Specializations fallback */}
+          {/* Специализации как запасной вариант */}
           {matchedReasons.length === 0 && nutritionist.specializations?.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {nutritionist.specializations.slice(0, 3).map((spec) => (

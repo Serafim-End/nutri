@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { adminApi } from '@/lib/api'
 import { Nutritionist } from '@/types'
 import { format } from 'date-fns'
@@ -15,6 +16,7 @@ const statusColors: Record<string, string> = {
 }
 
 export function NutritionistsPage() {
+  const navigate = useNavigate()
   const [filter, setFilter] = useState<StatusFilter>('all')
 
   const { data, isLoading, error } = useQuery({
@@ -109,7 +111,11 @@ export function NutritionistsPage() {
             </thead>
             <tbody className="divide-y divide-slate-800/50">
               {nutritionists.map((n) => (
-                <tr key={n.id} className="hover:bg-slate-900/30 transition-colors">
+                <tr
+                  key={n.id}
+                  onClick={() => navigate(`/nutritionists/${n.id}`)}
+                  className="hover:bg-slate-900/30 transition-colors cursor-pointer"
+                >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
@@ -165,7 +171,13 @@ export function NutritionistsPage() {
                     {n.submitted_at ? format(new Date(n.submitted_at), 'MMM d, yyyy') : '—'}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button className="px-3 py-1.5 text-sm font-medium text-accent-400 hover:bg-accent-500/10 rounded-lg transition-colors">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/nutritionists/${n.id}`)
+                      }}
+                      className="px-3 py-1.5 text-sm font-medium text-accent-400 hover:bg-accent-500/10 rounded-lg transition-colors"
+                    >
                       Review
                     </button>
                   </td>

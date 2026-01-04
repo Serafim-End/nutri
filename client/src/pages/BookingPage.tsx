@@ -29,7 +29,7 @@ import clsx from 'clsx'
 
 type BookingState = 'select_slot' | 'pending_payment' | 'paid' | 'cancelled' | 'expired'
 
-// Countdown timer display
+// Отображение таймера обратного отсчёта
 function CountdownTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: () => void }) {
   const countdown = useCountdown(expiresAt)
 
@@ -54,10 +54,10 @@ function CountdownTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: 
         </div>
         <div>
           <Text weight="semibold" className={isUrgent ? 'text-error-700' : 'text-warning-700'}>
-            Time remaining: {countdown.formatted}
+            Осталось времени: {countdown.formatted}
           </Text>
           <Text size="sm" className={isUrgent ? 'text-error-600' : 'text-warning-600'}>
-            Complete payment before the hold expires
+            Завершите оплату до истечения времени
           </Text>
         </div>
       </Inline>
@@ -65,7 +65,7 @@ function CountdownTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: 
   )
 }
 
-// Success state
+// Состояние успешного бронирования
 function BookingSuccess({ 
   booking, 
   onViewBookings, 
@@ -82,17 +82,17 @@ function BookingSuccess({
       </div>
 
       <Heading level="h1" size="2xl" className="text-white text-center animate-fade-in">
-        Booking Confirmed!
+        Бронирование подтверждено!
       </Heading>
 
       <Text className="text-white/80 text-center mt-2 animate-fade-in">
-        Your appointment has been successfully booked.
+        Ваша консультация успешно забронирована.
       </Text>
 
       {booking.slot && (
         <Card variant="elevated" className="w-full max-w-sm mt-8 bg-white/10 border-none animate-slide-up">
           <div className="text-center text-white">
-            <Text size="sm" className="text-white/60">Appointment Date</Text>
+            <Text size="sm" className="text-white/60">Дата консультации</Text>
             <Text weight="semibold" size="lg" className="text-white">
               {format(parseISO(booking.slot.start_at), 'EEEE, d MMMM', { locale: ru })}
             </Text>
@@ -102,7 +102,7 @@ function BookingSuccess({
           </div>
 
           <div className="mt-4 pt-4 border-t border-white/10 text-center">
-            <Text size="sm" className="text-white/60">Amount</Text>
+            <Text size="sm" className="text-white/60">Сумма</Text>
             <Text size="xl" weight="bold" className="text-white">
               {booking.price_rub.toLocaleString('ru-RU')} ₽
             </Text>
@@ -117,7 +117,7 @@ function BookingSuccess({
           fullWidth
           className="bg-white text-primary-600 hover:bg-white/90"
         >
-          View My Bookings
+          Мои бронирования
         </Button>
         <Button
           onClick={onBrowseMore}
@@ -125,14 +125,14 @@ function BookingSuccess({
           fullWidth
           className="text-white bg-white/10 hover:bg-white/20"
         >
-          Browse More Nutritionists
+          Найти другого специалиста
         </Button>
       </Stack>
     </div>
   )
 }
 
-// Expired state
+// Состояние истёкшего бронирования
 function BookingExpired({ onRetry }: { onRetry: () => void }) {
   return (
     <Center fullHeight className="bg-bg-secondary px-4">
@@ -140,19 +140,19 @@ function BookingExpired({ onRetry }: { onRetry: () => void }) {
         <div className="w-20 h-20 bg-warning-100 rounded-full flex items-center justify-center mx-auto mb-6">
           <Icons.Clock size="xl" className="text-warning-600" />
         </div>
-        <Heading size="lg">Hold Expired</Heading>
+        <Heading size="lg">Время истекло</Heading>
         <Text color="secondary" className="mt-2 max-w-xs mx-auto">
-          Your slot hold has expired. The slot may have been booked by someone else.
+          Время бронирования истекло. Слот мог быть занят другим клиентом.
         </Text>
         <Button onClick={onRetry} className="mt-6">
-          Choose Another Slot
+          Выбрать другое время
         </Button>
       </div>
     </Center>
   )
 }
 
-// Cancelled state
+// Состояние отменённого бронирования
 function BookingCancelled({ onRetry }: { onRetry: () => void }) {
   return (
     <Center fullHeight className="bg-bg-secondary px-4">
@@ -160,12 +160,12 @@ function BookingCancelled({ onRetry }: { onRetry: () => void }) {
         <div className="w-20 h-20 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-6">
           <Icons.Close size="xl" className="text-neutral-400" />
         </div>
-        <Heading size="lg">Booking Cancelled</Heading>
+        <Heading size="lg">Бронирование отменено</Heading>
         <Text color="secondary" className="mt-2">
-          Your booking has been cancelled.
+          Ваше бронирование было отменено.
         </Text>
         <Button onClick={onRetry} className="mt-6">
-          Book Another Slot
+          Забронировать снова
         </Button>
       </div>
     </Center>
@@ -206,7 +206,7 @@ export default function BookingPage() {
     enabled: !!nutritionistId,
   })
 
-  // Create booking mutation
+  // Мутация создания бронирования
   const bookingMutation = useMutation({
     mutationFn: () => bookingApi.createBooking(serviceId!, selectedSlot!.id),
     onSuccess: (data) => {
@@ -217,9 +217,9 @@ export default function BookingPage() {
       window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('medium')
     },
     onError: (err: Error & { response?: { status?: number; data?: { error?: string } } }) => {
-      const errorMessage = err.response?.data?.error || 'Failed to create booking'
+      const errorMessage = err.response?.data?.error || 'Не удалось создать бронирование'
       if (err.response?.status === 409) {
-        setError('This slot was just booked by someone else. Please choose another.')
+        setError('Этот слот уже заняли. Пожалуйста, выберите другой.')
         refetchSlots()
       } else {
         setError(errorMessage)
@@ -228,13 +228,13 @@ export default function BookingPage() {
     },
   })
 
-  // Payment mutation
+  // Мутация оплаты
   const simulatePaymentMutation = useMutation({
     mutationFn: async (): Promise<{ booking: Booking }> => {
       if (paymentInfo?.provider === 'mock') {
         const result = await paymentApi.simulatePayment(currentBooking!.id)
         if (!result.booking) {
-          throw new Error('Payment succeeded but booking data was not returned')
+          throw new Error('Оплата прошла, но данные бронирования не получены')
         }
         return { booking: result.booking }
       }
@@ -248,7 +248,7 @@ export default function BookingPage() {
       window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
     },
     onError: (err: Error & { response?: { data?: { error?: string } } }) => {
-      const errorMessage = err.response?.data?.error || 'Payment failed'
+      const errorMessage = err.response?.data?.error || 'Ошибка оплаты'
       if (errorMessage.toLowerCase().includes('expired')) {
         setBookingState('expired')
       }
@@ -257,9 +257,9 @@ export default function BookingPage() {
     },
   })
 
-  // Cancel booking mutation
+  // Мутация отмены бронирования
   const cancelMutation = useMutation({
-    mutationFn: () => bookingApi.cancelBooking(currentBooking!.id, 'User cancelled'),
+    mutationFn: () => bookingApi.cancelBooking(currentBooking!.id, 'Отменено пользователем'),
     onSuccess: (data) => {
       setCurrentBooking(data.booking)
       setBookingState('cancelled')
@@ -267,12 +267,12 @@ export default function BookingPage() {
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] })
     },
     onError: (err: Error & { response?: { data?: { error?: string } } }) => {
-      setError(err.response?.data?.error || 'Failed to cancel booking')
+      setError(err.response?.data?.error || 'Не удалось отменить бронирование')
     },
   })
 
   if (loadingNutritionist || loadingServices || loadingSlots) {
-    return <PageLoader text="Loading booking options..." />
+    return <PageLoader text="Загрузка доступных слотов..." />
   }
 
   const nutritionist = nutritionistData?.nutritionist
@@ -313,7 +313,7 @@ export default function BookingPage() {
     refetchSlots()
   }
 
-  // Render different states
+  // Рендер различных состояний
   if (bookingState === 'paid' && currentBooking) {
     return (
       <BookingSuccess
@@ -336,13 +336,13 @@ export default function BookingPage() {
     return (
       <PageContainer background="primary">
         <Header sticky bordered>
-          <Heading level="h1" size="lg">Complete Payment</Heading>
+          <Heading level="h1" size="lg">Оплата</Heading>
           <Text size="sm" color="secondary" className="mt-0.5">
-            Secure your appointment
+            Завершите бронирование
           </Text>
         </Header>
 
-        {/* Countdown warning */}
+        {/* Таймер обратного отсчёта */}
         {holdExpiresAt && (
           <CountdownTimer
             expiresAt={holdExpiresAt}
@@ -350,30 +350,30 @@ export default function BookingPage() {
           />
         )}
 
-        {/* Booking summary */}
+        {/* Детали бронирования */}
         <Section>
           <Card padding="lg">
-            <Heading level="h2" size="md" className="mb-4">Booking Details</Heading>
+            <Heading level="h2" size="md" className="mb-4">Детали бронирования</Heading>
             
             <Stack gap={3}>
               <Inline justify="between">
-                <Text color="secondary">Service</Text>
+                <Text color="secondary">Услуга</Text>
                 <Text weight="medium">{currentBooking.service?.title}</Text>
               </Inline>
               <Inline justify="between">
-                <Text color="secondary">Nutritionist</Text>
+                <Text color="secondary">Нутрициолог</Text>
                 <Text weight="medium">{nutritionist.profile?.full_name}</Text>
               </Inline>
               {currentBooking.slot && (
                 <>
                   <Inline justify="between">
-                    <Text color="secondary">Date</Text>
+                    <Text color="secondary">Дата</Text>
                     <Text weight="medium">
                       {format(parseISO(currentBooking.slot.start_at), 'EEEE, d MMMM', { locale: ru })}
                     </Text>
                   </Inline>
                   <Inline justify="between">
-                    <Text color="secondary">Time</Text>
+                    <Text color="secondary">Время</Text>
                     <Text weight="medium">
                       {format(parseISO(currentBooking.slot.start_at), 'HH:mm')}
                     </Text>
@@ -382,7 +382,7 @@ export default function BookingPage() {
               )}
               <div className="pt-3 border-t border-border-light">
                 <Inline justify="between">
-                  <Text weight="medium">Total</Text>
+                  <Text weight="medium">Итого</Text>
                   <Text weight="bold" className="text-primary-600 text-lg">
                     {currentBooking.price_rub.toLocaleString('ru-RU')} ₽
                   </Text>
@@ -392,21 +392,21 @@ export default function BookingPage() {
           </Card>
         </Section>
 
-        {/* Status badge */}
+        {/* Статус */}
         <Section spacing="sm">
           <Badge variant="warning" dot animated size="md">
-            Awaiting Payment
+            Ожидает оплаты
           </Badge>
         </Section>
 
-        {/* Error display */}
+        {/* Отображение ошибки */}
         {error && (
           <Section spacing="sm">
             <Alert variant="error">{error}</Alert>
           </Section>
         )}
 
-        {/* Actions */}
+        {/* Действия */}
         <Footer bordered>
           <Stack gap={3}>
             <Button
@@ -416,8 +416,8 @@ export default function BookingPage() {
               size="lg"
             >
               {paymentInfo?.provider === 'mock'
-                ? 'Simulate Payment Success'
-                : `Pay ${currentBooking.price_rub.toLocaleString('ru-RU')} ₽`}
+                ? 'Симулировать оплату'
+                : `Оплатить ${currentBooking.price_rub.toLocaleString('ru-RU')} ₽`}
             </Button>
             <Button
               variant="ghost"
@@ -426,7 +426,7 @@ export default function BookingPage() {
               fullWidth
               className="text-text-secondary"
             >
-              Cancel Booking
+              Отменить
             </Button>
           </Stack>
         </Footer>
@@ -434,17 +434,17 @@ export default function BookingPage() {
     )
   }
 
-  // Default: slot selection state
+  // Состояние по умолчанию: выбор слота
   return (
     <PageContainer background="primary">
       <Header sticky bordered>
-        <Heading level="h1" size="lg">Book Appointment</Heading>
+        <Heading level="h1" size="lg">Бронирование</Heading>
         <Text size="sm" color="secondary" className="mt-0.5">
-          Select a convenient time slot
+          Выберите удобное время
         </Text>
       </Header>
 
-      {/* Service summary */}
+      {/* Информация об услуге */}
       <div className="px-4 py-4 bg-bg-secondary border-b border-border-light">
         <Inline gap={3} align="center">
           {nutritionist.profile?.photo_url ? (
@@ -456,14 +456,14 @@ export default function BookingPage() {
           ) : (
             <div className="w-12 h-12 rounded-xl bg-primary-500 flex items-center justify-center">
               <span className="text-white font-bold">
-                {nutritionist.profile?.full_name?.charAt(0) || 'N'}
+                {nutritionist.profile?.full_name?.charAt(0) || 'Н'}
               </span>
             </div>
           )}
           <div className="flex-1">
             <Text weight="medium">{service.title}</Text>
             <Text size="sm" color="secondary">
-              {nutritionist.profile?.full_name} • {service.duration_minutes} min
+              {nutritionist.profile?.full_name} • {service.duration_minutes} мин
             </Text>
           </div>
           <Text weight="bold" className="text-primary-600">
@@ -472,14 +472,14 @@ export default function BookingPage() {
         </Inline>
       </div>
 
-      {/* Error display */}
+      {/* Отображение ошибки */}
       {error && (
         <Section spacing="sm">
           <Alert variant="error">{error}</Alert>
         </Section>
       )}
 
-      {/* Slot picker */}
+      {/* Выбор слота */}
       <Section className="pb-40">
         <SlotPicker
           slots={slots}
@@ -488,13 +488,13 @@ export default function BookingPage() {
         />
       </Section>
 
-      {/* Bottom section */}
+      {/* Нижняя секция */}
       <Footer bordered>
         {selectedSlot && (
           <div className="mb-3 px-3 py-2 bg-primary-50 rounded-lg border border-primary-100">
             <Text size="sm" className="text-primary-800">
-              <span className="font-medium">Selected:</span>{' '}
-              {format(parseISO(selectedSlot.start_at), 'EEEE, d MMMM', { locale: ru })} at{' '}
+              <span className="font-medium">Выбрано:</span>{' '}
+              {format(parseISO(selectedSlot.start_at), 'EEEE, d MMMM', { locale: ru })} в{' '}
               {format(parseISO(selectedSlot.start_at), 'HH:mm')}
             </Text>
           </div>
@@ -507,8 +507,8 @@ export default function BookingPage() {
           size="lg"
         >
           {selectedSlot
-            ? `Confirm Booking • ${service.price_rub.toLocaleString('ru-RU')} ₽`
-            : 'Select a time slot'}
+            ? `Подтвердить бронирование • ${service.price_rub.toLocaleString('ru-RU')} ₽`
+            : 'Выберите время'}
         </Button>
       </Footer>
     </PageContainer>

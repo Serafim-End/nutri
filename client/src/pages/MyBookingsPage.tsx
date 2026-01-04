@@ -20,14 +20,14 @@ import {
 } from '../design-system'
 import { PageLoader } from '../design-system/components/Loader'
 
-// Countdown display for pending bookings
+// Отображение обратного отсчёта для ожидающих бронирований
 function HoldCountdown({ expiresAt }: { expiresAt: string }) {
   const countdown = useCountdown(expiresAt)
 
   if (countdown.isExpired) {
     return (
       <Text size="xs" weight="medium" color="error">
-        Expired
+        Истекло
       </Text>
     )
   }
@@ -38,16 +38,16 @@ function HoldCountdown({ expiresAt }: { expiresAt: string }) {
       weight="medium"
       className={countdown.totalSeconds <= 60 ? 'text-error-600' : 'text-warning-600'}
     >
-      {countdown.formatted} left
+      Осталось {countdown.formatted}
     </Text>
   )
 }
 
-// Single booking card
+// Карточка одного бронирования
 function BookingCard({ booking }: { booking: Booking }) {
   const queryClient = useQueryClient()
 
-  // Mutations for actions
+  // Мутации для действий
   const markPaidMutation = useMutation({
     mutationFn: () => bookingApi.markPaid(booking.id),
     onSuccess: () => {
@@ -67,10 +67,10 @@ function BookingCard({ booking }: { booking: Booking }) {
   const isPaid = booking.status === 'paid'
   const holdExpiresAt = booking.slot?.hold_expires_at
 
-  // Get nutritionist name
-  const nutritionistName = booking.nutritionist?.profile?.full_name || 'Nutritionist'
+  // Имя нутрициолога
+  const nutritionistName = booking.nutritionist?.profile?.full_name || 'Нутрициолог'
 
-  // Map status to StatusBadge status
+  // Маппинг статуса для StatusBadge
   const getStatusBadgeStatus = (status: Booking['status']) => {
     const statusMap: Record<Booking['status'], 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'refunded' | 'no_show'> = {
       pending_payment: 'pending',
@@ -85,7 +85,7 @@ function BookingCard({ booking }: { booking: Booking }) {
 
   return (
     <Card variant="default" padding="md" className="animate-slide-up">
-      {/* Header with status */}
+      {/* Заголовок со статусом */}
       <Inline justify="between" align="center" className="mb-3">
         <StatusBadge status={getStatusBadgeStatus(booking.status)} />
         {isPending && holdExpiresAt && (
@@ -93,17 +93,17 @@ function BookingCard({ booking }: { booking: Booking }) {
         )}
       </Inline>
 
-      {/* Service and nutritionist info */}
+      {/* Информация об услуге и нутрициологе */}
       <div className="mb-3">
         <Text weight="semibold">
-          {booking.service?.title || 'Consultation'}
+          {booking.service?.title || 'Консультация'}
         </Text>
         <Text size="sm" color="secondary">
-          with {nutritionistName}
+          {nutritionistName}
         </Text>
       </div>
 
-      {/* Slot time */}
+      {/* Время слота */}
       {booking.slot && (
         <Inline gap={2} className="mb-3 text-text-secondary">
           <Icons.Calendar size="sm" className="text-text-tertiary" />
@@ -117,15 +117,15 @@ function BookingCard({ booking }: { booking: Booking }) {
         </Inline>
       )}
 
-      {/* Price */}
+      {/* Цена */}
       <Inline justify="between" className="pt-3 border-t border-border-light">
-        <Text size="sm" color="secondary">Total</Text>
+        <Text size="sm" color="secondary">Итого</Text>
         <Text weight="bold">
           {booking.price_rub.toLocaleString('ru-RU')} ₽
         </Text>
       </Inline>
 
-      {/* Actions for pending bookings */}
+      {/* Действия для ожидающих бронирований */}
       {isPending && (
         <Inline gap={3} className="mt-4 pt-4 border-t border-border-light">
           <Button
@@ -134,7 +134,7 @@ function BookingCard({ booking }: { booking: Booking }) {
             size="sm"
             className="flex-1"
           >
-            Pay Now
+            Оплатить
           </Button>
           <Button
             variant="ghost"
@@ -143,12 +143,12 @@ function BookingCard({ booking }: { booking: Booking }) {
             size="sm"
             className="text-text-secondary"
           >
-            Cancel
+            Отменить
           </Button>
         </Inline>
       )}
 
-      {/* Meeting link for paid bookings */}
+      {/* Ссылка на встречу для оплаченных бронирований */}
       {isPaid && booking.meeting_link && (
         <div className="mt-4 pt-4 border-t border-border-light">
           <a
@@ -158,7 +158,7 @@ function BookingCard({ booking }: { booking: Booking }) {
             className="inline-flex items-center gap-2 text-primary-600 font-medium text-sm hover:text-primary-700"
           >
             <Icons.Video size="sm" />
-            Join Meeting
+            Присоединиться к встрече
           </a>
         </div>
       )}
@@ -166,7 +166,7 @@ function BookingCard({ booking }: { booking: Booking }) {
   )
 }
 
-// Bottom navigation
+// Нижняя навигация
 function BottomNav() {
   const navigate = useNavigate()
   
@@ -178,13 +178,13 @@ function BottomNav() {
           className="flex-1 py-4 flex flex-col items-center gap-1 text-text-tertiary transition-colors"
         >
           <Icons.Search size="lg" />
-          <span className="text-xs">Browse</span>
+          <span className="text-xs">Подбор</span>
         </button>
         <button
           className="flex-1 py-4 flex flex-col items-center gap-1 text-primary-600 transition-colors"
         >
           <Icons.Calendar size="lg" />
-          <span className="text-xs font-medium">My Bookings</span>
+          <span className="text-xs font-medium">Мои бронирования</span>
         </button>
       </div>
     </div>
@@ -197,11 +197,11 @@ export default function MyBookingsPage() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['my-bookings'],
     queryFn: () => clientApi.getMyBookings(),
-    refetchInterval: 30000, // Refetch every 30 seconds to update countdowns
+    refetchInterval: 30000, // Обновление каждые 30 секунд для таймеров
   })
 
   if (isLoading) {
-    return <PageLoader text="Loading your bookings..." />
+    return <PageLoader text="Загрузка бронирований..." />
   }
 
   if (error) {
@@ -209,9 +209,9 @@ export default function MyBookingsPage() {
       <PageContainer>
         <div className="min-h-screen flex items-center justify-center px-4">
           <div className="text-center">
-            <Text color="error" weight="medium">Failed to load bookings.</Text>
+            <Text color="error" weight="medium">Не удалось загрузить бронирования.</Text>
             <Button onClick={() => refetch()} className="mt-4">
-              Try Again
+              Попробовать снова
             </Button>
           </div>
         </div>
@@ -221,7 +221,7 @@ export default function MyBookingsPage() {
 
   const bookings = data?.bookings || []
 
-  // Separate bookings by status
+  // Разделение бронирований по статусу
   const pendingBookings = bookings.filter(b => b.status === 'pending_payment')
   const upcomingBookings = bookings.filter(b => b.status === 'paid')
   const pastBookings = bookings.filter(b => 
@@ -230,11 +230,11 @@ export default function MyBookingsPage() {
 
   return (
     <PageContainer background="gradient" withBottomNav>
-      {/* Header */}
+      {/* Заголовок */}
       <Section spacing="md">
-        <Heading level="h1" size="xl">My Bookings</Heading>
+        <Heading level="h1" size="xl">Мои бронирования</Heading>
         <Text color="secondary" className="mt-1">
-          {bookings.length} booking{bookings.length !== 1 ? 's' : ''}
+          Всего: {bookings.length}
         </Text>
       </Section>
 
@@ -243,13 +243,13 @@ export default function MyBookingsPage() {
           <NoBookingsState onAction={() => navigate('/results')} />
         ) : (
           <Stack gap={6}>
-            {/* Pending payment section */}
+            {/* Секция ожидающих оплаты */}
             {pendingBookings.length > 0 && (
               <section>
                 <Inline gap={2} align="center" className="mb-3">
                   <div className="w-2 h-2 rounded-full bg-warning-500 animate-pulse" />
                   <Text size="sm" weight="semibold" className="text-warning-600 uppercase tracking-wide">
-                    Awaiting Payment ({pendingBookings.length})
+                    Ожидают оплаты ({pendingBookings.length})
                   </Text>
                 </Inline>
                 <Stack gap={3}>
@@ -262,11 +262,11 @@ export default function MyBookingsPage() {
               </section>
             )}
 
-            {/* Upcoming bookings section */}
+            {/* Секция предстоящих */}
             {upcomingBookings.length > 0 && (
               <section>
                 <Text size="sm" weight="semibold" className="text-success-600 uppercase tracking-wide mb-3">
-                  Upcoming ({upcomingBookings.length})
+                  Предстоящие ({upcomingBookings.length})
                 </Text>
                 <Stack gap={3}>
                   {upcomingBookings.map((booking, index) => (
@@ -278,11 +278,11 @@ export default function MyBookingsPage() {
               </section>
             )}
 
-            {/* Past bookings section */}
+            {/* Секция прошедших */}
             {pastBookings.length > 0 && (
               <section>
                 <Text size="sm" weight="semibold" color="tertiary" className="uppercase tracking-wide mb-3">
-                  Past ({pastBookings.length})
+                  Прошедшие ({pastBookings.length})
                 </Text>
                 <Stack gap={3}>
                   {pastBookings.map((booking, index) => (
@@ -297,7 +297,7 @@ export default function MyBookingsPage() {
         )}
       </Section>
 
-      {/* Bottom navigation */}
+      {/* Нижняя навигация */}
       <BottomNav />
     </PageContainer>
   )

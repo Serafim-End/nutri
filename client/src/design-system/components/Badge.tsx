@@ -87,7 +87,7 @@ export const Badge = forwardRef<HTMLSpanElement, BadgeProps>(
 
 Badge.displayName = 'Badge'
 
-// Status-specific badge presets
+// Пресеты бейджей для статусов
 export type StatusBadgeStatus = 
   | 'pending' 
   | 'confirmed' 
@@ -97,12 +97,12 @@ export type StatusBadgeStatus =
   | 'no_show'
 
 const statusConfig: Record<StatusBadgeStatus, { label: string; variant: BadgeVariant; dot?: boolean; animated?: boolean }> = {
-  pending: { label: 'Awaiting Payment', variant: 'warning', dot: true, animated: true },
-  confirmed: { label: 'Confirmed', variant: 'success' },
-  cancelled: { label: 'Cancelled', variant: 'muted' },
-  completed: { label: 'Completed', variant: 'info' },
-  refunded: { label: 'Refunded', variant: 'default' },
-  no_show: { label: 'No Show', variant: 'error' },
+  pending: { label: 'Ожидает оплаты', variant: 'warning', dot: true, animated: true },
+  confirmed: { label: 'Подтверждено', variant: 'success' },
+  cancelled: { label: 'Отменено', variant: 'muted' },
+  completed: { label: 'Завершено', variant: 'info' },
+  refunded: { label: 'Возврат', variant: 'default' },
+  no_show: { label: 'Неявка', variant: 'error' },
 }
 
 export interface StatusBadgeProps extends Omit<BadgeProps, 'variant' | 'children'> {
@@ -124,5 +124,3 @@ export function StatusBadge({ status, ...props }: StatusBadgeProps) {
 }
 
 export default Badge
-
-

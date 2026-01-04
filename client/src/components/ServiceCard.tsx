@@ -33,7 +33,7 @@ export default function ServiceCard({ service, selected, onSelect }: ServiceCard
           <Inline gap={1} className="mt-2 text-text-tertiary">
             <Icons.Clock size="sm" />
             <Text size="sm" color="tertiary">
-              {service.duration_minutes} min
+              {service.duration_minutes} мин
             </Text>
           </Inline>
         </div>

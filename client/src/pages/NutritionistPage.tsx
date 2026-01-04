@@ -37,7 +37,7 @@ export default function NutritionistPage() {
   })
 
   if (loadingNutritionist || loadingServices) {
-    return <PageLoader text="Loading profile..." />
+    return <PageLoader text="Загрузка профиля..." />
   }
 
   if (!nutritionistData?.nutritionist) {
@@ -66,7 +66,7 @@ export default function NutritionistPage() {
 
   return (
     <PageContainer background="primary">
-      {/* Hero section with gradient */}
+      {/* Верхняя секция с градиентом */}
       <div className="bg-gradient-to-b from-primary-500 to-primary-600 px-4 pt-8 pb-16 text-white">
         <Inline gap={4} align="center">
           {profile?.photo_url ? (
@@ -78,13 +78,13 @@ export default function NutritionistPage() {
           ) : (
             <div className="w-20 h-20 rounded-2xl bg-white/20 flex items-center justify-center shadow-lg">
               <span className="text-3xl font-bold">
-                {profile?.full_name?.charAt(0) || 'N'}
+                {profile?.full_name?.charAt(0) || 'Н'}
               </span>
             </div>
           )}
           <div>
             <Heading level="h1" size="lg" className="text-white">
-              {profile?.full_name || 'Nutritionist'}
+              {profile?.full_name || 'Нутрициолог'}
             </Heading>
             <Inline gap={2} className="mt-1">
               <Inline gap={1}>
@@ -93,27 +93,27 @@ export default function NutritionistPage() {
               </Inline>
               <span className="text-white/60">•</span>
               <span className="text-white/80 text-sm">
-                {nutritionist.reviews_count} reviews
+                {nutritionist.reviews_count} отзывов
               </span>
             </Inline>
           </div>
         </Inline>
       </div>
 
-      {/* Content overlapping hero */}
+      {/* Контент, перекрывающий верхнюю секцию */}
       <div className="px-4 -mt-8">
-        {/* Bio card */}
+        {/* Карточка с описанием */}
         <Card variant="elevated" padding="lg" className="mb-6 animate-slide-up">
-          <Heading level="h2" size="md" className="mb-3">About</Heading>
+          <Heading level="h2" size="md" className="mb-3">О специалисте</Heading>
           <Text color="secondary" className="leading-relaxed">
-            {nutritionist.bio || 'Professional nutritionist ready to help you achieve your health goals.'}
+            {nutritionist.bio || 'Профессиональный нутрициолог, готовый помочь вам достичь ваших целей в области здоровья.'}
           </Text>
 
-          {/* Specializations */}
+          {/* Специализации */}
           {nutritionist.specializations?.length > 0 && (
             <div className="mt-5">
               <Text size="xs" weight="medium" color="tertiary" className="uppercase tracking-wider mb-2">
-                Specializations
+                Специализации
               </Text>
               <div className="flex flex-wrap gap-2">
                 {nutritionist.specializations.map((spec) => (
@@ -125,11 +125,11 @@ export default function NutritionistPage() {
             </div>
           )}
 
-          {/* Tags */}
+          {/* Теги */}
           {nutritionist.tags?.length > 0 && (
             <div className="mt-4">
               <Text size="xs" weight="medium" color="tertiary" className="uppercase tracking-wider mb-2">
-                Supports
+                Работает с
               </Text>
               <div className="flex flex-wrap gap-2">
                 {nutritionist.tags.map((tag) => (
@@ -142,11 +142,11 @@ export default function NutritionistPage() {
           )}
         </Card>
 
-        {/* Services */}
+        {/* Услуги */}
         <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-          <Heading level="h2" size="md" className="mb-4">Services</Heading>
+          <Heading level="h2" size="md" className="mb-4">Услуги</Heading>
           {services.length === 0 ? (
-            <Text color="secondary">No services available.</Text>
+            <Text color="secondary">Услуги пока не добавлены.</Text>
           ) : (
             <Stack gap={3} className="pb-32">
               {services.map((service) => (
@@ -162,7 +162,7 @@ export default function NutritionistPage() {
         </div>
       </div>
 
-      {/* Bottom button */}
+      {/* Нижняя кнопка */}
       {services.length > 0 && (
         <Footer bordered>
           <Button
@@ -172,8 +172,8 @@ export default function NutritionistPage() {
             size="lg"
           >
             {selectedService
-              ? `Book for ${selectedService.price_rub.toLocaleString('ru-RU')} ₽`
-              : 'Select a service'}
+              ? `Забронировать за ${selectedService.price_rub.toLocaleString('ru-RU')} ₽`
+              : 'Выберите услугу'}
           </Button>
         </Footer>
       )}
