@@ -41,6 +41,7 @@ def create_app(config_class=Config):
     from app.routes.payments import payments_bp
     from app.routes.admin import admin_bp
     from app.routes.public import public_bp
+    from app.routes.bot import bot_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(clients_bp, url_prefix="/api/clients")
@@ -49,6 +50,7 @@ def create_app(config_class=Config):
     app.register_blueprint(payments_bp, url_prefix="/api/payments")
     app.register_blueprint(admin_bp, url_prefix="/api/admin")
     app.register_blueprint(public_bp, url_prefix="/api/public")
+    app.register_blueprint(bot_bp, url_prefix="/api/bot")
 
     # Basic health check endpoint
     @app.route("/health")

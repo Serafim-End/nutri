@@ -1,7 +1,7 @@
 """Add currency field to payments table
 
 Revision ID: 20241228_000001
-Revises: 20241227_000002_add_client_filter_state
+Revises: 20241227_000002
 Create Date: 2024-12-28 00:00:01.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '20241228_000001'
-down_revision = '20241227_000002_add_client_filter_state'
+down_revision = '20241227_000002'
 branch_labels = None
 depends_on = None
 

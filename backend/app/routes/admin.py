@@ -3,16 +3,24 @@ Admin Routes
 Handles administrative functions like nutritionist verification.
 """
 
+import os
+import logging
 from datetime import datetime
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt
+from flask import Blueprint, request, jsonify, current_app
+from flask_jwt_extended import jwt_required, get_jwt, create_access_token
 
 from app.extensions import db
-from app.models import NutritionistProfile, NutritionistDocument
+from app.models import NutritionistProfile, NutritionistDocument, Profile
 from app.services.notifications import NotificationService
 
 
+logger = logging.getLogger(__name__)
 admin_bp = Blueprint("admin", __name__)
+
+
+# Admin credentials (in production, use proper user management)
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@nutrimatch.io")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")  # Change in production!
 
 
 def require_admin():
@@ -22,6 +30,102 @@ def require_admin():
     if role != "admin":
         return jsonify({"error": "Admin access required"}), 403
     return None
+
+
+@admin_bp.route("/auth/login", methods=["POST"])
+def admin_login():
+    """
+    Admin login endpoint.
+
+    Request:
+        POST /api/admin/auth/login
+        {
+            "email": "admin@nutrimatch.io",
+            "password": "secret"
+        }
+
+    Response:
+        200: { "access_token": "...", "token_type": "bearer", "user": {...} }
+        401: { "error": "Invalid credentials" }
+    """
+    data = request.get_json() or {}
+    email = data.get("email", "").strip().lower()
+    password = data.get("password", "")
+
+    if not email or not password:
+        return jsonify({"error": "Email and password are required"}), 400
+
+    # Validate credentials
+    if email != ADMIN_EMAIL.lower() or password != ADMIN_PASSWORD:
+        logger.warning(f"Failed admin login attempt for email: {email}")
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    # Create JWT token with admin role
+    access_token = create_access_token(
+        identity="admin",
+        additional_claims={
+            "role": "admin",
+            "email": email,
+        },
+    )
+
+    logger.info(f"Admin login successful: {email}")
+
+    return jsonify({
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": "admin",
+            "email": email,
+            "name": "Administrator",
+            "role": "admin",
+        },
+    })
+
+
+@admin_bp.route("/auth/me", methods=["GET"])
+@jwt_required()
+def admin_me():
+    """
+    Get current admin user info.
+
+    Request:
+        GET /api/admin/auth/me
+        Authorization: Bearer <admin_token>
+
+    Response:
+        200: { "user": {...} }
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    claims = get_jwt()
+    return jsonify({
+        "user": {
+            "id": "admin",
+            "email": claims.get("email", ""),
+            "name": "Administrator",
+            "role": "admin",
+        },
+    })
+
+
+@admin_bp.route("/auth/logout", methods=["POST"])
+@jwt_required()
+def admin_logout():
+    """
+    Admin logout endpoint (for token invalidation if needed).
+
+    Request:
+        POST /api/admin/auth/logout
+        Authorization: Bearer <admin_token>
+
+    Response:
+        200: { "message": "Logged out" }
+    """
+    # In a real app, you might want to blacklist the token
+    return jsonify({"message": "Logged out"})
 
 
 @admin_bp.route("/nutritionists", methods=["GET"])

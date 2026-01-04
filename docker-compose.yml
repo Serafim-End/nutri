@@ -34,6 +34,7 @@ services:
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-jwt-secret-key-change-in-production}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - BOT_SERVICE_TOKEN=${BOT_SERVICE_TOKEN:-bot-service-token-change-in-production}
       - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:80,http://client:80,https://web.telegram.org,https://t.me}
       - PAYMENT_WEBHOOK_SECRET=${PAYMENT_WEBHOOK_SECRET:-webhook-secret}
       - SLOT_HOLD_MINUTES=${SLOT_HOLD_MINUTES:-10}
@@ -84,6 +85,38 @@ services:
       - backend
     networks:
       - nutrimatch-network
+
+  # Telegram Bot (Optional - disabled by default)
+  # To enable: docker compose --profile bot up
+  telegram-bot:
+    build:
+      context: ./apps/telegram_bot
+      dockerfile: Dockerfile
+    container_name: nutrimatch-telegram-bot
+    profiles:
+      - bot
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - BOT_SERVICE_TOKEN=${BOT_SERVICE_TOKEN:-bot-service-token-change-in-production}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/nutrimatch}
+      - BACKEND_URL=http://backend:5000
+      - TELEGRAM_MODE=${TELEGRAM_MODE:-polling}
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
+      - WEBHOOK_PATH=${WEBHOOK_PATH:-/webhook}
+      - WEBHOOK_HOST=0.0.0.0
+      - WEBHOOK_PORT=8443
+      - WEBAPP_URL=${WEBAPP_URL:-https://t.me/your_bot/app}
+      - LOG_LEVEL=${BOT_LOG_LEVEL:-INFO}
+    ports:
+      - "8443:8443"
+    depends_on:
+      backend:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    networks:
+      - nutrimatch-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:

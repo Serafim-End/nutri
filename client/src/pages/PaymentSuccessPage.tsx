@@ -3,6 +3,14 @@ import { useEffect } from 'react'
 import { format, parseISO } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import type { Booking, PaymentIntent } from '../types'
+import {
+  Stack,
+  Card,
+  Button,
+  Heading,
+  Text,
+  Icons,
+} from '../design-system'
 
 export default function PaymentSuccessPage() {
   const location = useLocation()
@@ -34,85 +42,79 @@ export default function PaymentSuccessPage() {
     <div className="min-h-screen bg-gradient-to-b from-primary-500 to-primary-600 flex flex-col items-center justify-center px-4 text-white">
       {/* Success animation */}
       <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-8 animate-scale-in shadow-xl">
-        <svg
-          className="w-14 h-14 text-primary-500"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2.5}
-            d="M5 13l4 4L19 7"
-          />
-        </svg>
+        <Icons.CheckCircle size="xl" className="w-14 h-14 text-primary-500" />
       </div>
 
-      <h1 className="text-2xl font-display font-bold mb-2 animate-fade-in">
+      <Heading level="h1" size="2xl" className="text-white text-center animate-fade-in">
         Booking Confirmed!
-      </h1>
+      </Heading>
 
-      <p className="text-white/80 text-center mb-8 animate-fade-in" style={{ animationDelay: '100ms' }}>
+      <Text className="text-white/80 text-center mt-2 animate-fade-in" style={{ animationDelay: '100ms' }}>
         Your appointment has been successfully booked.
-      </p>
+      </Text>
 
       {/* Booking details */}
       {state?.booking && (
-        <div
-          className="w-full max-w-sm bg-white/10 rounded-2xl p-4 mb-8 animate-slide-up"
+        <Card
+          variant="elevated"
+          padding="lg"
+          className="w-full max-w-sm mt-8 bg-white/10 border-none animate-slide-up"
           style={{ animationDelay: '200ms' }}
         >
           {state.booking.slot && (
-            <div className="text-center">
-              <p className="text-white/60 text-sm">Appointment Date</p>
-              <p className="font-semibold text-lg">
+            <div className="text-center text-white">
+              <Text size="sm" className="text-white/60">Appointment Date</Text>
+              <Text weight="semibold" size="lg" className="text-white">
                 {format(parseISO(state.booking.slot.start_at), 'EEEE, d MMMM', { locale: ru })}
-              </p>
-              <p className="text-xl font-bold">
+              </Text>
+              <Text size="xl" weight="bold" className="text-white">
                 {format(parseISO(state.booking.slot.start_at), 'HH:mm')}
-              </p>
+              </Text>
             </div>
           )}
 
           <div className="mt-4 pt-4 border-t border-white/10 text-center">
-            <p className="text-white/60 text-sm">Amount Paid</p>
-            <p className="font-bold text-xl">
+            <Text size="sm" className="text-white/60">Amount Paid</Text>
+            <Text size="xl" weight="bold" className="text-white">
               {state.booking.price_rub.toLocaleString('ru-RU')} ₽
-            </p>
+            </Text>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Actions */}
-      <div
-        className="w-full max-w-sm space-y-3 animate-slide-up"
+      <Stack
+        gap={3}
+        className="w-full max-w-sm mt-8 animate-slide-up"
         style={{ animationDelay: '300ms' }}
       >
-        <button
+        <Button
           onClick={handleViewBookings}
-          className="w-full py-3 px-6 bg-white text-primary-600 font-semibold rounded-xl transition-all duration-200 hover:bg-white/90 active:scale-[0.98]"
+          variant="secondary"
+          fullWidth
+          className="bg-white text-primary-600 hover:bg-white/90"
         >
           View My Bookings
-        </button>
+        </Button>
 
-        <button
+        <Button
           onClick={handleClose}
-          className="w-full py-3 px-6 bg-white/10 text-white font-medium rounded-xl transition-all duration-200 hover:bg-white/20 active:scale-[0.98]"
+          variant="ghost"
+          fullWidth
+          className="text-white bg-white/10 hover:bg-white/20"
         >
           Close
-        </button>
-      </div>
+        </Button>
+      </Stack>
 
       {/* Reminder */}
-      <p
-        className="mt-8 text-white/60 text-sm text-center max-w-xs animate-fade-in"
+      <Text
+        size="sm"
+        className="mt-8 text-white/60 text-center max-w-xs animate-fade-in"
         style={{ animationDelay: '400ms' }}
       >
         You'll receive a reminder before your appointment via Telegram.
-      </p>
+      </Text>
     </div>
   )
 }
-
-

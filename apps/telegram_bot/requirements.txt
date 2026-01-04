@@ -1,0 +1,20 @@
+# NutriMatch Telegram Bot Dependencies
+# Python 3.11+
+
+# Telegram Bot Framework
+aiogram==3.13.1
+
+# HTTP Client
+aiohttp==3.10.10
+
+# Database (FSM storage)
+asyncpg==0.29.0
+sqlalchemy[asyncio]==2.0.35
+
+# Environment & Configuration
+python-dotenv==1.0.1
+
+# Production server (for webhook mode)
+uvicorn==0.32.0
+aiohttp-cors==0.7.0
+

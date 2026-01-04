@@ -16,6 +16,12 @@ help:
 	@echo "  make build        - Build Docker images"
 	@echo "  make logs         - View container logs"
 	@echo ""
+	@echo "Telegram Bot:"
+	@echo "  make bot-up       - Start Telegram bot (Docker)"
+	@echo "  make bot-dev      - Run bot locally (polling mode)"
+	@echo "  make bot-logs     - View bot logs"
+	@echo "  make bot-install  - Install bot dependencies"
+	@echo ""
 	@echo "Database:"
 	@echo "  make migrate      - Run all pending migrations"
 	@echo "  make downgrade    - Rollback last migration"
@@ -176,6 +182,32 @@ format:
 clean:
 	docker compose down -v --remove-orphans
 	docker system prune -f
+
+# ============================================
+# TELEGRAM BOT
+# ============================================
+
+bot-up:
+	@echo "Starting Telegram bot..."
+	docker compose --profile bot up telegram-bot
+
+bot-up-build:
+	@echo "Building and starting Telegram bot..."
+	docker compose --profile bot up --build telegram-bot
+
+bot-down:
+	docker compose --profile bot down telegram-bot
+
+bot-logs:
+	docker compose logs -f telegram-bot
+
+bot-dev:
+	@echo "Starting bot in polling mode (local)..."
+	cd apps/telegram_bot && python bot.py
+
+bot-install:
+	@echo "Installing bot dependencies..."
+	cd apps/telegram_bot && pip install -r requirements.txt
 
 # ============================================
 # PRODUCTION

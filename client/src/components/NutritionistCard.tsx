@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { NutritionistProfile } from '../types'
+import { Inline, Badge, Text, Icons } from '../design-system'
 import clsx from 'clsx'
 
 interface NutritionistCardProps {
@@ -17,19 +18,20 @@ export default function NutritionistCard({
     <Link
       to={`/nutritionist/${nutritionist.nutritionist_id}`}
       className={clsx(
-        'card block hover:shadow-md transition-all duration-200',
+        'block rounded-2xl bg-surface-primary border border-border-light p-4',
+        'shadow-xs hover:shadow-md transition-all duration-fast',
         'animate-slide-up opacity-0'
       )}
       style={{ animationDelay: `${animationDelay}ms`, animationFillMode: 'forwards' }}
     >
-      <div className="flex gap-4">
+      <Inline gap={4} align="start">
         {/* Avatar */}
         <div className="flex-shrink-0">
           {profile?.photo_url ? (
             <img
               src={profile.photo_url}
               alt={profile.full_name}
-              className="w-16 h-16 rounded-2xl object-cover bg-gray-100"
+              className="w-16 h-16 rounded-2xl object-cover bg-neutral-100"
             />
           ) : (
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center">
@@ -42,51 +44,44 @@ export default function NutritionistCard({
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold text-gray-900 truncate">
+          <Inline justify="between" gap={2}>
+            <Text weight="semibold" truncate>
               {profile?.full_name || 'Nutritionist'}
-            </h3>
+            </Text>
             {/* Rating */}
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <svg className="w-4 h-4 text-amber-400" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
-              <span className="text-sm font-medium text-gray-700">
+            <Inline gap={1} className="flex-shrink-0">
+              <Icons.Star size="sm" className="text-accent-amber" />
+              <Text size="sm" weight="medium">
                 {nutritionist.rating.toFixed(1)}
-              </span>
-              <span className="text-xs text-gray-400">
+              </Text>
+              <Text size="xs" color="tertiary">
                 ({nutritionist.reviews_count})
-              </span>
-            </div>
-          </div>
+              </Text>
+            </Inline>
+          </Inline>
 
           {/* Bio */}
-          <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+          <Text size="sm" color="secondary" lineClamp={2} className="mt-1">
             {nutritionist.bio || 'Professional nutritionist ready to help you.'}
-          </p>
+          </Text>
 
           {/* Tags */}
           {nutritionist.specializations?.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
               {nutritionist.specializations.slice(0, 3).map((spec) => (
-                <span
-                  key={spec}
-                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary-50 text-primary-700"
-                >
+                <Badge key={spec} variant="primary" size="sm">
                   {spec.replace(/_/g, ' ')}
-                </span>
+                </Badge>
               ))}
               {nutritionist.specializations.length > 3 && (
-                <span className="text-xs text-gray-400">
+                <Text size="xs" color="tertiary">
                   +{nutritionist.specializations.length - 3}
-                </span>
+                </Text>
               )}
             </div>
           )}
         </div>
-      </div>
+      </Inline>
     </Link>
   )
 }
-
-

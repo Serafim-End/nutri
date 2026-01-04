@@ -936,6 +936,265 @@ When implementing a new provider, ensure you:
 
 ---
 
+---
+
+## 🎨 Design System
+
+The client app includes a comprehensive design system that ensures visual consistency across all screens. The design system is inspired by modern health-tech apps with a calm, premium aesthetic.
+
+### Design Principles
+
+1. **Clarity over decoration** - Every element serves a purpose
+2. **One primary action per screen** - Clear visual hierarchy
+3. **Consistent spacing** - Predictable visual rhythm
+4. **Accessible by default** - High contrast, readable fonts
+5. **Telegram-friendly** - Respects safe areas, thumb-friendly buttons
+
+### Visual Language
+
+| Aspect | Choice | Rationale |
+|--------|--------|-----------|
+| **Primary Color** | Sage Green (#3AA76D) | Calm, wellness-focused, not aggressive |
+| **Background** | Off-white (#FAFBFC) | Warm, easy on the eyes |
+| **Typography** | Plus Jakarta Sans | Modern, friendly, highly readable |
+| **Border Radius** | Large (16-24px) | Soft, approachable feel |
+| **Shadows** | Subtle, layered | Depth without heaviness |
+
+### File Structure
+
+```
+client/src/design-system/
+├── tokens.ts              # Design tokens (colors, spacing, typography)
+├── index.ts               # Main export file
+└── components/
+    ├── Button.tsx         # Primary, secondary, ghost, destructive
+    ├── Card.tsx           # Default, outlined, elevated, interactive
+    ├── Badge.tsx          # Status badges and chips
+    ├── Text.tsx           # Typography components
+    ├── Input.tsx          # Form inputs
+    ├── Select.tsx         # Single and multi-select
+    ├── BottomSheet.tsx    # Modal and bottom sheet
+    ├── Divider.tsx        # Section dividers
+    ├── Loader.tsx         # Spinners, skeletons, page loader
+    ├── EmptyState.tsx     # Empty and error states
+    ├── Toast.tsx          # Alerts and notifications
+    ├── Layout.tsx         # Page containers and layout helpers
+    └── Icon.tsx           # Icon library
+```
+
+### Using the Design System
+
+#### Import Components
+
+```tsx
+import {
+  Button,
+  Card,
+  Badge,
+  Text,
+  Heading,
+  Stack,
+  Inline,
+  PageContainer,
+  Section,
+} from '../design-system'
+```
+
+#### Button Variants
+
+```tsx
+<Button variant="primary">Primary Action</Button>
+<Button variant="secondary">Secondary Action</Button>
+<Button variant="ghost">Ghost Button</Button>
+<Button variant="destructive">Delete</Button>
+<Button loading>Loading...</Button>
+<Button disabled>Disabled</Button>
+<Button fullWidth>Full Width</Button>
+```
+
+#### Layout Components
+
+```tsx
+// Page wrapper with background and safe areas
+<PageContainer background="gradient" withBottomNav>
+  <Header sticky bordered>
+    <Heading>Page Title</Heading>
+  </Header>
+  
+  <Section spacing="md">
+    <Stack gap={4}>
+      <Card>Card content</Card>
+      <Card>Another card</Card>
+    </Stack>
+  </Section>
+  
+  <Footer bordered>
+    <Button fullWidth>Action</Button>
+  </Footer>
+</PageContainer>
+```
+
+#### Typography
+
+```tsx
+<Heading level="h1" size="xl">Page Title</Heading>
+<Heading level="h2" size="md">Section Title</Heading>
+<Text weight="semibold">Bold text</Text>
+<Text color="secondary">Muted text</Text>
+<Text size="sm" color="tertiary">Caption</Text>
+```
+
+#### Cards
+
+```tsx
+<Card variant="default" padding="md">Default card</Card>
+<Card variant="elevated" padding="lg">Elevated card</Card>
+<Card variant="interactive" onClick={handleClick}>Clickable card</Card>
+```
+
+#### Badges
+
+```tsx
+<Badge variant="primary">Primary</Badge>
+<Badge variant="success">Success</Badge>
+<Badge variant="warning" dot animated>Pending</Badge>
+<StatusBadge status="confirmed" />
+<StatusBadge status="pending" />
+```
+
+#### Spacing & Layout
+
+```tsx
+// Vertical stack with gap
+<Stack gap={4}>
+  <div>Item 1</div>
+  <div>Item 2</div>
+</Stack>
+
+// Horizontal inline with alignment
+<Inline gap={2} justify="between" align="center">
+  <Text>Left</Text>
+  <Button>Right</Button>
+</Inline>
+
+// Grid layout
+<Grid cols={2} gap={3}>
+  <Card>Card 1</Card>
+  <Card>Card 2</Card>
+</Grid>
+```
+
+#### Empty States
+
+```tsx
+<NoResultsState onAction={() => openFilters()} />
+<NoBookingsState onAction={() => navigate('/results')} />
+<ErrorState onRetry={() => refetch()} />
+```
+
+### Design Tokens
+
+Access design tokens directly when needed:
+
+```tsx
+import { colors, spacing, borderRadius } from '../design-system/tokens'
+
+// Use in inline styles (avoid when possible)
+const style = {
+  backgroundColor: colors.primary[500],
+  padding: spacing[4],
+  borderRadius: borderRadius.xl,
+}
+```
+
+### DO's and DON'Ts
+
+#### ✅ DO
+
+- Use design system components for all UI
+- Use `Stack` and `Inline` for spacing
+- Use semantic color names (`text-primary`, `bg-secondary`)
+- Keep one primary action per screen
+- Show loading states for async operations
+- Provide empty states with guidance
+
+#### ❌ DON'T
+
+- Hardcode colors outside design system
+- Use inline styles for colors or spacing
+- Create custom button styles
+- Use more than 2 accent colors per screen
+- Rely on color alone for status (add text/icons)
+- Leave screens blank when empty
+
+### Adding New Components
+
+1. Create component in `src/design-system/components/`
+2. Export from `src/design-system/index.ts`
+3. Use tokens for all colors, spacing, and typography
+4. Support common variants via props
+5. Include TypeScript types
+
+Example:
+
+```tsx
+// src/design-system/components/MyComponent.tsx
+import { forwardRef } from 'react'
+import clsx from 'clsx'
+
+export interface MyComponentProps {
+  variant?: 'default' | 'highlighted'
+  children: React.ReactNode
+}
+
+export const MyComponent = forwardRef<HTMLDivElement, MyComponentProps>(
+  ({ variant = 'default', children, className, ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={clsx(
+          'rounded-xl p-4 transition-all duration-fast',
+          variant === 'default' && 'bg-surface-primary border border-border-light',
+          variant === 'highlighted' && 'bg-primary-50 border border-primary-200',
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </div>
+    )
+  }
+)
+```
+
+### Tailwind Integration
+
+The design system works seamlessly with Tailwind. CSS variables are defined in `index.css` and referenced in `tailwind.config.js`:
+
+```js
+// tailwind.config.js
+colors: {
+  primary: {
+    500: 'var(--color-primary-500)',
+    // ...
+  },
+  text: {
+    primary: 'var(--color-text-primary)',
+    secondary: 'var(--color-text-secondary)',
+  },
+}
+```
+
+Use in components:
+
+```tsx
+<div className="bg-primary-500 text-text-inverse">
+  Styled with Tailwind + design tokens
+</div>
+```
+
+---
+
 ## 📄 License
 
 MIT License

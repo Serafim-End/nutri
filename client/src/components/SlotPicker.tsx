@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
-import { format, parseISO, isSameDay } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import type { AvailabilitySlot } from '../types'
+import { Stack, Text, NoSlotsState } from '../design-system'
 import clsx from 'clsx'
 
 interface SlotPickerProps {
@@ -40,22 +41,18 @@ export default function SlotPicker({
   const sortedDates = Object.keys(groupedSlots).sort()
 
   if (slots.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">No available slots at the moment.</p>
-      </div>
-    )
+    return <NoSlotsState />
   }
 
   return (
-    <div className="space-y-6">
+    <Stack gap={6}>
       {sortedDates.map((date) => {
         const dateObj = parseISO(date)
         return (
           <div key={date}>
-            <h4 className="font-medium text-gray-900 mb-3">
+            <Text weight="medium" className="mb-3">
               {format(dateObj, 'EEEE, d MMMM', { locale: ru })}
-            </h4>
+            </Text>
             <div className="grid grid-cols-3 gap-2">
               {groupedSlots[date].map((slot) => {
                 const isSelected = selectedSlot?.id === slot.id
@@ -66,10 +63,12 @@ export default function SlotPicker({
                     key={slot.id}
                     onClick={() => onSelectSlot(slot)}
                     className={clsx(
-                      'py-2 px-3 rounded-xl text-sm font-medium transition-all duration-200',
+                      'py-2.5 px-3 rounded-xl text-sm font-medium',
+                      'transition-all duration-fast',
+                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
                       isSelected
-                        ? 'bg-primary-500 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-primary-500 text-white shadow-md shadow-primary-500/25'
+                        : 'bg-neutral-100 text-text-secondary hover:bg-neutral-200'
                     )}
                   >
                     {startTime}
@@ -80,8 +79,6 @@ export default function SlotPicker({
           </div>
         )
       })}
-    </div>
+    </Stack>
   )
 }
-
-

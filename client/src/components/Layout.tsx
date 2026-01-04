@@ -5,12 +5,10 @@ export default function Layout() {
   useTelegramBackButton()
 
   return (
-    <div className="min-h-screen bg-telegram-bg">
-      <main className="pb-safe-area-bottom">
+    <div className="min-h-screen bg-bg-primary">
+      <main>
         <Outlet />
       </main>
     </div>
   )
 }
-
-

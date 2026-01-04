@@ -1,4 +1,5 @@
 import type { Service } from '../types'
+import { Inline, Text, Icons } from '../design-system'
 import clsx from 'clsx'
 
 interface ServiceCardProps {
@@ -12,37 +13,36 @@ export default function ServiceCard({ service, selected, onSelect }: ServiceCard
     <button
       onClick={() => onSelect(service)}
       className={clsx(
-        'card w-full text-left transition-all duration-200',
+        'w-full text-left rounded-2xl p-4',
+        'bg-surface-primary border-2 transition-all duration-fast',
         selected
-          ? 'ring-2 ring-primary-500 bg-primary-50'
-          : 'hover:bg-gray-50'
+          ? 'border-primary-500 bg-primary-50 shadow-sm'
+          : 'border-border-light hover:border-border-default hover:shadow-xs'
       )}
     >
-      <div className="flex justify-between items-start gap-4">
-        <div className="flex-1">
-          <h4 className="font-semibold text-gray-900">{service.title}</h4>
+      <Inline justify="between" align="start" gap={4}>
+        <div className="flex-1 min-w-0">
+          <Text weight="semibold" className={clsx(selected && 'text-primary-700')}>
+            {service.title}
+          </Text>
           {service.description && (
-            <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+            <Text size="sm" color="secondary" lineClamp={2} className="mt-1">
               {service.description}
-            </p>
+            </Text>
           )}
-          <div className="mt-2 flex items-center gap-3 text-sm text-gray-500">
-            <span className="flex items-center gap-1">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+          <Inline gap={1} className="mt-2 text-text-tertiary">
+            <Icons.Clock size="sm" />
+            <Text size="sm" color="tertiary">
               {service.duration_minutes} min
-            </span>
-          </div>
+            </Text>
+          </Inline>
         </div>
         <div className="flex-shrink-0 text-right">
-          <div className="text-lg font-bold text-primary-600">
+          <Text size="lg" weight="bold" className="text-primary-600">
             {service.price_rub.toLocaleString('ru-RU')} ₽
-          </div>
+          </Text>
         </div>
-      </div>
+      </Inline>
     </button>
   )
 }
-
-

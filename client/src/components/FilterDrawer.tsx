@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { publicApi } from '../lib/api'
 import type { SearchFilters, FilterOptions } from '../types'
+import {
+  BottomSheet,
+  Stack,
+  Button,
+  Text,
+} from '../design-system'
 import clsx from 'clsx'
 
 interface FilterDrawerProps {
@@ -55,6 +61,40 @@ const DEFAULT_OPTIONS: FilterOptions = {
   ],
 }
 
+// Selection button for single-select options
+interface SelectionButtonProps {
+  label: string
+  selected: boolean
+  onClick: () => void
+}
+
+function SelectionButton({ label, selected, onClick }: SelectionButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={clsx(
+        'w-full px-4 py-3 rounded-xl text-left transition-all duration-fast',
+        'flex items-center justify-between',
+        selected
+          ? 'bg-primary-50 border-2 border-primary-500'
+          : 'bg-neutral-50 border-2 border-transparent hover:bg-neutral-100'
+      )}
+    >
+      <span className="font-medium text-text-primary">{label}</span>
+      {selected && (
+        <svg className="w-5 h-5 text-primary-500" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            fillRule="evenodd"
+            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+            clipRule="evenodd"
+          />
+        </svg>
+      )}
+    </button>
+  )
+}
+
 export default function FilterDrawer({
   isOpen,
   onClose,
@@ -69,7 +109,7 @@ export default function FilterDrawer({
   const { data: options } = useQuery({
     queryKey: ['filterOptions'],
     queryFn: publicApi.getFilterOptions,
-    staleTime: Infinity, // Options don't change often
+    staleTime: Infinity,
   })
 
   const filterOptions = options || DEFAULT_OPTIONS
@@ -131,194 +171,143 @@ export default function FilterDrawer({
           (r) => r.max === localFilters.budget_max_rub
         )?.id || null
 
-  if (!isOpen) return null
-
   return (
-    <div className="fixed inset-0 z-50">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Drawer */}
-      <div
-        className={clsx(
-          'absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl',
-          'max-h-[85vh] overflow-hidden flex flex-col',
-          'animate-slide-up shadow-2xl'
-        )}
-      >
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-4 py-4 flex items-center justify-between">
-          <h2 className="text-lg font-display font-bold text-gray-900">
-            Filters
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 -mr-2 text-gray-400 hover:text-gray-600"
-          >
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-          {/* Goals */}
-          <section>
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Goals</h3>
-            <div className="flex flex-wrap gap-2">
-              {filterOptions.goals.map((goal) => (
-                <button
-                  key={goal.id}
-                  onClick={() => toggleArrayValue('goals', goal.id)}
-                  className={clsx(
-                    'px-3 py-1.5 rounded-full text-sm font-medium transition-all',
-                    localFilters.goals.includes(goal.id)
-                      ? 'bg-primary-500 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  )}
-                >
-                  {goal.label}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Topics */}
-          <section>
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Topics</h3>
-            <div className="flex flex-wrap gap-2">
-              {filterOptions.topics.map((topic) => (
-                <button
-                  key={topic.id}
-                  onClick={() => toggleArrayValue('topics', topic.id)}
-                  className={clsx(
-                    'px-3 py-1.5 rounded-full text-sm font-medium transition-all',
-                    localFilters.topics.includes(topic.id)
-                      ? 'bg-primary-500 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  )}
-                >
-                  {topic.label}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Budget */}
-          <section>
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Budget per Session</h3>
-            <div className="space-y-2">
-              {filterOptions.budget_ranges.map((range) => (
-                <button
-                  key={range.id}
-                  onClick={() => setBudgetMax(range.max)}
-                  className={clsx(
-                    'w-full px-4 py-3 rounded-xl text-left transition-all flex items-center justify-between',
-                    selectedBudgetId === range.id ||
-                      (range.id === 'unknown' && localFilters.budget_max_rub === null)
-                      ? 'bg-primary-50 border-2 border-primary-500'
-                      : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-                  )}
-                >
-                  <span className="font-medium text-gray-900">{range.label}</span>
-                  {(selectedBudgetId === range.id ||
-                    (range.id === 'unknown' && localFilters.budget_max_rub === null)) && (
-                    <svg className="w-5 h-5 text-primary-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Dietary Restrictions */}
-          <section>
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Dietary Preferences</h3>
-            <div className="flex flex-wrap gap-2">
-              {filterOptions.dietary.map((diet) => (
-                <button
-                  key={diet.id}
-                  onClick={() => toggleArrayValue('dietary', diet.id)}
-                  className={clsx(
-                    'px-3 py-1.5 rounded-full text-sm font-medium transition-all',
-                    localFilters.dietary.includes(diet.id)
-                      ? 'bg-primary-500 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  )}
-                >
-                  {diet.label}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Help Mode */}
-          <section>
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Type of Help</h3>
-            <div className="space-y-2">
-              {filterOptions.help_modes.map((mode) => (
-                <button
-                  key={mode.id}
-                  onClick={() =>
-                    setHelpMode(localFilters.help_mode === mode.id ? null : mode.id)
-                  }
-                  className={clsx(
-                    'w-full px-4 py-3 rounded-xl text-left transition-all flex items-center justify-between',
-                    localFilters.help_mode === mode.id
-                      ? 'bg-primary-50 border-2 border-primary-500'
-                      : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-                  )}
-                >
-                  <span className="font-medium text-gray-900">{mode.label}</span>
-                  {localFilters.help_mode === mode.id && (
-                    <svg className="w-5 h-5 text-primary-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path
-                        fillRule="evenodd"
-                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  )}
-                </button>
-              ))}
-            </div>
-          </section>
-        </div>
-
-        {/* Footer with actions */}
-        <div className="sticky bottom-0 bg-white border-t border-gray-100 px-4 py-4 safe-area-bottom">
-          <div className="flex gap-2 mb-3">
-            <button
-              onClick={handleClearAll}
-              className="flex-1 py-2.5 px-4 text-sm font-medium text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-colors"
-            >
-              Clear All
-            </button>
-            <button
-              onClick={handleReset}
-              className="flex-1 py-2.5 px-4 text-sm font-medium text-primary-600 bg-primary-50 rounded-xl hover:bg-primary-100 transition-colors"
-            >
-              Reset to Default
-            </button>
+    <BottomSheet isOpen={isOpen} onClose={onClose} title="Filters">
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+        {/* Goals */}
+        <section>
+          <Text size="sm" weight="semibold" color="secondary" className="mb-3">
+            Goals
+          </Text>
+          <div className="flex flex-wrap gap-2">
+            {filterOptions.goals.map((goal) => (
+              <button
+                key={goal.id}
+                onClick={() => toggleArrayValue('goals', goal.id)}
+                className={clsx(
+                  'px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-fast',
+                  localFilters.goals.includes(goal.id)
+                    ? 'bg-primary-500 text-white shadow-sm'
+                    : 'bg-neutral-100 text-text-secondary hover:bg-neutral-200'
+                )}
+              >
+                {goal.label}
+              </button>
+            ))}
           </div>
-          <button
-            onClick={handleApply}
-            className="w-full btn-primary"
-          >
-            Apply Filters
-          </button>
-        </div>
+        </section>
+
+        {/* Topics */}
+        <section>
+          <Text size="sm" weight="semibold" color="secondary" className="mb-3">
+            Topics
+          </Text>
+          <div className="flex flex-wrap gap-2">
+            {filterOptions.topics.map((topic) => (
+              <button
+                key={topic.id}
+                onClick={() => toggleArrayValue('topics', topic.id)}
+                className={clsx(
+                  'px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-fast',
+                  localFilters.topics.includes(topic.id)
+                    ? 'bg-primary-500 text-white shadow-sm'
+                    : 'bg-neutral-100 text-text-secondary hover:bg-neutral-200'
+                )}
+              >
+                {topic.label}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* Budget */}
+        <section>
+          <Text size="sm" weight="semibold" color="secondary" className="mb-3">
+            Budget per Session
+          </Text>
+          <Stack gap={2}>
+            {filterOptions.budget_ranges.map((range) => (
+              <SelectionButton
+                key={range.id}
+                label={range.label}
+                selected={
+                  selectedBudgetId === range.id ||
+                  (range.id === 'unknown' && localFilters.budget_max_rub === null)
+                }
+                onClick={() => setBudgetMax(range.max)}
+              />
+            ))}
+          </Stack>
+        </section>
+
+        {/* Dietary Restrictions */}
+        <section>
+          <Text size="sm" weight="semibold" color="secondary" className="mb-3">
+            Dietary Preferences
+          </Text>
+          <div className="flex flex-wrap gap-2">
+            {filterOptions.dietary.map((diet) => (
+              <button
+                key={diet.id}
+                onClick={() => toggleArrayValue('dietary', diet.id)}
+                className={clsx(
+                  'px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-fast',
+                  localFilters.dietary.includes(diet.id)
+                    ? 'bg-primary-500 text-white shadow-sm'
+                    : 'bg-neutral-100 text-text-secondary hover:bg-neutral-200'
+                )}
+              >
+                {diet.label}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* Help Mode */}
+        <section>
+          <Text size="sm" weight="semibold" color="secondary" className="mb-3">
+            Type of Help
+          </Text>
+          <Stack gap={2}>
+            {filterOptions.help_modes.map((mode) => (
+              <SelectionButton
+                key={mode.id}
+                label={mode.label}
+                selected={localFilters.help_mode === mode.id}
+                onClick={() =>
+                  setHelpMode(localFilters.help_mode === mode.id ? null : mode.id)
+                }
+              />
+            ))}
+          </Stack>
+        </section>
       </div>
-    </div>
+
+      {/* Footer with actions */}
+      <div className="sticky bottom-0 bg-surface-primary border-t border-border-light px-4 py-4 safe-area-bottom">
+        <div className="flex gap-2 mb-3">
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={handleClearAll}
+            className="flex-1"
+          >
+            Clear All
+          </Button>
+          <Button
+            variant="ghost"
+            size="md"
+            onClick={handleReset}
+            className="flex-1 text-primary-600 bg-primary-50 hover:bg-primary-100"
+          >
+            Reset to Default
+          </Button>
+        </div>
+        <Button onClick={handleApply} fullWidth>
+          Apply Filters
+        </Button>
+      </div>
+    </BottomSheet>
   )
 }
-

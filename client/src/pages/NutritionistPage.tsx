@@ -2,9 +2,22 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { publicApi } from '../lib/api'
 import ServiceCard from '../components/ServiceCard'
-import LoadingScreen from '../components/LoadingScreen'
 import type { Service } from '../types'
 import { useState } from 'react'
+import {
+  PageContainer,
+  Stack,
+  Inline,
+  Card,
+  Badge,
+  Button,
+  Heading,
+  Text,
+  Footer,
+  Icons,
+  NotFoundState,
+} from '../design-system'
+import { PageLoader } from '../design-system/components/Loader'
 
 export default function NutritionistPage() {
   const { id } = useParams<{ id: string }>()
@@ -24,16 +37,16 @@ export default function NutritionistPage() {
   })
 
   if (loadingNutritionist || loadingServices) {
-    return <LoadingScreen />
+    return <PageLoader text="Loading profile..." />
   }
 
   if (!nutritionistData?.nutritionist) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="text-center">
-          <p className="text-gray-500">Nutritionist not found.</p>
+      <PageContainer>
+        <div className="min-h-screen flex items-center justify-center px-4">
+          <NotFoundState onBack={() => navigate(-1)} />
         </div>
-      </div>
+      </PageContainer>
     )
   }
 
@@ -52,66 +65,61 @@ export default function NutritionistPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Hero section */}
+    <PageContainer background="primary">
+      {/* Hero section with gradient */}
       <div className="bg-gradient-to-b from-primary-500 to-primary-600 px-4 pt-8 pb-16 text-white">
-        <div className="flex items-center gap-4">
+        <Inline gap={4} align="center">
           {profile?.photo_url ? (
             <img
               src={profile.photo_url}
               alt={profile.full_name}
-              className="w-20 h-20 rounded-2xl object-cover border-2 border-white/30"
+              className="w-20 h-20 rounded-2xl object-cover border-2 border-white/30 shadow-lg"
             />
           ) : (
-            <div className="w-20 h-20 rounded-2xl bg-white/20 flex items-center justify-center">
+            <div className="w-20 h-20 rounded-2xl bg-white/20 flex items-center justify-center shadow-lg">
               <span className="text-3xl font-bold">
                 {profile?.full_name?.charAt(0) || 'N'}
               </span>
             </div>
           )}
           <div>
-            <h1 className="text-xl font-display font-bold">
+            <Heading level="h1" size="lg" className="text-white">
               {profile?.full_name || 'Nutritionist'}
-            </h1>
-            <div className="flex items-center gap-2 mt-1">
-              <div className="flex items-center gap-1">
-                <svg className="w-4 h-4 text-amber-300" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
+            </Heading>
+            <Inline gap={2} className="mt-1">
+              <Inline gap={1}>
+                <Icons.Star size="sm" className="text-amber-300" />
                 <span className="font-medium">{nutritionist.rating.toFixed(1)}</span>
-              </div>
+              </Inline>
               <span className="text-white/60">•</span>
               <span className="text-white/80 text-sm">
                 {nutritionist.reviews_count} reviews
               </span>
-            </div>
+            </Inline>
           </div>
-        </div>
+        </Inline>
       </div>
 
-      {/* Content */}
+      {/* Content overlapping hero */}
       <div className="px-4 -mt-8">
         {/* Bio card */}
-        <div className="card mb-6 animate-slide-up">
-          <h2 className="font-semibold text-gray-900 mb-2">About</h2>
-          <p className="text-gray-600 text-sm leading-relaxed">
+        <Card variant="elevated" padding="lg" className="mb-6 animate-slide-up">
+          <Heading level="h2" size="md" className="mb-3">About</Heading>
+          <Text color="secondary" className="leading-relaxed">
             {nutritionist.bio || 'Professional nutritionist ready to help you achieve your health goals.'}
-          </p>
+          </Text>
 
           {/* Specializations */}
           {nutritionist.specializations?.length > 0 && (
-            <div className="mt-4">
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+            <div className="mt-5">
+              <Text size="xs" weight="medium" color="tertiary" className="uppercase tracking-wider mb-2">
                 Specializations
-              </h3>
+              </Text>
               <div className="flex flex-wrap gap-2">
                 {nutritionist.specializations.map((spec) => (
-                  <span
-                    key={spec}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary-50 text-primary-700"
-                  >
+                  <Badge key={spec} variant="primary" size="md">
                     {spec.replace(/_/g, ' ')}
-                  </span>
+                  </Badge>
                 ))}
               </div>
             </div>
@@ -120,30 +128,27 @@ export default function NutritionistPage() {
           {/* Tags */}
           {nutritionist.tags?.length > 0 && (
             <div className="mt-4">
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+              <Text size="xs" weight="medium" color="tertiary" className="uppercase tracking-wider mb-2">
                 Supports
-              </h3>
+              </Text>
               <div className="flex flex-wrap gap-2">
                 {nutritionist.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700"
-                  >
+                  <Badge key={tag} variant="default" size="md">
                     {tag.replace(/_/g, ' ')}
-                  </span>
+                  </Badge>
                 ))}
               </div>
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Services */}
         <div className="animate-slide-up" style={{ animationDelay: '100ms' }}>
-          <h2 className="font-semibold text-gray-900 mb-3">Services</h2>
+          <Heading level="h2" size="md" className="mb-4">Services</Heading>
           {services.length === 0 ? (
-            <p className="text-gray-500 text-sm">No services available.</p>
+            <Text color="secondary">No services available.</Text>
           ) : (
-            <div className="space-y-3 pb-32">
+            <Stack gap={3} className="pb-32">
               {services.map((service) => (
                 <ServiceCard
                   key={service.id}
@@ -152,27 +157,26 @@ export default function NutritionistPage() {
                   onSelect={handleSelectService}
                 />
               ))}
-            </div>
+            </Stack>
           )}
         </div>
       </div>
 
       {/* Bottom button */}
       {services.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100 safe-area-bottom">
-          <button
+        <Footer bordered>
+          <Button
             onClick={handleBookService}
             disabled={!selectedService}
-            className="btn-primary w-full"
+            fullWidth
+            size="lg"
           >
             {selectedService
               ? `Book for ${selectedService.price_rub.toLocaleString('ru-RU')} ₽`
               : 'Select a service'}
-          </button>
-        </div>
+          </Button>
+        </Footer>
       )}
-    </div>
+    </PageContainer>
   )
 }
-
-
