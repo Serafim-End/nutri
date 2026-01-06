@@ -1,13 +1,23 @@
-# Client Dockerfile
+# Client Dockerfile (Telegram Mini App)
+# Multi-stage build: Node build + nginx serve
+# Exposes HTTP on port 3000 (Cloudflare provides HTTPS externally)
+
+# ===========================================
+# Stage 1: Build
+# ===========================================
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# Build args for environment variables at build time
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+
 # Copy package files
-COPY package.json ./
+COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm ci
 
 # Copy source
 COPY . .
@@ -15,17 +25,22 @@ COPY . .
 # Build for production
 RUN npm run build
 
-# Production stage with nginx
+# ===========================================
+# Stage 2: Production (nginx)
+# ===========================================
 FROM nginx:alpine
+
+# Copy custom nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Expose port 3000
+EXPOSE 3000
 
-EXPOSE 80
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD wget -q --spider http://localhost:3000/health || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]
-
-

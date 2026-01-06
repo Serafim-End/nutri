@@ -9,48 +9,201 @@ A production-ready MVP for a Telegram-based nutritionists marketplace. Clients c
 │   Telegram Mini App │────▶│    Flask Backend    │────▶│    PostgreSQL       │
 │   (React + Vite)    │     │    (REST API)       │     │    (Supabase)       │
 └─────────────────────┘     └─────────────────────┘     └─────────────────────┘
-                                      ▲
-                                      │
-                            ┌─────────────────────┐
-                            │      Botpress       │
-                            │  (Nutritionist UI)  │
-                            └─────────────────────┘
+         ▲                           ▲
+         │                           │
+┌─────────────────────┐     ┌─────────────────────┐
+│    Admin Panel      │     │    Telegram Bot     │
+│  (React + Vite)     │     │    (aiogram v3)     │
+└─────────────────────┘     └─────────────────────┘
 ```
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Production)
 
-### Prerequisites
-- Docker & Docker Compose
-- Node.js 20+ (for local client development)
-- Python 3.11+ (for local backend development)
-
-### Run with Docker Compose
+### One-Command Deployment
 
 ```bash
-# 1. Clone and navigate to the project
+# 1. Clone and configure
+git clone <repo-url> nutri
 cd nutri
+cp .env.prod.example .env.prod
+# Edit .env.prod with your values
 
-# 2. Copy environment file
-cp .env.example .env
+# 2. Start everything
+make up
 
-# 3. Edit .env and set DATABASE_URL to your Supabase connection string
-# DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.YOUR_PROJECT.supabase.co:5432/postgres
-
-# 4. Start all services
-docker compose up --build
-
-# 5. In a new terminal, run migrations
+# 3. Run migrations and seed
 make migrate
-
-# 6. Seed the database with test data
-make seed
+make seed  # optional: adds test data
 ```
 
-**Access:**
-- Client: http://localhost:5173
-- API: http://localhost:5000
-- Health check: http://localhost:5000/health
-- Database health: http://localhost:5000/health/db
+That's it! Your services are now running on:
+- Backend API: `http://localhost:8000`
+- Client App: `http://localhost:3000`
+- Admin Panel: `http://localhost:3001`
+- Telegram Bot: `http://localhost:8081` (webhook mode)
+
+---
+
+## 🌐 Production Deployment with Cloudflare
+
+This project is designed for deployment with **Cloudflare** handling HTTPS and DNS. All services run on plain HTTP internally.
+
+### Prerequisites
+
+- A server with Docker and Docker Compose installed
+- A domain managed by Cloudflare
+- Supabase account (for PostgreSQL database)
+- Telegram Bot token (from @BotFather)
+
+### Step 1: DNS Configuration (Cloudflare)
+
+Add the following DNS records in your Cloudflare dashboard:
+
+| Type | Name | Content | Proxy |
+|------|------|---------|-------|
+| A | api | YOUR_SERVER_IP | ✅ Proxied |
+| A | app | YOUR_SERVER_IP | ✅ Proxied |
+| A | admin | YOUR_SERVER_IP | ✅ Proxied |
+| A | bot | YOUR_SERVER_IP | ✅ Proxied |
+
+This creates:
+- `api.example.com` → Backend API (port 8000)
+- `app.example.com` → Client Mini App (port 3000)
+- `admin.example.com` → Admin Panel (port 3001)
+- `bot.example.com` → Telegram Bot webhook (port 8081)
+
+### Step 2: Cloudflare SSL Configuration
+
+In Cloudflare Dashboard → SSL/TLS:
+
+1. **SSL Mode**: Set to **Full** (or **Full (Strict)** if you add origin certificates)
+2. **Edge Certificates**: Enable "Always Use HTTPS"
+3. **Minimum TLS Version**: TLS 1.2 (recommended)
+
+> **Note**: Cloudflare provides free SSL certificates. Your services run on plain HTTP, and Cloudflare handles HTTPS termination.
+
+### Step 3: Server Setup
+
+```bash
+# 1. SSH into your server
+ssh user@your-server-ip
+
+# 2. Install Docker (if not installed)
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+
+# 3. Clone the repository
+git clone <repo-url> nutri
+cd nutri
+
+# 4. Configure environment
+cp .env.prod.example .env.prod
+nano .env.prod  # Fill in all required values
+```
+
+### Step 4: Configure Environment Variables
+
+Edit `.env.prod` with your production values:
+
+```bash
+# Domain
+DOMAIN=example.com
+VITE_API_BASE_URL=https://api.example.com
+
+# Database (from Supabase Dashboard)
+DATABASE_URL=postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres
+
+# Security (generate with: openssl rand -hex 32)
+SECRET_KEY=your-secret-key
+JWT_SECRET_KEY=your-jwt-secret-key
+
+# Telegram
+TELEGRAM_BOT_TOKEN=your-bot-token
+TELEGRAM_MODE=webhook  # or 'polling' for development
+WEBHOOK_URL=https://bot.example.com
+BOT_SERVICE_TOKEN=your-service-token
+WEBAPP_URL=https://app.example.com
+
+# CORS
+CORS_ORIGINS=https://app.example.com,https://admin.example.com
+```
+
+### Step 5: Deploy
+
+```bash
+# Build and start all services
+make up
+
+# Run database migrations
+make migrate
+
+# (Optional) Seed with test data
+make seed
+
+# Check status
+make status
+
+# View logs
+make logs
+```
+
+### Step 6: Configure Telegram
+
+1. **Set Mini App URL** in @BotFather:
+   ```
+   /setmenubutton
+   → Select your bot
+   → https://app.example.com
+   ```
+
+2. **Set Webhook** (if using webhook mode):
+   ```
+   /setwebhook
+   → Select your bot
+   → https://bot.example.com/webhook
+   ```
+
+   Or use the API:
+   ```bash
+   curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://bot.example.com/webhook"
+   ```
+
+### Port Mapping Summary
+
+| Service | Internal Port | External URL |
+|---------|---------------|--------------|
+| Backend | 8000 | https://api.example.com |
+| Client | 3000 | https://app.example.com |
+| Admin Panel | 3001 | https://admin.example.com |
+| Telegram Bot | 8081 | https://bot.example.com |
+
+---
+
+## 🔧 Available Commands
+
+```bash
+# Production
+make up              # Start all services
+make down            # Stop all services
+make logs            # View logs (all)
+make logs-backend    # View backend logs
+make logs-bot        # View bot logs
+make status          # Container status
+make restart         # Restart all
+make shell           # Shell into backend
+
+# Database
+make migrate         # Run migrations
+make seed            # Seed data
+make downgrade       # Rollback migration
+make db-check        # Check connectivity
+
+# Development
+make dev-up          # Start dev environment
+make dev-logs        # View dev logs
+make test            # Run tests
+make lint            # Run linters
+```
 
 ---
 
@@ -60,64 +213,21 @@ This project uses **Supabase PostgreSQL** as the primary database.
 
 ### Setting DATABASE_URL
 
-The `DATABASE_URL` environment variable must be set to your Supabase connection string:
+Get your connection string from Supabase Dashboard → Settings → Database:
 
 ```bash
-# Format
 DATABASE_URL=postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres
-
-# Example (with sslmode - automatically added if missing)
-DATABASE_URL=postgresql://postgres:nutri-stage1@db.ghahrdtwdzmwthxyzmpt.supabase.co:5432/postgres?sslmode=require
 ```
-
-### Connection Configuration
 
 The backend automatically:
-1. **Normalizes the URL** to use `postgresql+psycopg2://` driver
-2. **Adds SSL** (`sslmode=require`) for Supabase connections
-3. **Validates** the URL format on startup
-4. **Fails fast** with a clear error if `DATABASE_URL` is missing or invalid
-
-### Local Development with Supabase
-
-```bash
-# Set environment variable
-export DATABASE_URL="postgresql://postgres:YOUR_PASSWORD@db.YOUR_PROJECT.supabase.co:5432/postgres"
-
-# Verify connection
-cd backend
-python -c "from app import create_app; app = create_app(); print('Connected!')"
-```
-
-### Common Supabase Errors
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `SSL required` | Missing sslmode | Add `?sslmode=require` to URL (auto-added) |
-| `Connection refused` | Wrong host/port | Verify Supabase project URL |
-| `Connection timed out` | Network/firewall | Check if port 5432 is accessible |
-| `Password authentication failed` | Wrong password | Get password from Supabase dashboard |
-| `Database does not exist` | Wrong database name | Use `postgres` (default Supabase DB) |
+- Normalizes the URL to use `postgresql+psycopg2://` driver
+- Adds SSL (`sslmode=require`) for Supabase connections
+- Validates the URL format on startup
 
 ### Checking Database Health
 
 ```bash
-# Using curl
-curl http://localhost:5000/health/db
-
-# Using make
-make db-check
-```
-
-Response example:
-```json
-{
-  "status": "healthy",
-  "database": "postgresql+psycopg2://postgres:***@db.xxx.supabase.co:5432/postgres",
-  "provider": "supabase",
-  "connection": true,
-  "revision": "20241227_000001"
-}
+curl http://localhost:8000/health/db
 ```
 
 ---
@@ -126,45 +236,24 @@ Response example:
 
 Migrations are managed with **Alembic** via Flask-Migrate.
 
-### Running Migrations
-
 ```bash
-# With Docker (recommended)
-make migrate            # Run all pending migrations
-make downgrade          # Rollback last migration
-make db-version         # Show current revision
-make db-history         # Show migration history
+# Run all pending migrations
+make migrate
 
-# Local development
-make migrate-local
-make downgrade-local
+# Rollback last migration
+make downgrade
+
+# Show current version
+make db-version
+
+# Show migration history
+make db-history
 ```
 
 ### Creating New Migrations
 
 ```bash
-# Auto-generate migration from model changes
 make migrate-new msg="add user preferences"
-
-# Manual migration
-docker compose exec backend flask db revision -m "custom migration"
-```
-
-### Migration Files
-
-Located in `backend/migrations/versions/`:
-
-| Migration | Description |
-|-----------|-------------|
-| `20241225_000001_initial_migration.py` | Base schema with all tables |
-| `20241227_000001_add_status_indexes_and_constraints.py` | Performance indexes and CHECK constraints |
-| `20241227_000002_add_client_filter_state.py` | Client filter state for persistent search filters |
-
-### Resetting Database (DANGER!)
-
-```bash
-# This will DELETE all data!
-make db-reset
 ```
 
 ---
@@ -174,14 +263,10 @@ make db-reset
 The seed script is **idempotent** - safe to run multiple times.
 
 ```bash
-# With Docker
 make seed
-
-# Local
-make seed-local
 ```
 
-### Seeded Accounts
+### Seeded Test Accounts
 
 | Role | Telegram User ID | Name |
 |------|-----------------|------|
@@ -189,40 +274,6 @@ make seed-local
 | Client | 300000001 | Test Client |
 | Nutritionist | 200000001 | Dr. Elena Petrova |
 | Nutritionist | 200000002 | Michael Chen, RD |
-
-For development auth, use initData like: `test_200000001_Elena`
-
----
-
-## 🏃 Local Development (without Docker)
-
-**Backend:**
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Set environment variables
-export DATABASE_URL="postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres"
-export FLASK_DEBUG=1
-
-# Run migrations
-flask db upgrade
-
-# Seed database
-python seed.py
-
-# Start server
-flask run --debug
-```
-
-**Client:**
-```bash
-cd client
-npm install
-npm run dev
-```
 
 ---
 
@@ -232,34 +283,31 @@ npm run dev
 nutri/
 ├── backend/                    # Flask API
 │   ├── app/
-│   │   ├── __init__.py        # App factory with health endpoints
-│   │   ├── config.py          # Configuration with Supabase SSL handling
-│   │   ├── extensions.py      # Flask extensions
+│   │   ├── __init__.py        # App factory
+│   │   ├── config.py          # Configuration
 │   │   ├── models/            # SQLAlchemy models
 │   │   ├── routes/            # API blueprints
 │   │   ├── schemas/           # Pydantic schemas
 │   │   └── services/          # Business logic
 │   ├── migrations/            # Alembic migrations
-│   │   ├── alembic.ini        # Alembic config (reads DATABASE_URL)
-│   │   ├── env.py             # Migration environment
-│   │   └── versions/          # Migration files
-│   ├── tests/                 # Pytest tests
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── seed.py                # Idempotent test data seeder
+│   └── Dockerfile
 ├── client/                     # React Mini App
 │   ├── src/
 │   │   ├── components/        # UI components
-│   │   ├── hooks/             # Custom React hooks
-│   │   ├── lib/               # API client
+│   │   ├── design-system/     # Design tokens & primitives
+│   │   ├── hooks/             # React hooks
 │   │   ├── pages/             # Page components
-│   │   ├── store/             # Zustand stores
-│   │   └── types/             # TypeScript types
-│   ├── Dockerfile
-│   └── package.json
-├── docker-compose.yml
-├── Makefile                    # Developer commands
-├── .env.example
+│   │   └── store/             # Zustand stores
+│   └── Dockerfile
+├── apps/
+│   ├── admin_panel/           # Admin Panel (React)
+│   │   └── Dockerfile
+│   └── telegram_bot/          # Telegram Bot (aiogram v3)
+│       └── Dockerfile
+├── docker-compose.yml         # Development
+├── docker-compose.prod.yml    # Production
+├── .env.prod.example          # Environment template
+├── Makefile                   # Commands
 └── README.md
 ```
 
@@ -271,927 +319,113 @@ nutri/
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/health` | Basic health check |
-| GET | `/health/db` | Database connectivity + migration revision |
+| GET | `/health/db` | Database connectivity |
 
 ### Authentication
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/auth/telegram/verify` | Verify Telegram initData, return JWT |
-
-### Clients
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/clients/intakes` | Submit intake questionnaire (creates filter state) |
-| GET | `/api/clients/matches?intake_id=...` | Get matched nutritionists |
-| GET | `/api/clients/bookings` | List client's bookings |
-| GET | `/api/clients/me/filters` | Get current filters and defaults |
-| PUT | `/api/clients/me/filters` | Update current filters |
+| POST | `/api/auth/telegram/verify` | Verify Telegram initData |
 
 ### Public
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/public/nutritionists` | List approved nutritionists |
-| GET | `/api/public/nutritionists/{id}` | Get nutritionist details |
-| GET | `/api/public/nutritionists/{id}/services` | List services |
-| GET | `/api/public/nutritionists/{id}/slots` | List available slots |
-| POST | `/api/public/nutritionists/search` | Search with filters and scoring |
-| GET | `/api/public/filters/options` | Get available filter options |
+| GET | `/api/public/nutritionists` | List nutritionists |
+| GET | `/api/public/nutritionists/{id}` | Get details |
+| POST | `/api/public/nutritionists/search` | Search with filters |
 
 ### Bookings
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/bookings` | Create booking (holds slot 10 min) |
-| GET | `/api/bookings/{id}` | Get booking details |
+| POST | `/api/bookings` | Create booking |
 | POST | `/api/bookings/{id}/cancel` | Cancel booking |
-| POST | `/api/bookings/{id}/mark-paid` | DEV: simulate payment (routes through abstraction) |
-| POST | `/api/bookings/release-expired-holds` | Cron: release expired holds |
 
-### Payments
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/payments/create` | Create payment intent for booking |
-| POST | `/api/payments/webhook/{provider}` | Provider-specific webhook handler |
-| POST | `/api/payments/mock-pay/{booking_id}` | Dev: simulate payment success |
-| GET | `/api/payments/{booking_id}/status` | Get payment status |
-
-### Nutritionists (Botpress)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/nutritionists/upsert` | Create/update profile |
-| POST | `/api/nutritionists/{id}/documents` | Add document metadata |
-| POST | `/api/nutritionists/{id}/services` | Create service |
-| POST | `/api/nutritionists/{id}/slots` | Bulk create slots |
-| GET | `/api/nutritionists/{id}/dashboard` | Get dashboard data |
-
-### Admin
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/admin/nutritionists?status=pending` | List pending reviews |
-| POST | `/api/admin/nutritionists/{id}/approve` | Approve nutritionist |
-| POST | `/api/admin/nutritionists/{id}/reject` | Reject nutritionist |
+See [docs/API.md](docs/API.md) for complete API documentation.
 
 ---
 
 ## 🔐 Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string (Supabase) | **Required** |
-| `SECRET_KEY` | Flask secret key | `dev-secret-key` |
-| `JWT_SECRET_KEY` | JWT signing key | Same as SECRET_KEY |
-| `JWT_EXPIRY_HOURS` | Token expiration | `24` |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token | `` |
-| `CORS_ORIGINS` | Allowed origins | `http://localhost:5173` |
-| `SLOT_HOLD_MINUTES` | Slot hold duration | `10` |
-| `PAYMENT_PROVIDER` | Payment provider (mock, telegram, yookassa) | `mock` |
-| `PAYMENT_WEBHOOK_SECRET` | Webhook signature key | `webhook-secret` |
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DATABASE_URL` | PostgreSQL connection string | ✅ |
+| `SECRET_KEY` | Flask secret key | ✅ |
+| `JWT_SECRET_KEY` | JWT signing key | ✅ |
+| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather | ✅ |
+| `BOT_SERVICE_TOKEN` | Bot-backend auth token | ✅ |
+| `VITE_API_BASE_URL` | API URL for frontend | ✅ |
+| `CORS_ORIGINS` | Allowed CORS origins | ✅ |
+| `TELEGRAM_MODE` | `polling` or `webhook` | |
+| `WEBHOOK_URL` | Webhook URL (if webhook mode) | |
+| `PAYMENT_PROVIDER` | `mock`, `telegram`, etc. | |
 
 ---
 
 ## 🧪 Testing
 
 ```bash
-# Backend tests
-cd backend
-pytest -v
+# Run backend tests
+make test
 
 # With coverage
-pytest --cov=app --cov-report=html
+make test-cov
 ```
-
----
-
-## 🔧 Development Commands
-
-```bash
-# View all commands
-make help
-
-# Database commands
-make migrate        # Run migrations
-make downgrade      # Rollback
-make seed           # Seed test data
-make db-check       # Check connection
-
-# Docker commands
-make up             # Start containers
-make down           # Stop containers
-make logs           # View logs
-
-# Code quality
-make lint           # Run linters
-make format         # Format code
-```
-
----
-
-## 🚢 Production Deployment
-
-1. Set up Supabase PostgreSQL
-2. Configure environment variables (especially `DATABASE_URL`)
-3. Build and deploy:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
-```
-
-4. Run migrations:
-```bash
-docker compose exec backend flask db upgrade
-```
-
-5. Set up cron job for expired holds:
-```bash
-# Every 5 minutes
-*/5 * * * * curl -X POST http://localhost:5000/api/bookings/release-expired-holds
-```
-
----
-
-## 📝 Test Accounts
-
-After running `make seed`:
-
-| Role | Telegram User ID |
-|------|-----------------|
-| Admin | 100000001 |
-| Client | 300000001 |
-| Nutritionist (Elena) | 200000001 |
-| Nutritionist (Michael) | 200000002 |
-
-For development auth, use initData: `test_200000001_Elena`
 
 ---
 
 ## 🛡️ Security Notes
 
-- JWT tokens expire after 24 hours
-- All nutritionist endpoints verify ownership or admin role
+- JWT tokens expire after 24 hours (configurable)
+- All nutritionist endpoints verify ownership
 - Telegram initData signature is verified
-- Payment webhooks require valid signatures
-- CORS is configured for allowed origins only
 - SSL is enforced for Supabase connections
-
----
-
-## 🎯 Stage 6: Atomic Booking & Slot Hold
-
-Stage 6 implements the complete booking flow with race-condition safe slot holds.
-
-### Key Features
-
-- **Atomic Booking**: Uses PostgreSQL row-level locks (`SELECT FOR UPDATE`) to prevent double-booking
-- **Slot Hold System**: 10-minute hold window for payment (configurable via `BOOKING_HOLD_MINUTES`)
-- **State Machines**: Enforced valid transitions for slots and bookings
-- **Dev Login**: Development-only endpoint for testing without Telegram
-
-### Slot States & Transitions
-
-```
-free → held → booked → cancelled (admin only)
-     ↓
-    free (hold expired or cancelled)
-```
-
-### Booking States & Transitions
-
-```
-pending_payment → paid → completed
-       ↓           ↓
-   cancelled    refunded
-```
-
-### Running the Stage 6 Flow Locally
-
-```bash
-# 1. Start services
-docker compose up --build
-
-# 2. Run migrations
-make migrate
-
-# 3. Seed database with test data
-make seed
-
-# 4. Open client in browser
-open http://localhost:5173
-
-# 5. Use the "Dev Login" button (bottom-right) to authenticate
-#    This calls POST /api/auth/dev-login with the seeded client user
-```
-
-### Testing the Booking Flow
-
-1. **Browse nutritionists**: Go to `/results` to see available nutritionists
-2. **Select a service**: Click on a nutritionist, then select a service
-3. **Choose a slot**: Pick an available time slot
-4. **Create booking**: Click "Confirm Booking" to hold the slot
-5. **View hold timer**: See countdown timer (10 min default)
-6. **Simulate payment**: Click "Simulate Payment Success" to confirm
-7. **View bookings**: Go to `/my-bookings` to see all bookings
-
-### API Examples (curl)
-
-```bash
-# Dev login (development only)
-curl -X POST http://localhost:5000/api/auth/dev-login \
-  -H "Content-Type: application/json" \
-  -d '{"telegram_user_id": 300000001}'
-
-# List nutritionists
-curl http://localhost:5000/api/public/nutritionists
-
-# Get nutritionist services
-curl http://localhost:5000/api/public/nutritionists/{nutritionist_id}/services
-
-# Get available slots
-curl "http://localhost:5000/api/public/nutritionists/{nutritionist_id}/slots?service_id={service_id}"
-
-# Create booking (requires JWT)
-curl -X POST http://localhost:5000/api/bookings \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"service_id": "<uuid>", "slot_id": "<uuid>"}'
-
-# Mark booking as paid (simulate payment)
-curl -X POST http://localhost:5000/api/bookings/{booking_id}/mark-paid \
-  -H "Authorization: Bearer <token>"
-
-# Cancel booking
-curl -X POST http://localhost:5000/api/bookings/{booking_id}/cancel \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{"reason": "Changed my mind"}'
-
-# Get my bookings
-curl http://localhost:5000/api/clients/me/bookings \
-  -H "Authorization: Bearer <token>"
-
-# Release expired holds (cron job)
-curl -X POST http://localhost:5000/api/bookings/release-expired-holds
-```
-
-### Running Release Expired Holds (Cron)
-
-The expired holds release endpoint should be called periodically:
-
-```bash
-# Manual call
-curl -X POST http://localhost:5000/api/bookings/release-expired-holds
-
-# Cron job (every 5 minutes)
-*/5 * * * * curl -X POST http://localhost:5000/api/bookings/release-expired-holds
-
-# With Docker
-docker compose exec backend python -c "
-from app import create_app
-from app.services.booking_hold import BookingHoldService
-app = create_app()
-with app.app_context():
-    count = BookingHoldService.release_expired_holds()
-    print(f'Released {count} expired holds')
-"
-```
-
-### Development Login
-
-In development mode (`FLASK_ENV=development`), you can bypass Telegram auth:
-
-```bash
-# Using curl
-curl -X POST http://localhost:5000/api/auth/dev-login \
-  -H "Content-Type: application/json" \
-  -d '{"telegram_user_id": 300000001}'
-
-# Available test users (after make seed):
-# - Client: telegram_user_id = 300000001
-# - Nutritionist (Elena): telegram_user_id = 200000001
-# - Nutritionist (Michael): telegram_user_id = 200000002
-# - Admin: telegram_user_id = 100000001
-```
-
-The frontend also shows a "Dev Login" button in development mode when not running inside Telegram.
-
-### Configuration
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `BOOKING_HOLD_MINUTES` | How long a slot is held pending payment | `10` |
-| `FLASK_ENV` | Set to `development` to enable dev login | `production` |
-
----
-
-## 🔍 Stage 7: Results with Filters
-
-Stage 7 implements a filterable results page that persists client search preferences.
-
-### Key Features
-
-- **Persistent Filters**: Client filter preferences are saved to the database
-- **Onboarding Integration**: After completing onboarding, filters are auto-populated from intake answers
-- **Scored Results**: Nutritionists are scored based on filter matches
-- **Match Reasons**: UI shows why each nutritionist matched (e.g., "Specializes in weight loss")
-- **Real-time Updates**: Filters update search results on apply
-
-### Data Model
-
-```sql
--- New table: client_filter_states
-CREATE TABLE client_filter_states (
-    client_id UUID PRIMARY KEY REFERENCES profiles(id) ON DELETE CASCADE,
-    intake_id UUID REFERENCES intakes(id) ON DELETE SET NULL,
-    filters JSONB NOT NULL DEFAULT '{}',
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
-
-### Filter Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `goals` | string[] | Health goals (weight_loss, muscle_gain, etc.) |
-| `topics` | string[] | Topics of interest (meal_planning, supplements, etc.) |
-| `budget_max_rub` | number \| null | Maximum budget per session |
-| `dietary` | string[] | Dietary preferences (vegetarian, vegan, etc.) |
-| `help_mode` | string \| null | Type of help needed (one_time, plan, long_term) |
-| `specializations` | string[] | Additional specializations |
-| `tags` | string[] | Additional tags |
-
-### Scoring Algorithm
-
-The search endpoint scores nutritionists based on filter matches:
-
-| Match Type | Points |
-|------------|--------|
-| Goal matches specialization | +3 per match |
-| Topic/dietary matches tags | +1 per match |
-| Has service within budget | +2 |
-| Help mode matches service type | +1 |
-| Rating bonus | +0.5 per rating point |
-
-### API Examples
-
-```bash
-# Get current filters and defaults
-curl http://localhost:5000/api/clients/me/filters \
-  -H "Authorization: Bearer <token>"
-
-# Response:
-# {
-#   "intake_id": "...",
-#   "filters": {"goals": ["weight_loss"], "budget_max_rub": 5000, ...},
-#   "defaults": {"goals": ["weight_loss"], ...}
-# }
-
-# Update filters
-curl -X PUT http://localhost:5000/api/clients/me/filters \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "filters": {
-      "goals": ["weight_loss", "muscle_gain"],
-      "budget_max_rub": 3000,
-      "dietary": ["vegetarian"],
-      "help_mode": "plan"
-    }
-  }'
-
-# Search nutritionists with filters
-curl -X POST http://localhost:5000/api/public/nutritionists/search \
-  -H "Content-Type: application/json" \
-  -d '{
-    "filters": {
-      "goals": ["weight_loss"],
-      "budget_max_rub": 5000,
-      "dietary": ["vegetarian"],
-      "help_mode": "one_time"
-    }
-  }'
-
-# Response:
-# {
-#   "nutritionists": [
-#     {
-#       "nutritionist_id": "...",
-#       "profile": {...},
-#       "score": 8.5,
-#       "matched_reasons": ["Specializes in weight loss", "Within budget"]
-#     }
-#   ],
-#   "total": 2
-# }
-
-# Get available filter options
-curl http://localhost:5000/api/public/filters/options
-
-# Response:
-# {
-#   "goals": [{"id": "weight_loss", "label": "Weight Loss"}, ...],
-#   "topics": [...],
-#   "dietary": [...],
-#   "help_modes": [...],
-#   "budget_ranges": [{"id": "up_to_2000", "max": 2000, "label": "Up to 2,000 ₽"}, ...]
-# }
-```
-
-### Frontend Usage
-
-1. **After Onboarding**: IntakePage submits answers → backend creates filter_state → redirects to /results
-2. **On Results Page**: Load filters from `/api/clients/me/filters` → search with filters → display results
-3. **Filter Drawer**: User can modify filters → Apply saves to backend → re-search
-
-### Testing the Filter Flow
-
-```bash
-# 1. Start services
-docker compose up --build
-
-# 2. Run migrations (including new filter state table)
-make migrate
-
-# 3. Seed database
-make seed
-
-# 4. Open client
-open http://localhost:5173
-
-# 5. Complete onboarding (or skip to /results)
-# 6. Click "Filters" button to open drawer
-# 7. Modify filters and click "Apply"
-# 8. See filtered results with match reasons
-```
+- CORS is configured for allowed origins only
 
 ---
 
 ## 💳 Payment Integration
 
-The project includes a clean payment abstraction layer that makes adding new payment providers trivial.
+The project includes a payment abstraction layer. Default is `mock` provider for development.
 
-### Current State
+Available providers:
+- `mock` - Development/testing
+- `telegram` - Telegram Payments (Stars)
+- `yookassa` - Russian payment gateway
+- `cloudpayments` - Alternative gateway
 
-- **Mock Provider**: Used by default in development. Simulates payment success without real money.
-- **Payment Abstraction**: Provider interface in `app/payments/` allows plugging in real providers.
-- **Unified Lifecycle**: All payments follow the same flow regardless of provider.
+See [docs/API.md](docs/API.md) for payment integration details.
 
-### Payment Flow
+---
 
-```
-Booking (pending_payment)
-    ↓
-PaymentIntent created (payment record with status=created)
-    ↓
-Client redirected to payment URL (or mock button shown)
-    ↓
-Provider processes payment
-    ↓
-Webhook received → finalize_payment()
-    ↓
-Booking → paid, Slot → booked, Payment → succeeded
-```
+## 🐛 Troubleshooting
 
-### Payment Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/payments/create` | Create payment intent for booking |
-| POST | `/api/payments/webhook/{provider}` | Provider webhook handler |
-| POST | `/api/payments/mock-pay/{booking_id}` | DEV: Simulate payment success |
-| GET | `/api/payments/{booking_id}/status` | Get payment status |
-| POST | `/api/bookings/{id}/mark-paid` | DEV shortcut (routes through abstraction) |
-
-### Configuration
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PAYMENT_PROVIDER` | Active provider (mock, telegram, yookassa, cloudpayments) | `mock` |
-| `PAYMENT_WEBHOOK_SECRET` | Webhook signature verification key | `webhook-secret` |
-
-### How to Plug a Real Payment Provider
-
-Adding a new payment provider requires **one file** and **one registration**:
-
-#### 1. Create Provider Implementation
-
-Create a new file `backend/app/payments/telegram.py` (or your provider name):
-
-```python
-"""
-Telegram Payments Provider
-
-Implements payment via Telegram Payments (Stars).
-"""
-
-from typing import Any
-from flask import current_app
-import httpx  # or your HTTP library
-
-from app.payments.base import (
-    PaymentProvider,
-    PaymentIntent,
-    PaymentResult,
-    PaymentStatus,
-    PaymentWebhookError,
-)
-
-
-class TelegramPaymentProvider(PaymentProvider):
-    """Telegram Payments (Stars) provider."""
-    
-    @property
-    def name(self) -> str:
-        return "telegram"
-    
-    def create_payment_intent(self, booking: Any) -> PaymentIntent:
-        """Create Telegram payment invoice."""
-        bot_token = current_app.config["TELEGRAM_BOT_TOKEN"]
-        payment = booking.payment
-        
-        # Call Telegram Bot API to create invoice link
-        response = httpx.post(
-            f"https://api.telegram.org/bot{bot_token}/createInvoiceLink",
-            json={
-                "title": f"Booking #{str(booking.id)[:8]}",
-                "description": booking.service.title if booking.service else "Consultation",
-                "payload": str(booking.id),  # Our booking ID
-                "currency": "XTR",  # Telegram Stars
-                "prices": [{"label": "Consultation", "amount": booking.price_rub}],
-            }
-        )
-        data = response.json()
-        
-        if not data.get("ok"):
-            raise Exception(f"Telegram API error: {data.get('description')}")
-        
-        payment_url = data["result"]
-        
-        expires_at = None
-        if booking.slot and booking.slot.hold_expires_at:
-            expires_at = booking.slot.hold_expires_at.isoformat()
-        
-        return PaymentIntent(
-            payment_id=str(payment.id),
-            provider=self.name,
-            payment_url=payment_url,
-            amount_rub=booking.price_rub,
-            currency=booking.currency,
-            expires_at=expires_at,
-        )
-    
-    def handle_webhook(self, payload: dict, headers: dict) -> PaymentResult:
-        """Process Telegram successful_payment update."""
-        # Telegram sends updates via the bot webhook
-        # Extract successful_payment from the update
-        
-        update = payload
-        message = update.get("message", {})
-        successful_payment = message.get("successful_payment")
-        
-        if not successful_payment:
-            raise PaymentWebhookError("No successful_payment in update")
-        
-        booking_id = successful_payment.get("invoice_payload")
-        telegram_payment_id = successful_payment.get("telegram_payment_charge_id")
-        
-        return PaymentResult(
-            booking_id=booking_id,
-            provider_payment_id=telegram_payment_id,
-            status=PaymentStatus.SUCCEEDED,
-            raw_payload=payload,
-        )
-    
-    def verify_signature(self, payload: dict, headers: dict) -> bool:
-        """Verify Telegram webhook signature."""
-        # Telegram uses a different verification method
-        # Usually you verify the update came from Telegram by checking
-        # the secret_token you set when registering the webhook
-        secret_token = headers.get("X-Telegram-Bot-Api-Secret-Token", "")
-        expected = current_app.config.get("TELEGRAM_WEBHOOK_SECRET", "")
-        
-        if not expected:
-            return True  # Skip verification if not configured
-        
-        return secret_token == expected
-```
-
-#### 2. Register the Provider
-
-In `backend/app/payments/__init__.py`, add:
-
-```python
-from app.payments.telegram import TelegramPaymentProvider
-
-# Add to the _PROVIDERS dict:
-_PROVIDERS: dict[str, type[PaymentProvider]] = {
-    "mock": MockPaymentProvider,
-    "telegram": TelegramPaymentProvider,  # Add this line
-}
-```
-
-#### 3. Configure Environment
-
+### Container won't start
 ```bash
-# .env
-PAYMENT_PROVIDER=telegram
-TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_WEBHOOK_SECRET=your_webhook_secret  # Optional
+# Check logs
+make logs-backend
+
+# Check status
+make status
 ```
 
-#### 4. Set Up Webhook URL
+### Database connection failed
+```bash
+# Check connectivity
+make db-check
 
-Configure your payment provider to send webhooks to:
-```
-https://your-domain.com/api/payments/webhook/telegram
-```
-
-### That's It!
-
-No changes needed to:
-- Booking logic
-- Frontend code (it adapts to provider automatically)
-- Database schema
-- Existing tests
-
-The abstraction layer handles everything else.
-
-### Provider Implementation Checklist
-
-When implementing a new provider, ensure you:
-
-- [ ] Implement `name` property (unique identifier)
-- [ ] Implement `create_payment_intent()` (returns PaymentIntent with payment_url)
-- [ ] Implement `handle_webhook()` (returns PaymentResult with booking_id and status)
-- [ ] Implement `verify_signature()` if provider requires signature verification
-- [ ] Register provider in `__init__.py`
-- [ ] Add provider-specific config variables to `config.py` comments
-- [ ] Test the full flow: create intent → process webhook → booking confirmed
-
-### Available Providers
-
-| Provider | Status | Notes |
-|----------|--------|-------|
-| `mock` | ✅ Ready | Development/testing only |
-| `telegram` | 📋 Template | Telegram Payments (Stars) |
-| `yookassa` | 📋 Planned | Popular Russian payment gateway |
-| `cloudpayments` | 📋 Planned | Alternative payment gateway |
-
----
-
----
-
-## 🎨 Design System
-
-The client app includes a comprehensive design system that ensures visual consistency across all screens. The design system is inspired by modern health-tech apps with a calm, premium aesthetic.
-
-### Design Principles
-
-1. **Clarity over decoration** - Every element serves a purpose
-2. **One primary action per screen** - Clear visual hierarchy
-3. **Consistent spacing** - Predictable visual rhythm
-4. **Accessible by default** - High contrast, readable fonts
-5. **Telegram-friendly** - Respects safe areas, thumb-friendly buttons
-
-### Visual Language
-
-| Aspect | Choice | Rationale |
-|--------|--------|-----------|
-| **Primary Color** | Sage Green (#3AA76D) | Calm, wellness-focused, not aggressive |
-| **Background** | Off-white (#FAFBFC) | Warm, easy on the eyes |
-| **Typography** | Plus Jakarta Sans | Modern, friendly, highly readable |
-| **Border Radius** | Large (16-24px) | Soft, approachable feel |
-| **Shadows** | Subtle, layered | Depth without heaviness |
-
-### File Structure
-
-```
-client/src/design-system/
-├── tokens.ts              # Design tokens (colors, spacing, typography)
-├── index.ts               # Main export file
-└── components/
-    ├── Button.tsx         # Primary, secondary, ghost, destructive
-    ├── Card.tsx           # Default, outlined, elevated, interactive
-    ├── Badge.tsx          # Status badges and chips
-    ├── Text.tsx           # Typography components
-    ├── Input.tsx          # Form inputs
-    ├── Select.tsx         # Single and multi-select
-    ├── BottomSheet.tsx    # Modal and bottom sheet
-    ├── Divider.tsx        # Section dividers
-    ├── Loader.tsx         # Spinners, skeletons, page loader
-    ├── EmptyState.tsx     # Empty and error states
-    ├── Toast.tsx          # Alerts and notifications
-    ├── Layout.tsx         # Page containers and layout helpers
-    └── Icon.tsx           # Icon library
+# Verify DATABASE_URL in .env.prod
 ```
 
-### Using the Design System
+### Telegram webhook not working
+```bash
+# Check webhook status
+curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"
 
-#### Import Components
-
-```tsx
-import {
-  Button,
-  Card,
-  Badge,
-  Text,
-  Heading,
-  Stack,
-  Inline,
-  PageContainer,
-  Section,
-} from '../design-system'
+# Set webhook manually
+curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://bot.example.com/webhook"
 ```
 
-#### Button Variants
-
-```tsx
-<Button variant="primary">Primary Action</Button>
-<Button variant="secondary">Secondary Action</Button>
-<Button variant="ghost">Ghost Button</Button>
-<Button variant="destructive">Delete</Button>
-<Button loading>Loading...</Button>
-<Button disabled>Disabled</Button>
-<Button fullWidth>Full Width</Button>
-```
-
-#### Layout Components
-
-```tsx
-// Page wrapper with background and safe areas
-<PageContainer background="gradient" withBottomNav>
-  <Header sticky bordered>
-    <Heading>Page Title</Heading>
-  </Header>
-  
-  <Section spacing="md">
-    <Stack gap={4}>
-      <Card>Card content</Card>
-      <Card>Another card</Card>
-    </Stack>
-  </Section>
-  
-  <Footer bordered>
-    <Button fullWidth>Action</Button>
-  </Footer>
-</PageContainer>
-```
-
-#### Typography
-
-```tsx
-<Heading level="h1" size="xl">Page Title</Heading>
-<Heading level="h2" size="md">Section Title</Heading>
-<Text weight="semibold">Bold text</Text>
-<Text color="secondary">Muted text</Text>
-<Text size="sm" color="tertiary">Caption</Text>
-```
-
-#### Cards
-
-```tsx
-<Card variant="default" padding="md">Default card</Card>
-<Card variant="elevated" padding="lg">Elevated card</Card>
-<Card variant="interactive" onClick={handleClick}>Clickable card</Card>
-```
-
-#### Badges
-
-```tsx
-<Badge variant="primary">Primary</Badge>
-<Badge variant="success">Success</Badge>
-<Badge variant="warning" dot animated>Pending</Badge>
-<StatusBadge status="confirmed" />
-<StatusBadge status="pending" />
-```
-
-#### Spacing & Layout
-
-```tsx
-// Vertical stack with gap
-<Stack gap={4}>
-  <div>Item 1</div>
-  <div>Item 2</div>
-</Stack>
-
-// Horizontal inline with alignment
-<Inline gap={2} justify="between" align="center">
-  <Text>Left</Text>
-  <Button>Right</Button>
-</Inline>
-
-// Grid layout
-<Grid cols={2} gap={3}>
-  <Card>Card 1</Card>
-  <Card>Card 2</Card>
-</Grid>
-```
-
-#### Empty States
-
-```tsx
-<NoResultsState onAction={() => openFilters()} />
-<NoBookingsState onAction={() => navigate('/results')} />
-<ErrorState onRetry={() => refetch()} />
-```
-
-### Design Tokens
-
-Access design tokens directly when needed:
-
-```tsx
-import { colors, spacing, borderRadius } from '../design-system/tokens'
-
-// Use in inline styles (avoid when possible)
-const style = {
-  backgroundColor: colors.primary[500],
-  padding: spacing[4],
-  borderRadius: borderRadius.xl,
-}
-```
-
-### DO's and DON'Ts
-
-#### ✅ DO
-
-- Use design system components for all UI
-- Use `Stack` and `Inline` for spacing
-- Use semantic color names (`text-primary`, `bg-secondary`)
-- Keep one primary action per screen
-- Show loading states for async operations
-- Provide empty states with guidance
-
-#### ❌ DON'T
-
-- Hardcode colors outside design system
-- Use inline styles for colors or spacing
-- Create custom button styles
-- Use more than 2 accent colors per screen
-- Rely on color alone for status (add text/icons)
-- Leave screens blank when empty
-
-### Adding New Components
-
-1. Create component in `src/design-system/components/`
-2. Export from `src/design-system/index.ts`
-3. Use tokens for all colors, spacing, and typography
-4. Support common variants via props
-5. Include TypeScript types
-
-Example:
-
-```tsx
-// src/design-system/components/MyComponent.tsx
-import { forwardRef } from 'react'
-import clsx from 'clsx'
-
-export interface MyComponentProps {
-  variant?: 'default' | 'highlighted'
-  children: React.ReactNode
-}
-
-export const MyComponent = forwardRef<HTMLDivElement, MyComponentProps>(
-  ({ variant = 'default', children, className, ...props }, ref) => {
-    return (
-      <div
-        ref={ref}
-        className={clsx(
-          'rounded-xl p-4 transition-all duration-fast',
-          variant === 'default' && 'bg-surface-primary border border-border-light',
-          variant === 'highlighted' && 'bg-primary-50 border border-primary-200',
-          className
-        )}
-        {...props}
-      >
-        {children}
-      </div>
-    )
-  }
-)
-```
-
-### Tailwind Integration
-
-The design system works seamlessly with Tailwind. CSS variables are defined in `index.css` and referenced in `tailwind.config.js`:
-
-```js
-// tailwind.config.js
-colors: {
-  primary: {
-    500: 'var(--color-primary-500)',
-    // ...
-  },
-  text: {
-    primary: 'var(--color-text-primary)',
-    secondary: 'var(--color-text-secondary)',
-  },
-}
-```
-
-Use in components:
-
-```tsx
-<div className="bg-primary-500 text-text-inverse">
-  Styled with Tailwind + design tokens
-</div>
-```
+### CORS errors
+Ensure `CORS_ORIGINS` includes your frontend domains with `https://` prefix.
 
 ---
 

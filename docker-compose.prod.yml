@@ -1,21 +1,133 @@
-# Production Docker Compose configuration
-# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+# =============================================================================
+# Production Docker Compose
+# =============================================================================
+# 
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d --build
+#   (or use: make up)
+#
+# Prerequisites:
+#   1. Copy .env.prod.example to .env.prod and fill in values
+#   2. Configure DNS in Cloudflare pointing to your server
+#   3. Enable Cloudflare SSL (Full or Full Strict mode)
+#
+# Services exposed on plain HTTP (Cloudflare handles HTTPS):
+#   - backend:      http://localhost:8000 -> https://api.yourdomain.com
+#   - client:       http://localhost:3000 -> https://app.yourdomain.com
+#   - admin_panel:  http://localhost:3001 -> https://admin.yourdomain.com
+#   - telegram_bot: http://localhost:8081 -> https://bot.yourdomain.com (webhook mode only)
+#
+# =============================================================================
 
 services:
+  # ===========================================================================
+  # Backend API (Flask + Gunicorn)
+  # ===========================================================================
   backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nutri-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.prod
     environment:
       - FLASK_ENV=production
       - FLASK_DEBUG=0
-    command: gunicorn --bind 0.0.0.0:5000 --workers 4 --timeout 120 wsgi:app
-    volumes: []  # Don't mount source in production
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - nutri-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ===========================================================================
+  # Client Mini App (React + Nginx)
+  # ===========================================================================
   client:
     build:
       context: ./client
       dockerfile: Dockerfile
-    environment:
-      - NODE_ENV=production
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+    container_name: nutri-client
+    restart: unless-stopped
     ports:
-      - "80:80"
-    volumes: []  # Don't mount source in production
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - nutri-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # ===========================================================================
+  # Admin Panel (React + Nginx)
+  # ===========================================================================
+  admin_panel:
+    build:
+      context: ./apps/admin_panel
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+    container_name: nutri-admin
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - nutri-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================================================================
+  # Telegram Bot (aiogram v3)
+  # ===========================================================================
+  telegram_bot:
+    build:
+      context: ./apps/telegram_bot
+      dockerfile: Dockerfile
+    container_name: nutri-bot
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env.prod
+    environment:
+      - TELEGRAM_MODE=${TELEGRAM_MODE:-polling}
+      - WEBHOOK_PORT=8081
+      - WEBHOOK_HOST=0.0.0.0
+      - WEBHOOK_PATH=/webhook
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - nutri-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  nutri-network:
+    driver: bridge

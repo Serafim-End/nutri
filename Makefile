@@ -1,220 +1,254 @@
+# =============================================================================
 # NutriMatch Makefile
+# =============================================================================
 # Database: Supabase PostgreSQL
+# Deployment: Docker + Cloudflare (HTTPS)
+# =============================================================================
 
 .PHONY: help install dev build up down logs seed test lint clean migrate downgrade db-reset db-check
+.PHONY: prod-up prod-down prod-logs prod-migrate prod-seed prod-shell prod-status prod-restart
 
 # Default target
 help:
-	@echo "NutriMatch Development Commands"
-	@echo "================================"
 	@echo ""
-	@echo "Setup & Development:"
-	@echo "  make install      - Install dependencies (local dev)"
-	@echo "  make dev          - Start development servers locally"
-	@echo "  make up           - Start Docker containers"
-	@echo "  make down         - Stop Docker containers"
-	@echo "  make build        - Build Docker images"
-	@echo "  make logs         - View container logs"
+	@echo "NutriMatch Commands"
+	@echo "==================="
 	@echo ""
-	@echo "Telegram Bot:"
-	@echo "  make bot-up       - Start Telegram bot (Docker)"
-	@echo "  make bot-dev      - Run bot locally (polling mode)"
-	@echo "  make bot-logs     - View bot logs"
-	@echo "  make bot-install  - Install bot dependencies"
+	@echo "🚀 Production (Recommended):"
+	@echo "  make up              - Build and start all production containers"
+	@echo "  make down            - Stop production containers"
+	@echo "  make logs            - View production logs (all services)"
+	@echo "  make migrate         - Run database migrations"
+	@echo "  make seed            - Seed database with initial data"
 	@echo ""
-	@echo "Database:"
-	@echo "  make migrate      - Run all pending migrations"
-	@echo "  make downgrade    - Rollback last migration"
-	@echo "  make seed         - Seed database with test data (idempotent)"
-	@echo "  make db-check     - Verify database connectivity"
-	@echo "  make db-reset     - Drop all tables and re-run migrations (DANGEROUS)"
+	@echo "📋 Production Logs:"
+	@echo "  make logs-backend    - View backend logs only"
+	@echo "  make logs-client     - View client logs only"
+	@echo "  make logs-admin      - View admin panel logs only"
+	@echo "  make logs-bot        - View telegram bot logs only"
 	@echo ""
-	@echo "Testing & Quality:"
-	@echo "  make test         - Run tests"
-	@echo "  make lint         - Run linters"
-	@echo "  make clean        - Clean up containers and volumes"
+	@echo "🔧 Production Management:"
+	@echo "  make status          - Show container status"
+	@echo "  make restart         - Restart all containers"
+	@echo "  make shell           - Open shell in backend container"
 	@echo ""
-	@echo "Shells:"
-	@echo "  make shell-backend - Open shell in backend container"
-	@echo "  make shell-db      - Open PostgreSQL shell"
+	@echo "💻 Local Development:"
+	@echo "  make dev-install     - Install dependencies locally"
+	@echo "  make dev-up          - Start development containers"
+	@echo "  make dev-down        - Stop development containers"
+	@echo "  make dev-logs        - View development logs"
+	@echo ""
+	@echo "🗄️ Database:"
+	@echo "  make migrate         - Run pending migrations"
+	@echo "  make downgrade       - Rollback last migration"
+	@echo "  make seed            - Seed test data (idempotent)"
+	@echo "  make db-check        - Verify database connectivity"
+	@echo "  make db-version      - Show current migration version"
+	@echo "  make db-reset        - Reset database (DANGEROUS)"
+	@echo ""
+	@echo "🤖 Telegram Bot:"
+	@echo "  make bot-dev         - Run bot locally (polling mode)"
+	@echo "  make bot-install     - Install bot dependencies"
+	@echo ""
+	@echo "🧪 Testing & Quality:"
+	@echo "  make test            - Run backend tests"
+	@echo "  make lint            - Run linters"
+	@echo "  make clean           - Clean up containers and volumes"
+	@echo ""
 
-# ============================================
-# LOCAL DEVELOPMENT
-# ============================================
+# =============================================================================
+# PRODUCTION COMMANDS (Primary - using docker-compose.prod.yml)
+# =============================================================================
 
-install:
-	cd backend && pip install -r requirements.txt
-	cd client && npm install
-
-dev:
-	@echo "Starting backend..."
-	cd backend && flask run --debug &
-	@echo "Starting client..."
-	cd client && npm run dev
-
-# ============================================
-# DOCKER COMMANDS
-# ============================================
-
+# Build and start all production containers
 up:
-	docker compose up --build
+	docker compose -f docker-compose.prod.yml up -d --build
 
+# Stop production containers
 down:
-	docker compose down
+	docker compose -f docker-compose.prod.yml down
 
-build:
-	docker compose build
-
+# View all production logs
 logs:
-	docker compose logs -f
+	docker compose -f docker-compose.prod.yml logs -f
 
+# View specific service logs
 logs-backend:
-	docker compose logs -f backend
+	docker compose -f docker-compose.prod.yml logs -f backend
 
 logs-client:
-	docker compose logs -f client
+	docker compose -f docker-compose.prod.yml logs -f client
 
-# ============================================
-# DATABASE COMMANDS
-# ============================================
+logs-admin:
+	docker compose -f docker-compose.prod.yml logs -f admin_panel
 
-# Run all pending migrations
+logs-bot:
+	docker compose -f docker-compose.prod.yml logs -f telegram_bot
+
+# Run database migrations
 migrate:
-	@echo "Running database migrations..."
-	docker compose exec backend flask db upgrade
-	@echo "✓ Migrations complete"
+	docker compose -f docker-compose.prod.yml exec backend flask db upgrade
 
-# Run migrations locally (without Docker)
-migrate-local:
-	@echo "Running database migrations (local)..."
-	cd backend && flask db upgrade
-	@echo "✓ Migrations complete"
+# Seed database with initial data
+seed:
+	docker compose -f docker-compose.prod.yml exec backend python seed.py
+
+# Show container status
+status:
+	docker compose -f docker-compose.prod.yml ps
+
+# Restart all containers
+restart:
+	docker compose -f docker-compose.prod.yml restart
+
+# Restart specific service
+restart-backend:
+	docker compose -f docker-compose.prod.yml restart backend
+
+restart-bot:
+	docker compose -f docker-compose.prod.yml restart telegram_bot
+
+# Open shell in backend container
+shell:
+	docker compose -f docker-compose.prod.yml exec backend /bin/sh
+
+# =============================================================================
+# DEVELOPMENT COMMANDS (using docker-compose.yml)
+# =============================================================================
+
+# Install dependencies locally
+dev-install:
+	cd backend && pip install -r requirements.txt
+	cd client && npm install
+	cd apps/admin_panel && npm install
+	cd apps/telegram_bot && pip install -r requirements.txt
+
+# Start development environment
+dev-up:
+	docker compose up --build
+
+# Stop development environment
+dev-down:
+	docker compose down
+
+# View development logs
+dev-logs:
+	docker compose logs -f
+
+# Build development images
+dev-build:
+	docker compose build
+
+# =============================================================================
+# DATABASE COMMANDS
+# =============================================================================
+
+# Run all pending migrations (production)
+prod-migrate:
+	docker compose -f docker-compose.prod.yml exec backend flask db upgrade
 
 # Rollback last migration
 downgrade:
-	@echo "Rolling back last migration..."
-	docker compose exec backend flask db downgrade
-	@echo "✓ Rollback complete"
+	docker compose -f docker-compose.prod.yml exec backend flask db downgrade
 
-# Rollback last migration locally
-downgrade-local:
-	@echo "Rolling back last migration (local)..."
-	cd backend && flask db downgrade
-	@echo "✓ Rollback complete"
-
-# Create a new migration
+# Create a new migration (development)
 migrate-new:
 	@echo "Creating new migration: $(msg)"
 	docker compose exec backend flask db migrate -m "$(msg)"
 
-# Seed database with test data (idempotent - safe to run multiple times)
-seed:
-	@echo "Seeding database..."
+# Seed database (development)
+dev-seed:
 	docker compose exec backend python seed.py
-	@echo "✓ Seed complete"
-
-# Seed database locally
-seed-local:
-	@echo "Seeding database (local)..."
-	cd backend && python seed.py
-	@echo "✓ Seed complete"
 
 # Check database connectivity
 db-check:
 	@echo "Checking database connectivity..."
-	@curl -s http://localhost:5000/health/db | python3 -m json.tool || echo "Failed to connect. Is the backend running?"
+	@curl -s http://localhost:8000/health/db | python3 -m json.tool || echo "Failed. Is the backend running?"
+
+# Show current migration version
+db-version:
+	docker compose -f docker-compose.prod.yml exec backend flask db current
+
+# Show migration history
+db-history:
+	docker compose -f docker-compose.prod.yml exec backend flask db history
 
 # DANGEROUS: Reset database (drop all, re-migrate, re-seed)
 db-reset:
 	@echo "⚠️  WARNING: This will DELETE all data!"
 	@read -p "Type 'yes' to confirm: " confirm && [ "$$confirm" = "yes" ] || exit 1
 	@echo "Dropping all tables..."
-	docker compose exec backend flask db downgrade base
+	docker compose -f docker-compose.prod.yml exec backend flask db downgrade base
 	@echo "Running migrations..."
-	docker compose exec backend flask db upgrade
+	docker compose -f docker-compose.prod.yml exec backend flask db upgrade
 	@echo "Seeding database..."
-	docker compose exec backend python seed.py
+	docker compose -f docker-compose.prod.yml exec backend python seed.py
 	@echo "✓ Database reset complete"
 
-# Show current migration version
-db-version:
-	docker compose exec backend flask db current
-
-# Show migration history
-db-history:
-	docker compose exec backend flask db history
-
-# ============================================
-# SHELL ACCESS
-# ============================================
-
-shell-backend:
-	docker compose exec backend /bin/sh
-
-shell-db:
-	docker compose exec postgres psql -U postgres -d nutrimatch
-
-# ============================================
-# TESTING
-# ============================================
-
-test:
-	cd backend && pytest -v
-
-test-cov:
-	cd backend && pytest --cov=app --cov-report=html
-
-# ============================================
-# LINTING & FORMATTING
-# ============================================
-
-lint:
-	cd backend && black . && ruff check . && mypy app/
-	cd client && npm run lint
-
-format:
-	cd backend && black .
-
-# ============================================
-# CLEANUP
-# ============================================
-
-clean:
-	docker compose down -v --remove-orphans
-	docker system prune -f
-
-# ============================================
+# =============================================================================
 # TELEGRAM BOT
-# ============================================
+# =============================================================================
 
-bot-up:
-	@echo "Starting Telegram bot..."
-	docker compose --profile bot up telegram-bot
-
-bot-up-build:
-	@echo "Building and starting Telegram bot..."
-	docker compose --profile bot up --build telegram-bot
-
-bot-down:
-	docker compose --profile bot down telegram-bot
-
-bot-logs:
-	docker compose logs -f telegram-bot
-
+# Run bot locally in polling mode
 bot-dev:
 	@echo "Starting bot in polling mode (local)..."
 	cd apps/telegram_bot && python bot.py
 
+# Install bot dependencies
 bot-install:
 	@echo "Installing bot dependencies..."
 	cd apps/telegram_bot && pip install -r requirements.txt
 
-# ============================================
-# PRODUCTION
-# ============================================
+# =============================================================================
+# TESTING & QUALITY
+# =============================================================================
 
-prod-up:
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+# Run backend tests
+test:
+	cd backend && pytest -v
 
-prod-down:
-	docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+# Run tests with coverage
+test-cov:
+	cd backend && pytest --cov=app --cov-report=html
+
+# Run linters
+lint:
+	cd backend && black . && ruff check . && mypy app/
+	cd client && npm run lint
+
+# Format code
+format:
+	cd backend && black .
+
+# =============================================================================
+# CLEANUP
+# =============================================================================
+
+# Clean up production containers and volumes
+clean:
+	docker compose -f docker-compose.prod.yml down -v --remove-orphans
+	docker system prune -f
+
+# Clean up development containers and volumes
+dev-clean:
+	docker compose down -v --remove-orphans
+	docker system prune -f
+
+# =============================================================================
+# LEGACY ALIASES (for backward compatibility)
+# =============================================================================
+
+# Legacy production commands (now primary)
+prod-up: up
+prod-down: down
+prod-logs: logs
+prod-seed: seed
+prod-shell: shell
+prod-status: status
+prod-logs-backend: logs-backend
+prod-logs-client: logs-client
+prod-logs-admin: logs-admin
+prod-logs-bot: logs-bot
+prod-restart-backend: restart-backend
+prod-restart-bot: restart-bot
+clean-prod: clean
