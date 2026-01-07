@@ -285,7 +285,7 @@ export default function FilterDrawer({
       </div>
 
       {/* Футер с действиями */}
-      <div className="sticky bottom-0 bg-surface-primary border-t border-border-light px-4 py-4 safe-area-bottom">
+      <div className="sticky bottom-0 bg-white border-t border-border-light px-4 py-4 safe-area-bottom">
         <div className="flex gap-2 mb-3">
           <Button
             variant="secondary"

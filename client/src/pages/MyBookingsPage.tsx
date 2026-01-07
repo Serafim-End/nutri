@@ -171,7 +171,7 @@ function BottomNav() {
   const navigate = useNavigate()
   
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-surface-primary border-t border-border-light safe-area-bottom z-fixed">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border-light safe-area-bottom z-fixed">
       <div className="flex">
         <button
           onClick={() => navigate('/results')}

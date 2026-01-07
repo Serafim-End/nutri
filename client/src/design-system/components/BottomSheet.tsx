@@ -50,7 +50,9 @@ export function BottomSheet({
       {/* Backdrop */}
       <div
         className={clsx(
-          'absolute inset-0 bg-surface-overlay backdrop-blur-sm',
+          // Semi-transparent backdrop over the underlying page,
+          // while the sheet itself remains fully opaque.
+          'absolute inset-0 bg-surface-overlay',
           'animate-fade-in'
         )}
         onClick={onClose}
@@ -61,7 +63,8 @@ export function BottomSheet({
         ref={sheetRef}
         className={clsx(
           'absolute bottom-0 left-0 right-0',
-          'bg-surface-elevated rounded-t-3xl',
+          // Force solid sheet background
+          'bg-white rounded-t-3xl',
           'max-h-[90vh] overflow-hidden flex flex-col',
           'shadow-2xl',
           'animate-slide-up',

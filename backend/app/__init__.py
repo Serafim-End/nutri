@@ -6,10 +6,12 @@ Telegram-based Nutritionists Marketplace API
 import logging
 from flask import Flask, jsonify
 from flask_cors import CORS
+from flasgger import Swagger
 from sqlalchemy import text
 
 from app.config import Config
 from app.extensions import db, migrate, jwt
+from app.swagger import SWAGGER_CONFIG, SWAGGER_TEMPLATE
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,10 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+    
+    # Initialize Swagger (OpenAPI documentation)
+    # Available at / (Swagger UI) and /apispec.json (OpenAPI spec)
+    Swagger(app, config=SWAGGER_CONFIG, template=SWAGGER_TEMPLATE)
 
     # Configure CORS for Telegram Mini App
     CORS(
@@ -55,19 +61,46 @@ def create_app(config_class=Config):
     # Basic health check endpoint
     @app.route("/health")
     def health():
+        """
+        Проверка здоровья сервиса
+        ---
+        tags:
+          - Health
+        responses:
+          200:
+            description: Сервис работает
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/HealthResponse'
+        """
         return {"status": "healthy", "service": "nutrimatch-api"}
 
     # Database health check endpoint
     @app.route("/health/db")
     def health_db():
         """
-        Database health check endpoint.
-        
-        Verifies:
-        - Database connectivity (SELECT 1)
-        - Current Alembic migration revision
-        
-        Returns JSON with status, revision, and any errors.
+        Проверка здоровья БД
+        ---
+        tags:
+          - Health
+        description: |
+          Проверяет:
+          - Подключение к базе данных (SELECT 1)
+          - Текущую ревизию Alembic миграций
+        responses:
+          200:
+            description: БД доступна
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/DatabaseHealthResponse'
+          503:
+            description: БД недоступна
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/DatabaseHealthResponse'
         """
         result = {
             "status": "unknown",

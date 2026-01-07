@@ -46,23 +46,38 @@ def require_nutritionist_or_admin(nutritionist_id: str):
 @nutritionists_bp.route("/upsert", methods=["POST"])
 def upsert_nutritionist():
     """
-    Create or update nutritionist profile.
-    Used by Botpress for nutritionist onboarding.
-
-    Request:
-        POST /api/nutritionists/upsert
-        {
-            "telegram_user_id": 123456789,
-            "full_name": "John Doe",
-            "photo_url": "https://...",
-            "bio": "Certified nutritionist...",
-            "tags": ["weight_loss", "sports_nutrition"],
-            "specializations": ["diabetes", "gut_health"],
-            "submit_for_verification": false
-        }
-
-    Response:
-        200: { "nutritionist": {...}, "is_new": true/false }
+    Создать или обновить профиль нутрициолога
+    ---
+    tags:
+      - Nutritionists
+    description: |
+      Создаёт новый или обновляет существующий профиль нутрициолога.
+      Используется Botpress для онбординга нутрициологов.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NutritionistUpsertRequest'
+    responses:
+      200:
+        description: Профиль создан/обновлён
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nutritionist:
+                  $ref: '#/components/schemas/Nutritionist'
+                is_new:
+                  type: boolean
+                  description: true если это новый профиль
+      400:
+        description: Ошибка валидации
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
     """
     try:
         data = request.get_json() or {}
@@ -132,17 +147,38 @@ def upsert_nutritionist():
 @jwt_required(optional=True)
 def upload_document(nutritionist_id: str):
     """
-    Add document metadata for nutritionist verification.
-
-    Request:
-        POST /api/nutritionists/<id>/documents
-        {
-            "type": "diploma",
-            "file_path": "https://storage.example.com/doc.pdf"
-        }
-
-    Response:
-        201: { "document": {...} }
+    Добавить документ нутрициолога
+    ---
+    tags:
+      - Nutritionists
+    description: Добавляет метаданные документа для верификации нутрициолога
+    parameters:
+      - name: nutritionist_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DocumentCreateRequest'
+    responses:
+      201:
+        description: Документ добавлен
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                document:
+                  $ref: '#/components/schemas/Document'
+      400:
+        description: Ошибка валидации
+      404:
+        description: Нутрициолог не найден
     """
     try:
         data = request.get_json() or {}
@@ -173,20 +209,37 @@ def upload_document(nutritionist_id: str):
 @jwt_required(optional=True)
 def create_service(nutritionist_id: str):
     """
-    Create a new service for nutritionist.
-
-    Request:
-        POST /api/nutritionists/<id>/services
-        {
-            "title": "Weight Loss Consultation",
-            "description": "1-hour personalized consultation...",
-            "duration_minutes": 60,
-            "price_rub": 3000,
-            "is_active": true
-        }
-
-    Response:
-        201: { "service": {...} }
+    Создать услугу нутрициолога
+    ---
+    tags:
+      - Nutritionists
+    parameters:
+      - name: nutritionist_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ServiceCreateRequest'
+    responses:
+      201:
+        description: Услуга создана
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                service:
+                  $ref: '#/components/schemas/Service'
+      400:
+        description: Ошибка валидации
+      404:
+        description: Нутрициолог не найден
     """
     try:
         data = request.get_json() or {}
@@ -219,19 +272,43 @@ def create_service(nutritionist_id: str):
 @jwt_required(optional=True)
 def create_slots(nutritionist_id: str):
     """
-    Bulk create availability slots for nutritionist.
-
-    Request:
-        POST /api/nutritionists/<id>/slots
-        {
-            "slots": [
-                {"start_at": "2024-01-15T10:00:00Z", "end_at": "2024-01-15T11:00:00Z"},
-                {"start_at": "2024-01-15T14:00:00Z", "end_at": "2024-01-15T15:00:00Z"}
-            ]
-        }
-
-    Response:
-        201: { "slots": [...], "created_count": 2 }
+    Создать слоты доступности (массово)
+    ---
+    tags:
+      - Nutritionists
+    description: Массовое создание слотов доступности для нутрициолога
+    parameters:
+      - name: nutritionist_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SlotCreateRequest'
+    responses:
+      201:
+        description: Слоты созданы
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                slots:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Slot'
+                created_count:
+                  type: integer
+                  example: 2
+      400:
+        description: Ошибка валидации
+      404:
+        description: Нутрициолог не найден
     """
     try:
         data = request.get_json() or {}
@@ -267,23 +344,47 @@ def create_slots(nutritionist_id: str):
 @jwt_required(optional=True)
 def get_dashboard(nutritionist_id: str):
     """
-    Get nutritionist dashboard data.
-    Includes profile, services, upcoming slots, and stats.
-
-    Request:
-        GET /api/nutritionists/<id>/dashboard
-
-    Response:
-        200: {
-            "nutritionist": {...},
-            "services": [...],
-            "upcoming_slots": [...],
-            "stats": {
-                "total_bookings": 10,
-                "completed_bookings": 8,
-                "total_earnings_rub": 24000
-            }
-        }
+    Дашборд нутрициолога
+    ---
+    tags:
+      - Nutritionists
+    description: Возвращает профиль, услуги, ближайшие слоты и статистику
+    parameters:
+      - name: nutritionist_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      200:
+        description: Данные дашборда
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nutritionist:
+                  $ref: '#/components/schemas/Nutritionist'
+                services:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Service'
+                upcoming_slots:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Slot'
+                stats:
+                  type: object
+                  properties:
+                    total_bookings:
+                      type: integer
+                    completed_bookings:
+                      type: integer
+                    total_earnings_rub:
+                      type: integer
+      404:
+        description: Нутрициолог не найден
     """
     nutritionist = NutritionistProfile.query.get(nutritionist_id)
     if not nutritionist:

@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { clientApi, publicApi } from '../lib/api'
+import { useIntakeStore } from '../store/intake'
+import { useAuthStore } from '../store/auth'
 import FilterDrawer from '../components/FilterDrawer'
 import type { SearchFilters, NutritionistSearchResult } from '../types'
 import {
@@ -69,7 +71,7 @@ function BottomNav({ activeTab }: { activeTab: 'browse' | 'bookings' }) {
   const navigate = useNavigate()
   
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-surface-primary border-t border-border-light safe-area-bottom z-fixed">
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-border-light safe-area-bottom z-fixed">
       <div className="flex">
         <button
           onClick={() => navigate('/results')}
@@ -98,25 +100,28 @@ function BottomNav({ activeTab }: { activeTab: 'browse' | 'bookings' }) {
 
 export default function ResultsPage() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const resetIntake = useIntakeStore((state) => state.reset)
+  const resetOnboarding = useAuthStore((state) => state.resetOnboarding)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [currentFilters, setCurrentFilters] = useState<SearchFilters | null>(null)
   const [defaultFilters, setDefaultFilters] = useState<SearchFilters>(EMPTY_FILTERS)
 
   // Загрузка сохранённых фильтров клиента
   const {
+    data: filtersData,
     isLoading: isLoadingFilters,
   } = useQuery({
     queryKey: ['clientFilters'],
-    queryFn: async () => {
-      const data = await clientApi.getFilters()
-      if (!currentFilters) {
-        setCurrentFilters(data.filters)
-      }
-      setDefaultFilters(data.defaults)
-      return data
-    },
+    queryFn: clientApi.getFilters,
     staleTime: 30000,
   })
+
+  // Инициализируем локальное состояние фильтров из ответа API/кэша
+  if (!currentFilters && filtersData) {
+    setCurrentFilters(filtersData.filters)
+    setDefaultFilters(filtersData.defaults)
+  }
 
   // Поиск нутрициологов по текущим фильтрам
   const {
@@ -169,6 +174,12 @@ export default function ResultsPage() {
 
   const activeFilterCount = currentFilters ? countActiveFilters(currentFilters) : 0
 
+  const handleRestartOnboarding = useCallback(() => {
+    resetIntake()
+    resetOnboarding()
+    navigate('/intake')
+  }, [resetIntake, resetOnboarding, navigate])
+
   // Состояние загрузки
   if (isLoadingFilters) {
     return <PageLoader text="Загрузка настроек..." />
@@ -189,23 +200,32 @@ export default function ResultsPage() {
                 : `Найдено специалистов: ${nutritionists.length}`}
             </Text>
           </div>
-          <button
-            onClick={() => setIsDrawerOpen(true)}
-            className={clsx(
-              'relative flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all',
-              activeFilterCount > 0
-                ? 'bg-primary-500 text-white shadow-sm'
-                : 'bg-neutral-100 text-text-secondary hover:bg-neutral-200'
-            )}
-          >
-            <Icons.Filter size="md" />
-            <span className="text-sm">Фильтры</span>
-            {activeFilterCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-surface-primary text-primary-600 text-xs font-bold rounded-full flex items-center justify-center shadow">
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
+          <Inline gap={2}>
+            <button
+              onClick={handleRestartOnboarding}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold text-primary-600 bg-primary-50 hover:bg-primary-100 transition-colors"
+              aria-label="Заполнить анкету заново"
+            >
+              ?
+            </button>
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className={clsx(
+                'relative flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all',
+                activeFilterCount > 0
+                  ? 'bg-primary-500 text-white shadow-sm'
+                  : 'bg-neutral-100 text-text-secondary hover:bg-neutral-200'
+              )}
+            >
+              <Icons.Filter size="md" />
+              <span className="text-sm">Фильтры</span>
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-surface-primary text-primary-600 text-xs font-bold rounded-full flex items-center justify-center shadow">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          </Inline>
         </Inline>
 
         {/* Активные чипы фильтров */}

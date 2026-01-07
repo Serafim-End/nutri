@@ -36,18 +36,56 @@ def require_admin():
 @admin_bp.route("/auth/login", methods=["POST"])
 def admin_login():
     """
-    Admin login endpoint.
-
-    Request:
-        POST /api/admin/auth/login
-        {
-            "email": "admin@nutrimatch.io",
-            "password": "secret"
-        }
-
-    Response:
-        200: { "access_token": "...", "token_type": "bearer", "user": {...} }
-        401: { "error": "Invalid credentials" }
+    Вход администратора
+    ---
+    tags:
+      - Admin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - email
+              - password
+            properties:
+              email:
+                type: string
+                format: email
+                example: admin@nutrimatch.io
+              password:
+                type: string
+                format: password
+    responses:
+      200:
+        description: Успешная авторизация
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                access_token:
+                  type: string
+                token_type:
+                  type: string
+                  example: bearer
+                user:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    email:
+                      type: string
+                    name:
+                      type: string
+                    role:
+                      type: string
+                      example: admin
+      400:
+        description: Email и password обязательны
+      401:
+        description: Неверные учётные данные
     """
     data = request.get_json() or {}
     email = data.get("email", "").strip().lower()
@@ -133,14 +171,34 @@ def admin_logout():
 @jwt_required()
 def list_pending_nutritionists():
     """
-    List nutritionists pending verification.
-
-    Request:
-        GET /api/admin/nutritionists?status=pending
-        Authorization: Bearer <admin_token>
-
-    Response:
-        200: { "nutritionists": [...] }
+    Список нутрициологов для модерации
+    ---
+    tags:
+      - Admin
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum: [draft, pending, approved, rejected, needs_update]
+          default: pending
+        description: Фильтр по статусу верификации
+    responses:
+      200:
+        description: Список нутрициологов
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nutritionists:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Nutritionist'
+      403:
+        description: Требуются права администратора
     """
     auth_error = require_admin()
     if auth_error:
@@ -192,17 +250,46 @@ def get_nutritionist_admin(nutritionist_id: str):
 @jwt_required()
 def approve_nutritionist(nutritionist_id: str):
     """
-    Approve nutritionist verification.
-
-    Request:
-        POST /api/admin/nutritionists/<id>/approve
-        Authorization: Bearer <admin_token>
-        {
-            "note": "Optional approval note"
-        }
-
-    Response:
-        200: { "nutritionist": {...}, "message": "Nutritionist approved" }
+    Одобрить нутрициолога
+    ---
+    tags:
+      - Admin
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: nutritionist_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    requestBody:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              note:
+                type: string
+                description: Примечание к одобрению
+    responses:
+      200:
+        description: Нутрициолог одобрен
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nutritionist:
+                  $ref: '#/components/schemas/Nutritionist'
+                message:
+                  type: string
+      400:
+        description: Невозможно одобрить с текущим статусом
+      403:
+        description: Требуются права администратора
+      404:
+        description: Нутрициолог не найден
     """
     auth_error = require_admin()
     if auth_error:
@@ -235,17 +322,43 @@ def approve_nutritionist(nutritionist_id: str):
 @jwt_required()
 def reject_nutritionist(nutritionist_id: str):
     """
-    Reject nutritionist verification.
-
-    Request:
-        POST /api/admin/nutritionists/<id>/reject
-        Authorization: Bearer <admin_token>
-        {
-            "reason": "Required rejection reason"
-        }
-
-    Response:
-        200: { "nutritionist": {...}, "message": "Nutritionist rejected" }
+    Отклонить нутрициолога
+    ---
+    tags:
+      - Admin
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: nutritionist_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AdminRejectRequest'
+    responses:
+      200:
+        description: Нутрициолог отклонён
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nutritionist:
+                  $ref: '#/components/schemas/Nutritionist'
+                message:
+                  type: string
+      400:
+        description: Причина обязательна или невозможно отклонить с текущим статусом
+      403:
+        description: Требуются права администратора
+      404:
+        description: Нутрициолог не найден
     """
     auth_error = require_admin()
     if auth_error:
@@ -697,14 +810,38 @@ def admin_complete_booking(booking_id: str):
 @jwt_required()
 def get_dashboard_stats():
     """
-    Get dashboard statistics.
-
-    Request:
-        GET /api/admin/stats
-        Authorization: Bearer <admin_token>
-
-    Response:
-        200: { "total_users": 100, "total_nutritionists": 20, ... }
+    Статистика для дашборда
+    ---
+    tags:
+      - Admin
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Статистика платформы
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                total_users:
+                  type: integer
+                  example: 100
+                total_nutritionists:
+                  type: integer
+                  example: 20
+                pending_verifications:
+                  type: integer
+                  example: 5
+                total_bookings:
+                  type: integer
+                  example: 150
+                revenue_this_month:
+                  type: integer
+                  description: Выручка за текущий месяц (в рублях)
+                  example: 150000
+      403:
+        description: Требуются права администратора
     """
     auth_error = require_admin()
     if auth_error:

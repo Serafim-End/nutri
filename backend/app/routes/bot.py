@@ -45,19 +45,51 @@ def require_service_token(f):
 @require_service_token
 def resolve_telegram_user():
     """
-    Resolve Telegram user to get profile and role.
-    Used by bot to determine user state on /start.
-    
-    Request:
-        GET /api/bot/resolve-telegram-user?telegram_user_id=123
-        X-Service-Token: <token>
-    
-    Response:
-        200: {
-            "profile": {...} or null,
-            "nutritionist": {...} or null,
-            "role": "client" | "nutritionist" | "admin"
-        }
+    Определить пользователя Telegram
+    ---
+    tags:
+      - Bot
+    description: |
+      Определяет профиль и роль пользователя по telegram_user_id.
+      Используется ботом для определения состояния на /start.
+      
+      **Требуется заголовок:** `X-Service-Token`
+    parameters:
+      - name: X-Service-Token
+        in: header
+        required: true
+        schema:
+          type: string
+        description: Сервисный токен бота
+      - name: telegram_user_id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: Telegram User ID
+    responses:
+      200:
+        description: Данные пользователя
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                profile:
+                  $ref: '#/components/schemas/Profile'
+                  nullable: true
+                nutritionist:
+                  $ref: '#/components/schemas/Nutritionist'
+                  nullable: true
+                role:
+                  type: string
+                  enum: [client, nutritionist, admin]
+      400:
+        description: telegram_user_id не указан
+      401:
+        description: Неверный сервисный токен
+      503:
+        description: BOT_SERVICE_TOKEN не настроен
     """
     telegram_user_id = request.args.get("telegram_user_id", type=int)
     
@@ -267,19 +299,57 @@ def get_reviews(nutritionist_id: str):
 @require_service_token
 def get_statistics(nutritionist_id: str):
     """
-    Get nutritionist statistics.
-    
-    Request:
-        GET /api/bot/nutritionists/<id>/statistics?days=30
-        X-Service-Token: <token>
-    
-    Response:
-        200: {
-            "income_30d": 50000,
-            "consultations_30d": 15,
-            "avg_rating": 4.8,
-            "total_clients": 25
-        }
+    Статистика нутрициолога
+    ---
+    tags:
+      - Bot
+    description: |
+      Возвращает статистику нутрициолога за указанный период.
+      
+      **Требуется заголовок:** `X-Service-Token`
+    parameters:
+      - name: X-Service-Token
+        in: header
+        required: true
+        schema:
+          type: string
+      - name: nutritionist_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: days
+        in: query
+        schema:
+          type: integer
+          default: 30
+        description: Период в днях
+    responses:
+      200:
+        description: Статистика
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                income_30d:
+                  type: integer
+                  example: 50000
+                consultations_30d:
+                  type: integer
+                  example: 15
+                avg_rating:
+                  type: number
+                  format: float
+                  example: 4.8
+                total_clients:
+                  type: integer
+                  example: 25
+      401:
+        description: Неверный сервисный токен
+      404:
+        description: Нутрициолог не найден
     """
     nutritionist = NutritionistProfile.query.get(nutritionist_id)
     if not nutritionist:

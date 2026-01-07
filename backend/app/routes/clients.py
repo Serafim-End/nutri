@@ -21,29 +21,46 @@ clients_bp = Blueprint("clients", __name__)
 @jwt_required()
 def create_intake():
     """
-    Submit client intake questionnaire.
-    Also creates/updates client_filter_state with normalized filters.
-
-    Request:
-        POST /api/clients/intakes
-        Authorization: Bearer <token>
-        {
-            "goals": ["weight_loss"],
-            "dietary_restrictions": ["vegetarian"],
-            "budget_min": 1000,
-            "budget_max": 5000,
-            "preferred_schedule": "weekends",
-            "health_conditions": ["diabetes"],
-            "additional_notes": "..."
-        }
-
-    Response:
-        201: { 
-            "intake": {...}, 
-            "normalized_filters": {...},
-            "message": "Intake submitted" 
-        }
-        400: Validation error
+    Отправить анкету клиента
+    ---
+    tags:
+      - Clients
+    security:
+      - BearerAuth: []
+    description: |
+      Отправляет анкету (intake) и создаёт/обновляет client_filter_state 
+      с нормализованными фильтрами для поиска.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/IntakeRequest'
+    responses:
+      201:
+        description: Анкета успешно отправлена
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                intake:
+                  $ref: '#/components/schemas/Intake'
+                intake_id:
+                  type: string
+                  format: uuid
+                normalized_filters:
+                  $ref: '#/components/schemas/SearchFilters'
+                message:
+                  type: string
+      400:
+        description: Ошибка валидации
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      401:
+        description: Требуется авторизация
     """
     current_user_id = get_jwt_identity()
 
@@ -108,16 +125,42 @@ def create_intake():
 @jwt_required()
 def get_matches():
     """
-    Get matched nutritionists based on intake.
-
-    Request:
-        GET /api/clients/matches?intake_id=<uuid>
-        Authorization: Bearer <token>
-
-    Response:
-        200: { "matches": [...], "total": 10 }
-        400: Missing intake_id
-        404: Intake not found
+    Получить подходящих нутрициологов по анкете
+    ---
+    tags:
+      - Clients
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: intake_id
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: UUID анкеты (intake)
+    responses:
+      200:
+        description: Список подходящих нутрициологов
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                matches:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Nutritionist'
+                total:
+                  type: integer
+      400:
+        description: intake_id не указан
+      401:
+        description: Требуется авторизация
+      403:
+        description: Анкета принадлежит другому пользователю
+      404:
+        description: Анкета не найдена
     """
     current_user_id = get_jwt_identity()
     intake_id = request.args.get("intake_id")
@@ -146,14 +189,26 @@ def get_matches():
 @jwt_required()
 def list_intakes():
     """
-    List client's own intakes.
-
-    Request:
-        GET /api/clients/intakes
-        Authorization: Bearer <token>
-
-    Response:
-        200: { "intakes": [...] }
+    Список анкет клиента
+    ---
+    tags:
+      - Clients
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Список анкет
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                intakes:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Intake'
+      401:
+        description: Требуется авторизация
     """
     current_user_id = get_jwt_identity()
 
@@ -170,14 +225,26 @@ def list_intakes():
 @jwt_required()
 def list_client_bookings():
     """
-    List client's own bookings.
-
-    Request:
-        GET /api/clients/bookings
-        Authorization: Bearer <token>
-
-    Response:
-        200: { "bookings": [...] }
+    Список бронирований клиента
+    ---
+    tags:
+      - Clients
+    security:
+      - BearerAuth: []
+    responses:
+      200:
+        description: Список бронирований
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bookings:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Booking'
+      401:
+        description: Требуется авторизация
     """
     from app.models import Booking
 
@@ -196,27 +263,38 @@ def list_client_bookings():
 @jwt_required()
 def list_my_bookings():
     """
-    List authenticated client's bookings with full details.
-    Includes service, slot, and nutritionist information.
-    Sorted by newest first.
-
-    Request:
-        GET /api/clients/me/bookings
-        Authorization: Bearer <token>
-
-    Response:
-        200: { 
-            "bookings": [
-                {
-                    "id": "...",
-                    "status": "pending_payment",
-                    "price_rub": 3000,
-                    "service": {...},
-                    "slot": {...},
-                    "nutritionist": {...}
-                }
-            ] 
-        }
+    Мои бронирования (с полной информацией)
+    ---
+    tags:
+      - Clients
+    security:
+      - BearerAuth: []
+    description: |
+      Список бронирований текущего клиента с информацией об услуге, 
+      слоте и нутрициологе. Отсортированы по дате создания (новые первые).
+    responses:
+      200:
+        description: Список бронирований с развёрнутыми данными
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bookings:
+                  type: array
+                  items:
+                    allOf:
+                      - $ref: '#/components/schemas/Booking'
+                      - type: object
+                        properties:
+                          service:
+                            $ref: '#/components/schemas/Service'
+                          slot:
+                            $ref: '#/components/schemas/Slot'
+                          nutritionist:
+                            $ref: '#/components/schemas/Nutritionist'
+      401:
+        description: Требуется авторизация
     """
     from app.models import Booking
 
@@ -235,18 +313,31 @@ def list_my_bookings():
 @jwt_required()
 def get_filters():
     """
-    Get client's current filters and defaults from onboarding.
-
-    Request:
-        GET /api/clients/me/filters
-        Authorization: Bearer <token>
-
-    Response:
-        200: { 
-            "intake_id": "...",
-            "filters": {...},
-            "defaults": {...}
-        }
+    Получить текущие фильтры клиента
+    ---
+    tags:
+      - Clients
+    security:
+      - BearerAuth: []
+    description: Возвращает текущие фильтры и значения по умолчанию из анкеты
+    responses:
+      200:
+        description: Фильтры клиента
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                intake_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                filters:
+                  $ref: '#/components/schemas/SearchFilters'
+                defaults:
+                  $ref: '#/components/schemas/SearchFilters'
+      401:
+        description: Требуется авторизация
     """
     current_user_id = get_jwt_identity()
 
@@ -286,30 +377,42 @@ def get_filters():
 @jwt_required()
 def update_filters():
     """
-    Update client's current filters.
-
-    Request:
-        PUT /api/clients/me/filters
-        Authorization: Bearer <token>
-        {
-            "filters": {
-                "goals": ["weight_loss"],
-                "topics": [],
-                "budget_max_rub": 5000,
-                "dietary": ["vegetarian"],
-                "help_mode": "one_time",
-                "specializations": [],
-                "tags": []
-            }
-        }
-
-    Response:
-        200: { 
-            "intake_id": "...",
-            "filters": {...},
-            "updated_at": "..."
-        }
-        400: Validation error
+    Обновить фильтры клиента
+    ---
+    tags:
+      - Clients
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              filters:
+                $ref: '#/components/schemas/SearchFilters'
+    responses:
+      200:
+        description: Фильтры обновлены
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                intake_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                filters:
+                  $ref: '#/components/schemas/SearchFilters'
+                updated_at:
+                  type: string
+                  format: date-time
+      400:
+        description: Ошибка валидации
+      401:
+        description: Требуется авторизация
     """
     current_user_id = get_jwt_identity()
 

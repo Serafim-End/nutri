@@ -11,15 +11,40 @@
 #   2. Configure DNS in Cloudflare pointing to your server
 #   3. Enable Cloudflare SSL (Full or Full Strict mode)
 #
-# Services exposed on plain HTTP (Cloudflare handles HTTPS):
-#   - backend:      http://localhost:8000 -> https://api.yourdomain.com
-#   - client:       http://localhost:3000 -> https://app.yourdomain.com
-#   - admin_panel:  http://localhost:3001 -> https://admin.yourdomain.com
-#   - telegram_bot: http://localhost:8081 -> https://bot.yourdomain.com (webhook mode only)
+# Services exposed through nginx reverse proxy (Cloudflare handles HTTPS):
+#   - nginx:        http://localhost:80 -> routes by domain
+#     - web.nutrutioncoach.com  -> admin_panel:3001
+#     - api.nutrutioncoach.com  -> backend:8000
+#     - tma.nutrutioncoach.com  -> client:3000
+#     - bot.nutrutioncoach.com  -> telegram_bot:8081
 #
 # =============================================================================
 
 services:
+  # ===========================================================================
+  # Nginx Reverse Proxy
+  # ===========================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: nutri-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - client
+      - admin_panel
+      - telegram_bot
+    networks:
+      - nutri-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   # ===========================================================================
   # Backend API (Flask + Gunicorn)
   # ===========================================================================
@@ -29,8 +54,8 @@ services:
       dockerfile: Dockerfile
     container_name: nutri-backend
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     env_file:
       - .env.prod
     environment:
@@ -61,8 +86,8 @@ services:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
     container_name: nutri-client
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     depends_on:
       backend:
         condition: service_healthy
@@ -85,8 +110,8 @@ services:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
     container_name: nutri-admin
     restart: unless-stopped
-    ports:
-      - "3001:3001"
+    expose:
+      - "3001"
     depends_on:
       backend:
         condition: service_healthy
@@ -107,8 +132,8 @@ services:
       dockerfile: Dockerfile
     container_name: nutri-bot
     restart: unless-stopped
-    ports:
-      - "8081:8081"
+    expose:
+      - "8081"
     env_file:
       - .env.prod
     environment:

@@ -23,33 +23,46 @@ bookings_bp = Blueprint("bookings", __name__)
 @jwt_required()
 def create_booking():
     """
-    Create a booking and hold the slot for payment.
-    Slot is held for BOOKING_HOLD_MINUTES (default 10) minutes.
-    Uses row-level locking to prevent race conditions.
-
-    Request:
-        POST /api/bookings
-        Authorization: Bearer <token>
-        {
-            "service_id": "uuid",
-            "slot_id": "uuid",
-            "client_note": "optional note"
-        }
-
-    Response:
-        201: {
-            "booking": {...},
-            "payment": {
-                "payment_id": "...",
-                "provider": "mock",
-                "payment_url": "...",
-                "amount_rub": 3000,
-                "currency": "RUB",
-                "expires_at": "..."
-            }
-        }
-        400: Validation error or slot unavailable
-        409: Slot already taken (race condition)
+    Создать бронирование
+    ---
+    tags:
+      - Bookings
+    security:
+      - BearerAuth: []
+    description: |
+      Создаёт бронирование и удерживает слот на 10 минут для оплаты.
+      Использует блокировку на уровне строки для защиты от race conditions.
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BookingCreateRequest'
+    responses:
+      201:
+        description: Бронирование создано
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreateResponse'
+      400:
+        description: Ошибка валидации или слот недоступен
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      401:
+        description: Требуется авторизация
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      409:
+        description: Слот уже занят (race condition)
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
     """
     current_user_id = get_jwt_identity()
 
@@ -93,15 +106,36 @@ def create_booking():
 @jwt_required()
 def get_booking(booking_id: str):
     """
-    Get booking details.
-
-    Request:
-        GET /api/bookings/<id>
-        Authorization: Bearer <token>
-
-    Response:
-        200: { "booking": {...} }
-        404: Not found
+    Получить бронирование по ID
+    ---
+    tags:
+      - Bookings
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: booking_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: UUID бронирования
+    responses:
+      200:
+        description: Данные бронирования
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                booking:
+                  $ref: '#/components/schemas/Booking'
+      401:
+        description: Требуется авторизация
+      403:
+        description: Нет доступа к этому бронированию
+      404:
+        description: Бронирование не найдено
     """
     current_user_id = get_jwt_identity()
 
@@ -122,30 +156,52 @@ def get_booking(booking_id: str):
 @jwt_required()
 def mark_booking_paid(booking_id: str):
     """
-    Mark a booking as paid (DEV shortcut).
-    
-    This endpoint is preserved for backward compatibility and development.
-    Internally, it routes through the payment abstraction layer.
-    
-    IMPORTANT: In production with real payment providers, this endpoint
-    should be disabled. Payments should go through proper webhook flow.
-    
-    Atomic operation with row locks:
-    - Locks booking, ensures pending_payment
-    - Locks slot, ensures held and not expired
-    - booking -> paid, set paid_at
-    - slot -> booked, clear hold_expires_at
-    - payment -> succeeded
-
-    Request:
-        POST /api/bookings/<id>/mark-paid
-        Authorization: Bearer <token>
-
-    Response:
-        200: { "booking": {...}, "message": "Payment confirmed" }
-        400: Cannot mark as paid (wrong status or expired)
-        403: Not available in production (when real provider is configured)
-        404: Not found
+    Отметить бронирование как оплаченное (DEV)
+    ---
+    tags:
+      - Bookings
+    security:
+      - BearerAuth: []
+    description: |
+      **⚠️ ТОЛЬКО ДЛЯ РАЗРАБОТКИ!**
+      
+      Симулирует успешную оплату бронирования.
+      В production с реальным платёжным провайдером этот эндпоинт отключён.
+      
+      Атомарная операция:
+      - Блокирует booking, проверяет статус pending_payment
+      - Блокирует slot, проверяет hold не истёк
+      - booking → paid, устанавливает paid_at
+      - slot → booked, очищает hold_expires_at
+    parameters:
+      - name: booking_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: UUID бронирования
+    responses:
+      200:
+        description: Оплата подтверждена
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                booking:
+                  $ref: '#/components/schemas/Booking'
+                payment:
+                  type: object
+                message:
+                  type: string
+                  example: "Payment confirmed successfully"
+      400:
+        description: Невозможно подтвердить оплату (неверный статус или истёк hold)
+      403:
+        description: Недоступно в production
+      404:
+        description: Бронирование не найдено
     """
     from flask import current_app
     from app.services.payments import PaymentService
@@ -186,21 +242,48 @@ def mark_booking_paid(booking_id: str):
 @jwt_required()
 def cancel_booking(booking_id: str):
     """
-    Cancel a booking and release the slot.
-    Only pending_payment bookings can be cancelled by clients.
-    Paid bookings cannot be cancelled (must contact support for refunds).
-
-    Request:
-        POST /api/bookings/<id>/cancel
-        Authorization: Bearer <token>
-        {
-            "reason": "Optional cancellation reason"
-        }
-
-    Response:
-        200: { "booking": {...}, "message": "Booking cancelled" }
-        400: Cannot cancel (paid booking or other error)
-        404: Not found
+    Отменить бронирование
+    ---
+    tags:
+      - Bookings
+    security:
+      - BearerAuth: []
+    description: |
+      Отменяет бронирование и освобождает слот.
+      Можно отменить только бронирования в статусе pending_payment.
+      Оплаченные бронирования нельзя отменить (нужно обращаться в поддержку).
+    parameters:
+      - name: booking_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: UUID бронирования
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BookingCancelRequest'
+    responses:
+      200:
+        description: Бронирование отменено
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                booking:
+                  $ref: '#/components/schemas/Booking'
+                message:
+                  type: string
+                  example: "Booking cancelled successfully"
+      400:
+        description: Невозможно отменить (оплаченное бронирование)
+      401:
+        description: Требуется авторизация
+      404:
+        description: Бронирование не найдено
     """
     current_user_id = get_jwt_identity()
     data = request.get_json() or {}
@@ -227,15 +310,28 @@ def cancel_booking(booking_id: str):
 @bookings_bp.route("/release-expired-holds", methods=["POST"])
 def release_expired_holds():
     """
-    Release expired slot holds.
-    Designed to be called by a cron job.
-    Idempotent and safe for concurrent execution.
-
-    Request:
-        POST /api/bookings/release-expired-holds
-
-    Response:
-        200: { "released_count": 5, "message": "..." }
+    Освободить истёкшие hold'ы (CRON)
+    ---
+    tags:
+      - Bookings
+    description: |
+      Освобождает слоты, hold которых истёк.
+      Предназначен для вызова из cron job.
+      Идемпотентен и безопасен для параллельного выполнения.
+    responses:
+      200:
+        description: Hold'ы освобождены
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                released_count:
+                  type: integer
+                  example: 5
+                message:
+                  type: string
+                  example: "Released 5 expired holds"
     """
     # In production, this should be protected by a secret key or internal network
     # For now, we allow it for simplicity

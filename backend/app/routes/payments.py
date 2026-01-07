@@ -24,27 +24,40 @@ payments_bp = Blueprint("payments", __name__)
 @jwt_required()
 def create_payment_intent():
     """
-    Create a payment intent for a booking.
-    
-    Request:
-        POST /api/payments/create
-        Authorization: Bearer <token>
-        {
-            "booking_id": "uuid"
-        }
-    
-    Response:
-        200: {
-            "provider": "mock",
-            "payment_url": "/api/payments/mock-pay/...",
-            "payment_id": "uuid",
-            "amount_rub": 3000,
-            "currency": "RUB",
-            "expires_at": "2024-12-28T12:00:00Z"
-        }
-        400: Validation error or invalid booking state
-        403: Not authorized
-        404: Booking not found
+    Создать платёжное намерение
+    ---
+    tags:
+      - Payments
+    security:
+      - BearerAuth: []
+    description: Создаёт платёжное намерение (payment intent) для бронирования
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - booking_id
+            properties:
+              booking_id:
+                type: string
+                format: uuid
+    responses:
+      200:
+        description: Payment intent создан
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentIntent'
+      400:
+        description: Ошибка валидации или неверный статус бронирования
+      401:
+        description: Требуется авторизация
+      403:
+        description: Нет доступа к бронированию
+      404:
+        description: Бронирование не найдено
     """
     current_user_id = get_jwt_identity()
     data = request.get_json() or {}
@@ -83,22 +96,46 @@ def create_payment_intent():
 @payments_bp.route("/webhook/<provider>", methods=["POST"])
 def payment_webhook(provider: str):
     """
-    Handle payment provider webhooks.
-    
-    This endpoint is called by payment providers when payment status changes.
-    Each provider has its own URL: /api/payments/webhook/telegram,
-    /api/payments/webhook/yookassa, etc.
-    
-    Request:
-        POST /api/payments/webhook/{provider}
-        Headers: Provider-specific (e.g., X-YooKassa-Signature)
-        Body: Provider-specific payload
-    
-    Response:
-        200: { "payment": {...}, "message": "Payment processed" }
-        400: Invalid payload
-        401: Invalid signature
-        404: Booking not found
+    Webhook для платёжного провайдера
+    ---
+    tags:
+      - Payments
+    description: |
+      Обрабатывает webhooks от платёжных провайдеров при изменении статуса платежа.
+      Каждый провайдер имеет свой URL: `/api/payments/webhook/telegram`, 
+      `/api/payments/webhook/yookassa`, etc.
+    parameters:
+      - name: provider
+        in: path
+        required: true
+        schema:
+          type: string
+          enum: [telegram, yookassa, mock]
+        description: Название платёжного провайдера
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PaymentWebhookRequest'
+    responses:
+      200:
+        description: Webhook обработан
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payment:
+                  type: object
+                message:
+                  type: string
+      400:
+        description: Неверный payload
+      401:
+        description: Неверная подпись
+      404:
+        description: Бронирование не найдено
     """
     payload = request.get_json() or {}
     headers = dict(request.headers)
@@ -127,18 +164,41 @@ def payment_webhook(provider: str):
 @payments_bp.route("/mock-pay/<booking_id>", methods=["POST"])
 def mock_payment(booking_id: str):
     """
-    Mock payment endpoint for development.
-    Simulates successful payment via mock webhook.
-    
-    Only available in development mode or when PAYMENT_PROVIDER=mock.
-    
-    Request:
-        POST /api/payments/mock-pay/{booking_id}
-    
-    Response:
-        200: { "payment": {...}, "message": "Payment simulated" }
-        403: Not available in production
-        404: Booking not found
+    Симуляция оплаты (DEV)
+    ---
+    tags:
+      - Payments
+    description: |
+      **⚠️ ТОЛЬКО ДЛЯ РАЗРАБОТКИ!**
+      
+      Симулирует успешную оплату через mock webhook.
+      Доступно только в dev-режиме или когда PAYMENT_PROVIDER=mock.
+    parameters:
+      - name: booking_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      200:
+        description: Оплата симулирована
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payment:
+                  type: object
+                booking:
+                  $ref: '#/components/schemas/Booking'
+                message:
+                  type: string
+                  example: "Payment simulated successfully"
+      403:
+        description: Недоступно в production
+      404:
+        description: Бронирование не найдено
     """
     # Check if mock payments are allowed
     is_dev = current_app.debug or current_app.config.get("TESTING")
@@ -178,15 +238,35 @@ def mock_payment(booking_id: str):
 @jwt_required()
 def get_payment_status(booking_id: str):
     """
-    Get payment status for a booking.
-    
-    Request:
-        GET /api/payments/{booking_id}/status
-        Authorization: Bearer <token>
-    
-    Response:
-        200: { "payment": {...} }
-        404: Payment not found
+    Статус платежа по бронированию
+    ---
+    tags:
+      - Payments
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: booking_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    responses:
+      200:
+        description: Данные платежа
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payment:
+                  type: object
+      401:
+        description: Требуется авторизация
+      403:
+        description: Нет доступа к бронированию
+      404:
+        description: Платёж не найден
     """
     current_user_id = get_jwt_identity()
     
@@ -211,11 +291,25 @@ def get_payment_status(booking_id: str):
 @payments_bp.route("/webhook", methods=["POST"])
 def legacy_payment_webhook():
     """
-    Legacy webhook endpoint (backward compatibility).
-    
-    Deprecated: Use /api/payments/webhook/{provider} instead.
-    
-    This endpoint determines the provider from the payload.
+    Legacy webhook (deprecated)
+    ---
+    tags:
+      - Payments
+    deprecated: true
+    description: |
+      **DEPRECATED:** Используйте `/api/payments/webhook/{provider}` вместо этого.
+      
+      Определяет провайдера из payload.
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PaymentWebhookRequest'
+    responses:
+      200:
+        description: Webhook обработан
+      400:
+        description: Ошибка
     """
     payload = request.get_json() or {}
     provider = payload.get("provider", "mock")

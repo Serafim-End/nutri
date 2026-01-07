@@ -28,18 +28,41 @@ def is_dev_mode() -> bool:
 @auth_bp.route("/telegram/verify", methods=["POST"])
 def verify_telegram():
     """
-    Verify Telegram Mini App initData and return JWT token.
-
-    Request:
-        POST /api/auth/telegram/verify
-        {
-            "init_data": "query_id=...&user=...&hash=..."
-        }
-
-    Response:
-        200: { "access_token": "...", "token_type": "bearer", "profile": {...} }
-        400: { "error": "Invalid init_data" }
-        401: { "error": "Authentication failed" }
+    Аутентификация через Telegram Mini App
+    ---
+    tags:
+      - Auth
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/TelegramAuthRequest'
+    responses:
+      200:
+        description: Успешная аутентификация
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthResponse'
+      400:
+        description: Некорректный запрос
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      401:
+        description: Неверная или истекшая initData
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      500:
+        description: TELEGRAM_BOT_TOKEN не настроен
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
     """
     try:
         data = request.get_json()
@@ -95,21 +118,41 @@ def verify_telegram():
 @auth_bp.route("/dev-login", methods=["POST"])
 def dev_login():
     """
-    Development-only login endpoint.
-    Returns JWT for seeded client user without Telegram verification.
-    
-    SECURITY: This endpoint is disabled in production!
-
-    Request:
-        POST /api/auth/dev-login
-        {
-            "telegram_user_id": 300000001  # Optional, defaults to seeded client
-        }
-
-    Response:
-        200: { "access_token": "...", "token_type": "bearer", "profile": {...} }
-        403: { "error": "Dev login disabled in production" }
-        404: { "error": "User not found" }
+    Вход для разработки (без Telegram)
+    ---
+    tags:
+      - Auth
+    description: |
+      **⚠️ ТОЛЬКО ДЛЯ РАЗРАБОТКИ!**
+      
+      Возвращает JWT токен для тестового пользователя без верификации Telegram.
+      В production этот эндпоинт отключён.
+      
+      По умолчанию используется telegram_user_id=300000001 (seeded client).
+    requestBody:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DevLoginRequest'
+    responses:
+      200:
+        description: Успешный вход
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthResponse'
+      403:
+        description: Dev login отключён в production
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      404:
+        description: Пользователь не найден. Запустите make seed
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
     """
     # SECURITY: Only allow in development mode
     if not is_dev_mode():

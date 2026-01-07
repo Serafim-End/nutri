@@ -294,7 +294,8 @@ export const Header = forwardRef<HTMLElement, HeaderProps>(
           'px-4 pt-4 pb-3',
           sticky && 'sticky top-0 z-sticky',
           bordered && 'border-b border-border-light',
-          blurred ? 'bg-surface-primary/80 backdrop-blur-md' : 'bg-surface-primary',
+          // Use hard solid background to avoid any theme-induced transparency (e.g. Telegram WebApp)
+          'bg-white',
           className
         )}
         {...props}

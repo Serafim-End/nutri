@@ -48,7 +48,7 @@ function DevLoginButton() {
 
 function App() {
   const { authenticate, isLoading: authLoading } = useTelegramAuth()
-  const { isLoading } = useAuthStore()
+  const { isLoading, hasCompletedOnboarding } = useAuthStore()
 
   useEffect(() => {
     // Попытка аутентификации при загрузке
@@ -81,7 +81,10 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Layout />}>
-            <Route index element={<Navigate to="/intake" replace />} />
+            <Route
+              index
+              element={<Navigate to={hasCompletedOnboarding ? '/results' : '/intake'} replace />}
+            />
             <Route path="intake" element={<IntakePage />} />
             <Route path="results" element={<ResultsPage />} />
             <Route path="nutritionist/:id" element={<NutritionistPage />} />

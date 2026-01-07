@@ -22,25 +22,23 @@ A production-ready MVP for a Telegram-based nutritionists marketplace. Clients c
 ### One-Command Deployment
 
 ```bash
-# 1. Clone and configure
+# 1. Clone repository
 git clone <repo-url> nutri
 cd nutri
+
+# 2. Configure environment (first time only)
 cp .env.prod.example .env.prod
-# Edit .env.prod with your values
+nano .env.prod  # Fill in all values
 
-# 2. Start everything
-make up
-
-# 3. Run migrations and seed
-make migrate
-make seed  # optional: adds test data
+# 3. Deploy
+./deploy.sh
 ```
 
-That's it! Your services are now running on:
-- Backend API: `http://localhost:8000`
-- Client App: `http://localhost:3000`
-- Admin Panel: `http://localhost:3001`
-- Telegram Bot: `http://localhost:8081` (webhook mode)
+That's it! Your services are now running and accessible via:
+- Backend API: `https://api.nutrutioncoach.com`
+- Client Mini App: `https://tma.nutrutioncoach.com`
+- Admin Panel: `https://web.nutrutioncoach.com`
+- Telegram Bot: `https://bot.nutrutioncoach.com` (webhook mode)
 
 ---
 
@@ -62,15 +60,15 @@ Add the following DNS records in your Cloudflare dashboard:
 | Type | Name | Content | Proxy |
 |------|------|---------|-------|
 | A | api | YOUR_SERVER_IP | ✅ Proxied |
-| A | app | YOUR_SERVER_IP | ✅ Proxied |
-| A | admin | YOUR_SERVER_IP | ✅ Proxied |
+| A | web | YOUR_SERVER_IP | ✅ Proxied |
+| A | tma | YOUR_SERVER_IP | ✅ Proxied |
 | A | bot | YOUR_SERVER_IP | ✅ Proxied |
 
 This creates:
-- `api.example.com` → Backend API (port 8000)
-- `app.example.com` → Client Mini App (port 3000)
-- `admin.example.com` → Admin Panel (port 3001)
-- `bot.example.com` → Telegram Bot webhook (port 8081)
+- `api.nutrutioncoach.com` → Backend API (port 8000)
+- `web.nutrutioncoach.com` → Admin Panel (port 3001)
+- `tma.nutrutioncoach.com` → Client Mini App (port 3000)
+- `bot.nutrutioncoach.com` → Telegram Bot webhook (port 8081)
 
 ### Step 2: Cloudflare SSL Configuration
 
@@ -91,60 +89,48 @@ ssh user@your-server-ip
 # 2. Install Docker (if not installed)
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
+# Log out and back in for group changes to take effect
 
 # 3. Clone the repository
 git clone <repo-url> nutri
 cd nutri
 
-# 4. Configure environment
+# 4. Create .env.prod from template
 cp .env.prod.example .env.prod
-nano .env.prod  # Fill in all required values
+nano .env.prod  # Fill in all required values (see Step 4)
 ```
 
 ### Step 4: Configure Environment Variables
 
-Edit `.env.prod` with your production values:
+Edit `.env.prod` with your production values. See `.env.prod.example` for detailed comments on where to get each value:
 
-```bash
-# Domain
-DOMAIN=example.com
-VITE_API_BASE_URL=https://api.example.com
+**Required values:**
+- `DATABASE_URL` - From Supabase Dashboard → Database → Connection string
+- `TELEGRAM_BOT_TOKEN` - From @BotFather on Telegram
+- `SECRET_KEY`, `JWT_SECRET_KEY`, `BOT_SERVICE_TOKEN`, `PAYMENT_WEBHOOK_SECRET` - Generate with `openssl rand -hex 32` or use online generator
 
-# Database (from Supabase Dashboard)
-DATABASE_URL=postgresql://postgres:PASSWORD@db.PROJECT.supabase.co:5432/postgres
-
-# Security (generate with: openssl rand -hex 32)
-SECRET_KEY=your-secret-key
-JWT_SECRET_KEY=your-jwt-secret-key
-
-# Telegram
-TELEGRAM_BOT_TOKEN=your-bot-token
-TELEGRAM_MODE=webhook  # or 'polling' for development
-WEBHOOK_URL=https://bot.example.com
-BOT_SERVICE_TOKEN=your-service-token
-WEBAPP_URL=https://app.example.com
-
-# CORS
-CORS_ORIGINS=https://app.example.com,https://admin.example.com
-```
+**Pre-filled values (already correct):**
+- `VITE_API_BASE_URL=https://api.nutrutioncoach.com`
+- `WEBHOOK_URL=https://bot.nutrutioncoach.com/webhook`
+- `WEBAPP_URL=https://tma.nutrutioncoach.com`
+- `CORS_ORIGINS` - Already includes all required domains
 
 ### Step 5: Deploy
 
 ```bash
-# Build and start all services
-make up
+# Run deployment script (builds, starts containers, runs migrations)
+./deploy.sh
 
-# Run database migrations
-make migrate
+# Or manually:
+# make up
+# make migrate
+# make seed  # optional: adds test data
+```
 
-# (Optional) Seed with test data
-make seed
-
-# Check status
-make status
-
-# View logs
-make logs
+**Check status:**
+```bash
+docker compose -f docker-compose.prod.yml ps
+docker compose -f docker-compose.prod.yml logs -f
 ```
 
 ### Step 6: Configure Telegram
@@ -153,29 +139,29 @@ make logs
    ```
    /setmenubutton
    → Select your bot
-   → https://app.example.com
+   → https://tma.nutrutioncoach.com
    ```
 
 2. **Set Webhook** (if using webhook mode):
    ```
    /setwebhook
    → Select your bot
-   → https://bot.example.com/webhook
+   → https://bot.nutrutioncoach.com/webhook
    ```
 
    Or use the API:
    ```bash
-   curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://bot.example.com/webhook"
+   curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://bot.nutrutioncoach.com/webhook"
    ```
 
-### Port Mapping Summary
+### Domain Mapping Summary
 
 | Service | Internal Port | External URL |
 |---------|---------------|--------------|
-| Backend | 8000 | https://api.example.com |
-| Client | 3000 | https://app.example.com |
-| Admin Panel | 3001 | https://admin.example.com |
-| Telegram Bot | 8081 | https://bot.example.com |
+| Backend | 8000 | https://api.nutrutioncoach.com |
+| Client Mini App | 3000 | https://tma.nutrutioncoach.com |
+| Admin Panel | 3001 | https://web.nutrutioncoach.com |
+| Telegram Bot | 8081 | https://bot.nutrutioncoach.com |
 
 ---
 
@@ -307,6 +293,9 @@ nutri/
 ├── docker-compose.yml         # Development
 ├── docker-compose.prod.yml    # Production
 ├── .env.prod.example          # Environment template
+├── deploy.sh                  # Deployment script
+├── nginx/                     # Nginx reverse proxy config
+│   └── nginx.conf
 ├── Makefile                   # Commands
 └── README.md
 ```
@@ -421,7 +410,7 @@ make db-check
 curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"
 
 # Set webhook manually
-curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://bot.example.com/webhook"
+curl "https://api.telegram.org/bot<TOKEN>/setWebhook?url=https://bot.nutrutioncoach.com/webhook"
 ```
 
 ### CORS errors

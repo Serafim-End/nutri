@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import { useIntakeStore } from '../store/intake'
+import { useAuthStore } from '../store/auth'
 import { clientApi } from '../lib/api'
 import { useTelegramMainButton } from '../hooks/useTelegramMainButton'
 import {
@@ -122,6 +123,7 @@ function ProgressBar({ currentStep, totalSteps }: { currentStep: number; totalSt
 export default function IntakePage() {
   const navigate = useNavigate()
   const { currentStep, answers, setStep, updateAnswers, setIntakeId } = useIntakeStore()
+  const { setOnboardingCompleted } = useAuthStore()
   const [selectedBudget, setSelectedBudget] = useState<number | null>(
     answers.budget_max !== null
       ? BUDGET_RANGES.findIndex(
@@ -134,6 +136,7 @@ export default function IntakePage() {
     mutationFn: () => clientApi.createIntake(answers),
     onSuccess: (data) => {
       setIntakeId(data.intake_id)
+      setOnboardingCompleted()
       navigate('/results')
     },
   })

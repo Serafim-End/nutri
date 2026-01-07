@@ -7,9 +7,12 @@ interface AuthState {
   profile: Profile | null
   isAuthenticated: boolean
   isLoading: boolean
+  hasCompletedOnboarding: boolean
   setAuth: (token: string, profile: Profile) => void
   clearAuth: () => void
   setLoading: (loading: boolean) => void
+  setOnboardingCompleted: () => void
+  resetOnboarding: () => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -19,6 +22,7 @@ export const useAuthStore = create<AuthState>()(
       profile: null,
       isAuthenticated: false,
       isLoading: true,
+      hasCompletedOnboarding: false,
       setAuth: (token, profile) =>
         set({
           token,
@@ -32,12 +36,19 @@ export const useAuthStore = create<AuthState>()(
           profile: null,
           isAuthenticated: false,
           isLoading: false,
+          hasCompletedOnboarding: false,
         }),
       setLoading: (loading) => set({ isLoading: loading }),
+      setOnboardingCompleted: () => set({ hasCompletedOnboarding: true }),
+      resetOnboarding: () => set({ hasCompletedOnboarding: false }),
     }),
     {
       name: 'nutrimatch-auth',
-      partialize: (state) => ({ token: state.token, profile: state.profile }),
+      partialize: (state) => ({
+        token: state.token,
+        profile: state.profile,
+        hasCompletedOnboarding: state.hasCompletedOnboarding,
+      }),
       onRehydrateStorage: () => (state) => {
         if (state) {
           state.isAuthenticated = !!state.token
