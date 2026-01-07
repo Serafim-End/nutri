@@ -397,12 +397,34 @@ make status
 ```
 
 ### Database connection failed
-```bash
-# Check connectivity
-make db-check
 
-# Verify DATABASE_URL in .env.prod
-```
+**Error: "Network is unreachable" or "connection refused"**
+
+This usually means Supabase is blocking connections from your server IP.
+
+**Solution:**
+1. Get your server's public IP:
+   ```bash
+   curl ifconfig.me
+   ```
+
+2. Add IP to Supabase allowlist:
+   - Go to Supabase Dashboard → Settings → Database
+   - Find "Connection Pooling" or "Network Restrictions"  
+   - Add your server's public IP address
+   - Save changes
+
+3. Use Connection Pooling URL (recommended):
+   - In Supabase Dashboard → Database → Connection string
+   - Select "Connection pooling" mode (port 6543)
+   - Use this URL instead of direct connection (port 5432)
+
+4. Verify connection:
+   ```bash
+   make db-check
+   # or
+   docker compose -f docker-compose.prod.yml exec backend curl http://localhost:8000/health/db
+   ```
 
 ### Telegram webhook not working
 ```bash
