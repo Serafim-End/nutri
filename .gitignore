@@ -12,12 +12,9 @@ __pycache__/
 .Python
 build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
 parts/
 sdist/
 var/
@@ -28,6 +25,9 @@ wheels/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+# Python virtualenv lib directories (but not client/src/lib/)
+/lib/
+/lib64/
 
 # Virtual environments
 venv/

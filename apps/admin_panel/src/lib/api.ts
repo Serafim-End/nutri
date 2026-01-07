@@ -1,0 +1,191 @@
+import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios'
+import { useAuthStore } from '@/store/auth'
+
+const API_BASE_URL = '/api'
+
+export const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+})
+
+// Request interceptor to add auth token
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = useAuthStore.getState().token
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// Response interceptor to handle auth errors
+api.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      useAuthStore.getState().logout()
+    }
+    return Promise.reject(error)
+  }
+)
+
+// Auth API
+export const authApi = {
+  login: async (email: string, password: string) => {
+    const response = await api.post('/admin/auth/login', { email, password })
+    return response.data
+  },
+  
+  logout: async () => {
+    await api.post('/admin/auth/logout')
+  },
+  
+  me: async () => {
+    const response = await api.get('/admin/auth/me')
+    return response.data
+  },
+}
+
+// Admin API
+export const adminApi = {
+  // Dashboard
+  getStats: async () => {
+    const response = await api.get('/admin/stats')
+    return response.data
+  },
+
+  // Nutritionists
+  getNutritionists: async (status?: string) => {
+    const params = status ? { status } : {}
+    const response = await api.get('/admin/nutritionists', { params })
+    return response.data
+  },
+
+  getNutritionist: async (id: string) => {
+    const response = await api.get(`/admin/nutritionists/${id}`)
+    return response.data
+  },
+
+  approveNutritionist: async (id: string, note?: string) => {
+    const response = await api.post(`/admin/nutritionists/${id}/approve`, { note })
+    return response.data
+  },
+
+  rejectNutritionist: async (id: string, reason: string) => {
+    const response = await api.post(`/admin/nutritionists/${id}/reject`, { reason })
+    return response.data
+  },
+
+  requestUpdate: async (id: string, notes: string) => {
+    const response = await api.post(`/admin/nutritionists/${id}/request-update`, { notes })
+    return response.data
+  },
+
+  disableNutritionist: async (id: string) => {
+    const response = await api.post(`/admin/nutritionists/${id}/disable`)
+    return response.data
+  },
+
+  getDocumentUrl: async (id: string) => {
+    const response = await api.get(`/admin/documents/${id}/url`)
+    return response.data
+  },
+
+  // Documents
+  reviewDocument: async (id: string, status: 'accepted' | 'rejected', note?: string) => {
+    const response = await api.post(`/admin/documents/${id}/review`, { status, note })
+    return response.data
+  },
+
+  // Users
+  getUsers: async (page = 1, limit = 20) => {
+    const response = await api.get('/admin/users', { params: { page, limit } })
+    return response.data
+  },
+
+  // Bookings
+  getBookings: async (params: {
+    page?: number
+    limit?: number
+    status?: string
+    date_from?: string
+    date_to?: string
+  } = {}) => {
+    const response = await api.get('/admin/bookings', { params })
+    return response.data
+  },
+
+  getBooking: async (id: string) => {
+    const response = await api.get(`/admin/bookings/${id}`)
+    return response.data
+  },
+
+  cancelBooking: async (id: string, reason?: string) => {
+    const response = await api.post(`/admin/bookings/${id}/cancel`, { reason })
+    return response.data
+  },
+
+  completeBooking: async (id: string, notes?: string) => {
+    const response = await api.post(`/admin/bookings/${id}/complete`, { notes })
+    return response.data
+  },
+
+  // Payments
+  getPayments: async (params: { 
+    page?: number
+    limit?: number
+    status?: string
+    from?: string
+    to?: string 
+  } = {}) => {
+    const response = await api.get('/admin/payments', { params })
+    return response.data
+  },
+
+  exportPaymentsCsv: async (from?: string, to?: string) => {
+    const params: Record<string, string> = {}
+    if (from) params.from = from
+    if (to) params.to = to
+    
+    const response = await api.get('/admin/payments/export', { 
+      params,
+      responseType: 'blob'
+    })
+    return response.data
+  },
+
+  // Reviews
+  getReviews: async (params?: { rating_lte?: number }) => {
+    const response = await api.get('/admin/reviews', { params })
+    return response.data
+  },
+
+  hideReview: async (id: string) => {
+    const response = await api.post(`/admin/reviews/${id}/hide`)
+    return response.data
+  },
+
+  showReview: async (id: string) => {
+    const response = await api.post(`/admin/reviews/${id}/show`)
+    return response.data
+  },
+
+  markReviewProblematic: async (id: string, problematic: boolean) => {
+    const response = await api.post(`/admin/reviews/${id}/problematic`, { problematic })
+    return response.data
+  },
+
+  // Support
+  getSupportTickets: async (status?: string) => {
+    const params = status ? { status } : {}
+    const response = await api.get('/admin/support', { params })
+    return response.data
+  },
+
+  closeSupportTicket: async (id: string) => {
+    const response = await api.post(`/admin/support/${id}/close`)
+    return response.data
+  },
+}
+
