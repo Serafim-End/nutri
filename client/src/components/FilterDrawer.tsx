@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { publicApi } from '../lib/api'
-import type { SearchFilters, FilterOptions } from '../types'
+import type { SearchFilters, FilterOptions, FilterOption, BudgetRangeOption } from '../types'
 import {
   BottomSheet,
   Stack,
@@ -106,7 +106,7 @@ export default function FilterDrawer({
   const [localFilters, setLocalFilters] = useState<SearchFilters>(filters)
 
   // Загрузка опций фильтров с бэкенда
-  const { data: options } = useQuery({
+  const { data: options } = useQuery<FilterOptions>({
     queryKey: ['filterOptions'],
     queryFn: publicApi.getFilterOptions,
     staleTime: Infinity,
@@ -168,7 +168,7 @@ export default function FilterDrawer({
     localFilters.budget_max_rub === null
       ? null
       : filterOptions.budget_ranges.find(
-          (r) => r.max === localFilters.budget_max_rub
+          (r: BudgetRangeOption) => r.max === localFilters.budget_max_rub
         )?.id || null
 
   return (
@@ -181,7 +181,7 @@ export default function FilterDrawer({
             Цели
           </Text>
           <div className="flex flex-wrap gap-2">
-            {filterOptions.goals.map((goal) => (
+            {filterOptions.goals.map((goal: FilterOption) => (
               <button
                 key={goal.id}
                 onClick={() => toggleArrayValue('goals', goal.id)}
@@ -204,7 +204,7 @@ export default function FilterDrawer({
             Темы
           </Text>
           <div className="flex flex-wrap gap-2">
-            {filterOptions.topics.map((topic) => (
+            {filterOptions.topics.map((topic: FilterOption) => (
               <button
                 key={topic.id}
                 onClick={() => toggleArrayValue('topics', topic.id)}
@@ -227,7 +227,7 @@ export default function FilterDrawer({
             Бюджет за сессию
           </Text>
           <Stack gap={2}>
-            {filterOptions.budget_ranges.map((range) => (
+            {filterOptions.budget_ranges.map((range: BudgetRangeOption) => (
               <SelectionButton
                 key={range.id}
                 label={range.label}
@@ -247,7 +247,7 @@ export default function FilterDrawer({
             Особенности питания
           </Text>
           <div className="flex flex-wrap gap-2">
-            {filterOptions.dietary.map((diet) => (
+            {filterOptions.dietary.map((diet: FilterOption) => (
               <button
                 key={diet.id}
                 onClick={() => toggleArrayValue('dietary', diet.id)}
@@ -270,7 +270,7 @@ export default function FilterDrawer({
             Тип консультации
           </Text>
           <Stack gap={2}>
-            {filterOptions.help_modes.map((mode) => (
+            {filterOptions.help_modes.map((mode: FilterOption) => (
               <SelectionButton
                 key={mode.id}
                 label={mode.label}

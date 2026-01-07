@@ -222,9 +222,9 @@ export default function MyBookingsPage() {
   const bookings = data?.bookings || []
 
   // Разделение бронирований по статусу
-  const pendingBookings = bookings.filter(b => b.status === 'pending_payment')
-  const upcomingBookings = bookings.filter(b => b.status === 'paid')
-  const pastBookings = bookings.filter(b => 
+  const pendingBookings = bookings.filter((b: Booking) => b.status === 'pending_payment')
+  const upcomingBookings = bookings.filter((b: Booking) => b.status === 'paid')
+  const pastBookings = bookings.filter((b: Booking) => 
     ['completed', 'cancelled', 'refunded', 'no_show'].includes(b.status)
   )
 
@@ -253,7 +253,7 @@ export default function MyBookingsPage() {
                   </Text>
                 </Inline>
                 <Stack gap={3}>
-                  {pendingBookings.map((booking, index) => (
+                  {pendingBookings.map((booking: Booking, index: number) => (
                     <div key={booking.id} style={{ animationDelay: `${index * 50}ms` }}>
                       <BookingCard booking={booking} />
                     </div>
@@ -269,7 +269,7 @@ export default function MyBookingsPage() {
                   Предстоящие ({upcomingBookings.length})
                 </Text>
                 <Stack gap={3}>
-                  {upcomingBookings.map((booking, index) => (
+                  {upcomingBookings.map((booking: Booking, index: number) => (
                     <div key={booking.id} style={{ animationDelay: `${index * 50}ms` }}>
                       <BookingCard booking={booking} />
                     </div>
@@ -285,7 +285,7 @@ export default function MyBookingsPage() {
                   Прошедшие ({pastBookings.length})
                 </Text>
                 <Stack gap={3}>
-                  {pastBookings.map((booking, index) => (
+                  {pastBookings.map((booking: Booking, index: number) => (
                     <div key={booking.id} style={{ animationDelay: `${index * 50}ms` }}>
                       <BookingCard booking={booking} />
                     </div>

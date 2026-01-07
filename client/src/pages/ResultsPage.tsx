@@ -5,7 +5,7 @@ import { clientApi, publicApi } from '../lib/api'
 import { useIntakeStore } from '../store/intake'
 import { useAuthStore } from '../store/auth'
 import FilterDrawer from '../components/FilterDrawer'
-import type { SearchFilters, NutritionistSearchResult } from '../types'
+import type { SearchFilters, NutritionistSearchResult, FiltersResponse } from '../types'
 import {
   PageContainer,
   Header,
@@ -111,7 +111,7 @@ export default function ResultsPage() {
   const {
     data: filtersData,
     isLoading: isLoadingFilters,
-  } = useQuery({
+  } = useQuery<FiltersResponse>({
     queryKey: ['clientFilters'],
     queryFn: clientApi.getFilters,
     staleTime: 30000,
@@ -281,7 +281,7 @@ export default function ResultsPage() {
           <NoResultsState onAction={() => setIsDrawerOpen(true)} />
         ) : (
           <Stack gap={3}>
-            {nutritionists.map((nutritionist, index) => (
+            {nutritionists.map((nutritionist: NutritionistSearchResult, index: number) => (
               <NutritionistResultCard
                 key={nutritionist.nutritionist_id}
                 nutritionist={nutritionist}

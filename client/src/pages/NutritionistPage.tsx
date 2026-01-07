@@ -116,7 +116,7 @@ export default function NutritionistPage() {
                 Специализации
               </Text>
               <div className="flex flex-wrap gap-2">
-                {nutritionist.specializations.map((spec) => (
+                {nutritionist.specializations.map((spec: string) => (
                   <Badge key={spec} variant="primary" size="md">
                     {spec.replace(/_/g, ' ')}
                   </Badge>
@@ -132,7 +132,7 @@ export default function NutritionistPage() {
                 Работает с
               </Text>
               <div className="flex flex-wrap gap-2">
-                {nutritionist.tags.map((tag) => (
+                {nutritionist.tags.map((tag: string) => (
                   <Badge key={tag} variant="default" size="md">
                     {tag.replace(/_/g, ' ')}
                   </Badge>
@@ -149,7 +149,7 @@ export default function NutritionistPage() {
             <Text color="secondary">Услуги пока не добавлены.</Text>
           ) : (
             <Stack gap={3} className="pb-32">
-              {services.map((service) => (
+              {services.map((service: Service) => (
                 <ServiceCard
                   key={service.id}
                   service={service}

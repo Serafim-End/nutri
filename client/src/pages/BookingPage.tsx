@@ -6,7 +6,7 @@ import { ru } from 'date-fns/locale'
 import { publicApi, bookingApi, paymentApi } from '../lib/api'
 import { useCountdown } from '../hooks/useCountdown'
 import SlotPicker from '../components/SlotPicker'
-import type { AvailabilitySlot, Booking, PaymentIntent } from '../types'
+import type { AvailabilitySlot, Booking, PaymentIntent, Service } from '../types'
 import {
   PageContainer,
   Section,
@@ -209,7 +209,7 @@ export default function BookingPage() {
   // Мутация создания бронирования
   const bookingMutation = useMutation({
     mutationFn: () => bookingApi.createBooking(serviceId!, selectedSlot!.id),
-    onSuccess: (data) => {
+    onSuccess: (data: { booking: Booking; payment: PaymentIntent }) => {
       setCurrentBooking(data.booking)
       setPaymentInfo(data.payment)
       setBookingState('pending_payment')
@@ -260,7 +260,7 @@ export default function BookingPage() {
   // Мутация отмены бронирования
   const cancelMutation = useMutation({
     mutationFn: () => bookingApi.cancelBooking(currentBooking!.id, 'Отменено пользователем'),
-    onSuccess: (data) => {
+    onSuccess: (data: { booking: Booking; message: string }) => {
       setCurrentBooking(data.booking)
       setBookingState('cancelled')
       refetchSlots()
@@ -276,7 +276,7 @@ export default function BookingPage() {
   }
 
   const nutritionist = nutritionistData?.nutritionist
-  const service = servicesData?.services?.find((s) => s.id === serviceId)
+  const service = servicesData?.services?.find((s: Service) => s.id === serviceId)
   const slots = slotsData?.slots || []
 
   if (!nutritionist || !service) {

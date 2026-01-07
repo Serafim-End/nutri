@@ -134,7 +134,7 @@ export default function IntakePage() {
 
   const submitMutation = useMutation({
     mutationFn: () => clientApi.createIntake(answers),
-    onSuccess: (data) => {
+    onSuccess: (data: { intake_id: string }) => {
       setIntakeId(data.intake_id)
       setOnboardingCompleted()
       navigate('/results')
