@@ -1,6 +1,5 @@
 services:
-  # PostgreSQL Database
-  # Used for local development; for Supabase, set DATABASE_URL in .env
+  # PostgreSQL Database (Local Container)
   postgres:
     image: postgres:15-alpine
     container_name: nutrimatch-db
@@ -29,7 +28,7 @@ services:
     environment:
       - FLASK_ENV=${FLASK_ENV:-development}
       - FLASK_DEBUG=${FLASK_DEBUG:-1}
-      # DATABASE_URL: Use Supabase URL from .env, or fallback to local postgres
+      # Database URL (uses postgres service name from docker-compose)
       - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/nutrimatch}
       - SECRET_KEY=${SECRET_KEY:-dev-secret-key-change-in-production}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-jwt-secret-key-change-in-production}

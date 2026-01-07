@@ -26,6 +26,9 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 # Copy application
 COPY . .
 
+# Make entrypoint executable
+RUN chmod +x entrypoint.sh
+
 # Create non-root user
 RUN adduser --disabled-password --gecos '' appuser && chown -R appuser:appuser /app
 USER appuser
@@ -33,9 +36,9 @@ USER appuser
 # Expose port 8000
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+# Health check (longer start period to allow for migrations)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Run with gunicorn (2 workers, gthread for better concurrency)
-CMD ["gunicorn", "-w", "2", "-k", "gthread", "--threads", "4", "-b", "0.0.0.0:8000", "--access-logfile", "-", "--error-logfile", "-", "app:create_app()"]
+# Run entrypoint script (waits for DB, runs migrations, starts gunicorn)
+ENTRYPOINT ["./entrypoint.sh"]

@@ -1,8 +1,7 @@
 """
 Alembic environment configuration for Flask-Migrate.
 
-Loads database configuration from Flask app config, ensuring
-DATABASE_URL is properly handled with SSL for Supabase.
+Loads database configuration from Flask app config.
 """
 
 import logging
