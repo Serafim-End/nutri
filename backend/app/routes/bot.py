@@ -54,36 +54,32 @@ def resolve_telegram_user():
       Используется ботом для определения состояния на /start.
       
       **Требуется заголовок:** `X-Service-Token`
+    produces:
+      - application/json
     parameters:
       - name: X-Service-Token
         in: header
         required: true
-        schema:
-          type: string
+        type: string
         description: Сервисный токен бота
       - name: telegram_user_id
         in: query
         required: true
-        schema:
-          type: integer
+        type: integer
         description: Telegram User ID
     responses:
       200:
         description: Данные пользователя
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                profile:
-                  $ref: '#/components/schemas/Profile'
-                  nullable: true
-                nutritionist:
-                  $ref: '#/components/schemas/Nutritionist'
-                  nullable: true
-                role:
-                  type: string
-                  enum: [client, nutritionist, admin]
+        schema:
+          type: object
+          properties:
+            profile:
+              $ref: '#/definitions/Profile'
+            nutritionist:
+              $ref: '#/definitions/Nutritionist'
+            role:
+              type: string
+              enum: [client, nutritionist, admin]
       400:
         description: telegram_user_id не указан
       401:
@@ -307,45 +303,42 @@ def get_statistics(nutritionist_id: str):
       Возвращает статистику нутрициолога за указанный период.
       
       **Требуется заголовок:** `X-Service-Token`
+    produces:
+      - application/json
     parameters:
       - name: X-Service-Token
         in: header
         required: true
-        schema:
-          type: string
+        type: string
       - name: nutritionist_id
         in: path
         required: true
-        schema:
-          type: string
-          format: uuid
+        type: string
+        description: UUID нутрициолога
       - name: days
         in: query
-        schema:
-          type: integer
-          default: 30
+        type: integer
+        default: 30
         description: Период в днях
     responses:
       200:
         description: Статистика
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                income_30d:
-                  type: integer
-                  example: 50000
-                consultations_30d:
-                  type: integer
-                  example: 15
-                avg_rating:
-                  type: number
-                  format: float
-                  example: 4.8
-                total_clients:
-                  type: integer
-                  example: 25
+        schema:
+          type: object
+          properties:
+            income_30d:
+              type: integer
+              example: 50000
+            consultations_30d:
+              type: integer
+              example: 15
+            avg_rating:
+              type: number
+              format: float
+              example: 4.8
+            total_clients:
+              type: integer
+              example: 25
       401:
         description: Неверный сервисный токен
       404:
@@ -463,4 +456,3 @@ def create_support_message():
         "message": "Support request received",
         "ticket_id": None,  # Would be real ticket ID
     }), 201
-

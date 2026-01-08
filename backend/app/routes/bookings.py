@@ -32,37 +32,33 @@ def create_booking():
     description: |
       Создаёт бронирование и удерживает слот на 10 минут для оплаты.
       Использует блокировку на уровне строки для защиты от race conditions.
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/BookingCreateRequest'
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/BookingCreateRequest'
     responses:
       201:
         description: Бронирование создано
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/BookingCreateResponse'
+        schema:
+          $ref: '#/definitions/BookingCreateResponse'
       400:
         description: Ошибка валидации или слот недоступен
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
+        schema:
+          $ref: '#/definitions/Error'
       401:
         description: Требуется авторизация
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
+        schema:
+          $ref: '#/definitions/Error'
       409:
         description: Слот уже занят (race condition)
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
+        schema:
+          $ref: '#/definitions/Error'
     """
     current_user_id = get_jwt_identity()
 
@@ -112,24 +108,22 @@ def get_booking(booking_id: str):
       - Bookings
     security:
       - BearerAuth: []
+    produces:
+      - application/json
     parameters:
       - name: booking_id
         in: path
         required: true
-        schema:
-          type: string
-          format: uuid
+        type: string
         description: UUID бронирования
     responses:
       200:
         description: Данные бронирования
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                booking:
-                  $ref: '#/components/schemas/Booking'
+        schema:
+          type: object
+          properties:
+            booking:
+              $ref: '#/definitions/Booking'
       401:
         description: Требуется авторизация
       403:
@@ -173,29 +167,27 @@ def mark_booking_paid(booking_id: str):
       - Блокирует slot, проверяет hold не истёк
       - booking → paid, устанавливает paid_at
       - slot → booked, очищает hold_expires_at
+    produces:
+      - application/json
     parameters:
       - name: booking_id
         in: path
         required: true
-        schema:
-          type: string
-          format: uuid
+        type: string
         description: UUID бронирования
     responses:
       200:
         description: Оплата подтверждена
-        content:
-          application/json:
-            schema:
+        schema:
+          type: object
+          properties:
+            booking:
+              $ref: '#/definitions/Booking'
+            payment:
               type: object
-              properties:
-                booking:
-                  $ref: '#/components/schemas/Booking'
-                payment:
-                  type: object
-                message:
-                  type: string
-                  example: "Payment confirmed successfully"
+            message:
+              type: string
+              example: "Payment confirmed successfully"
       400:
         description: Невозможно подтвердить оплату (неверный статус или истёк hold)
       403:
@@ -252,32 +244,31 @@ def cancel_booking(booking_id: str):
       Отменяет бронирование и освобождает слот.
       Можно отменить только бронирования в статусе pending_payment.
       Оплаченные бронирования нельзя отменить (нужно обращаться в поддержку).
+    consumes:
+      - application/json
+    produces:
+      - application/json
     parameters:
       - name: booking_id
         in: path
         required: true
-        schema:
-          type: string
-          format: uuid
+        type: string
         description: UUID бронирования
-    requestBody:
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/BookingCancelRequest'
+      - in: body
+        name: body
+        schema:
+          $ref: '#/definitions/BookingCancelRequest'
     responses:
       200:
         description: Бронирование отменено
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                booking:
-                  $ref: '#/components/schemas/Booking'
-                message:
-                  type: string
-                  example: "Booking cancelled successfully"
+        schema:
+          type: object
+          properties:
+            booking:
+              $ref: '#/definitions/Booking'
+            message:
+              type: string
+              example: "Booking cancelled successfully"
       400:
         description: Невозможно отменить (оплаченное бронирование)
       401:
@@ -318,20 +309,20 @@ def release_expired_holds():
       Освобождает слоты, hold которых истёк.
       Предназначен для вызова из cron job.
       Идемпотентен и безопасен для параллельного выполнения.
+    produces:
+      - application/json
     responses:
       200:
         description: Hold'ы освобождены
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                released_count:
-                  type: integer
-                  example: 5
-                message:
-                  type: string
-                  example: "Released 5 expired holds"
+        schema:
+          type: object
+          properties:
+            released_count:
+              type: integer
+              example: 5
+            message:
+              type: string
+              example: "Released 5 expired holds"
     """
     # In production, this should be protected by a secret key or internal network
     # For now, we allow it for simplicity

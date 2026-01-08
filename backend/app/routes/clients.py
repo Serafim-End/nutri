@@ -30,35 +30,34 @@ def create_intake():
     description: |
       Отправляет анкету (intake) и создаёт/обновляет client_filter_state 
       с нормализованными фильтрами для поиска.
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/IntakeRequest'
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/IntakeRequest'
     responses:
       201:
         description: Анкета успешно отправлена
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                intake:
-                  $ref: '#/components/schemas/Intake'
-                intake_id:
-                  type: string
-                  format: uuid
-                normalized_filters:
-                  $ref: '#/components/schemas/SearchFilters'
-                message:
-                  type: string
+        schema:
+          type: object
+          properties:
+            intake:
+              $ref: '#/definitions/Intake'
+            intake_id:
+              type: string
+            normalized_filters:
+              $ref: '#/definitions/SearchFilters'
+            message:
+              type: string
       400:
         description: Ошибка валидации
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
+        schema:
+          $ref: '#/definitions/Error'
       401:
         description: Требуется авторизация
     """
@@ -131,28 +130,26 @@ def get_matches():
       - Clients
     security:
       - BearerAuth: []
+    produces:
+      - application/json
     parameters:
       - name: intake_id
         in: query
         required: true
-        schema:
-          type: string
-          format: uuid
+        type: string
         description: UUID анкеты (intake)
     responses:
       200:
         description: Список подходящих нутрициологов
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                matches:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/Nutritionist'
-                total:
-                  type: integer
+        schema:
+          type: object
+          properties:
+            matches:
+              type: array
+              items:
+                $ref: '#/definitions/Nutritionist'
+            total:
+              type: integer
       400:
         description: intake_id не указан
       401:
@@ -195,18 +192,18 @@ def list_intakes():
       - Clients
     security:
       - BearerAuth: []
+    produces:
+      - application/json
     responses:
       200:
         description: Список анкет
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                intakes:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/Intake'
+        schema:
+          type: object
+          properties:
+            intakes:
+              type: array
+              items:
+                $ref: '#/definitions/Intake'
       401:
         description: Требуется авторизация
     """
@@ -231,18 +228,18 @@ def list_client_bookings():
       - Clients
     security:
       - BearerAuth: []
+    produces:
+      - application/json
     responses:
       200:
         description: Список бронирований
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                bookings:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/Booking'
+        schema:
+          type: object
+          properties:
+            bookings:
+              type: array
+              items:
+                $ref: '#/definitions/Booking'
       401:
         description: Требуется авторизация
     """
@@ -272,27 +269,18 @@ def list_my_bookings():
     description: |
       Список бронирований текущего клиента с информацией об услуге, 
       слоте и нутрициологе. Отсортированы по дате создания (новые первые).
+    produces:
+      - application/json
     responses:
       200:
         description: Список бронирований с развёрнутыми данными
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                bookings:
-                  type: array
-                  items:
-                    allOf:
-                      - $ref: '#/components/schemas/Booking'
-                      - type: object
-                        properties:
-                          service:
-                            $ref: '#/components/schemas/Service'
-                          slot:
-                            $ref: '#/components/schemas/Slot'
-                          nutritionist:
-                            $ref: '#/components/schemas/Nutritionist'
+        schema:
+          type: object
+          properties:
+            bookings:
+              type: array
+              items:
+                $ref: '#/definitions/Booking'
       401:
         description: Требуется авторизация
     """
@@ -320,22 +308,20 @@ def get_filters():
     security:
       - BearerAuth: []
     description: Возвращает текущие фильтры и значения по умолчанию из анкеты
+    produces:
+      - application/json
     responses:
       200:
         description: Фильтры клиента
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                intake_id:
-                  type: string
-                  format: uuid
-                  nullable: true
-                filters:
-                  $ref: '#/components/schemas/SearchFilters'
-                defaults:
-                  $ref: '#/components/schemas/SearchFilters'
+        schema:
+          type: object
+          properties:
+            intake_id:
+              type: string
+            filters:
+              $ref: '#/definitions/SearchFilters'
+            defaults:
+              $ref: '#/definitions/SearchFilters'
       401:
         description: Требуется авторизация
     """
@@ -383,32 +369,32 @@ def update_filters():
       - Clients
     security:
       - BearerAuth: []
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              filters:
-                $ref: '#/components/schemas/SearchFilters'
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            filters:
+              $ref: '#/definitions/SearchFilters'
     responses:
       200:
         description: Фильтры обновлены
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                intake_id:
-                  type: string
-                  format: uuid
-                  nullable: true
-                filters:
-                  $ref: '#/components/schemas/SearchFilters'
-                updated_at:
-                  type: string
-                  format: date-time
+        schema:
+          type: object
+          properties:
+            intake_id:
+              type: string
+            filters:
+              $ref: '#/definitions/SearchFilters'
+            updated_at:
+              type: string
+              format: date-time
       400:
         description: Ошибка валидации
       401:
@@ -447,5 +433,3 @@ def update_filters():
         "filters": filter_state.filters,
         "updated_at": filter_state.updated_at.isoformat() if filter_state.updated_at else None,
     })
-
-

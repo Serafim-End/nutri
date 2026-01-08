@@ -22,42 +22,37 @@ def list_nutritionists():
     tags:
       - Public
     description: Получить список одобренных нутрициологов с возможностью фильтрации
+    produces:
+      - application/json
     parameters:
       - name: specialization
         in: query
-        schema:
-          type: string
+        type: string
         description: Фильтр по специализации (weight_loss, diabetes, etc.)
-        example: weight_loss
       - name: budget
         in: query
-        schema:
-          type: integer
+        type: integer
         description: Максимальный бюджет (фильтр по цене)
-        example: 5000
       - name: tags
         in: query
-        schema:
-          type: array
-          items:
-            type: string
+        type: array
+        items:
+          type: string
+        collectionFormat: multi
         description: Фильтр по тегам (можно указать несколько)
-        example: ["vegetarian"]
     responses:
       200:
         description: Список нутрициологов
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                nutritionists:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/Nutritionist'
-                total:
-                  type: integer
-                  example: 10
+        schema:
+          type: object
+          properties:
+            nutritionists:
+              type: array
+              items:
+                $ref: '#/definitions/Nutritionist'
+            total:
+              type: integer
+              example: 10
     """
     specialization = request.args.get("specialization")
     budget = request.args.get("budget", type=int)
@@ -82,30 +77,26 @@ def get_nutritionist(nutritionist_id: str):
     ---
     tags:
       - Public
+    produces:
+      - application/json
     parameters:
       - name: nutritionist_id
         in: path
         required: true
-        schema:
-          type: string
-          format: uuid
+        type: string
         description: UUID нутрициолога
     responses:
       200:
         description: Данные нутрициолога
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                nutritionist:
-                  $ref: '#/components/schemas/Nutritionist'
+        schema:
+          type: object
+          properties:
+            nutritionist:
+              $ref: '#/definitions/Nutritionist'
       404:
         description: Нутрициолог не найден
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
+        schema:
+          $ref: '#/definitions/Error'
     """
     nutritionist = NutritionistProfile.query.get(nutritionist_id)
 
@@ -128,32 +119,28 @@ def list_services(nutritionist_id: str):
     ---
     tags:
       - Public
+    produces:
+      - application/json
     parameters:
       - name: nutritionist_id
         in: path
         required: true
-        schema:
-          type: string
-          format: uuid
+        type: string
         description: UUID нутрициолога
     responses:
       200:
         description: Список активных услуг
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                services:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/Service'
+        schema:
+          type: object
+          properties:
+            services:
+              type: array
+              items:
+                $ref: '#/definitions/Service'
       404:
         description: Нутрициолог не найден
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
+        schema:
+          $ref: '#/definitions/Error'
     """
     nutritionist = NutritionistProfile.query.get(nutritionist_id)
 
@@ -181,38 +168,32 @@ def list_slots(nutritionist_id: str):
     ---
     tags:
       - Public
+    produces:
+      - application/json
     parameters:
       - name: nutritionist_id
         in: path
         required: true
-        schema:
-          type: string
-          format: uuid
+        type: string
         description: UUID нутрициолога
       - name: service_id
         in: query
-        schema:
-          type: string
-          format: uuid
+        type: string
         description: UUID услуги (опционально)
     responses:
       200:
         description: Список свободных слотов
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                slots:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/Slot'
+        schema:
+          type: object
+          properties:
+            slots:
+              type: array
+              items:
+                $ref: '#/definitions/Slot'
       404:
         description: Нутрициолог или услуга не найдены
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
+        schema:
+          $ref: '#/definitions/Error'
     """
     service_id = request.args.get("service_id")
 
@@ -253,36 +234,32 @@ def search_nutritionists():
     description: |
       Расширенный поиск нутрициологов с учётом целей, бюджета и предпочтений.
       Возвращает результаты отсортированные по релевантности (score).
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              filters:
-                $ref: '#/components/schemas/SearchFilters'
-          example:
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
             filters:
-              goals: ["weight_loss"]
-              budget_max_rub: 5000
-              dietary: ["vegetarian"]
-              help_mode: "one_time"
+              $ref: '#/definitions/SearchFilters'
     responses:
       200:
         description: Результаты поиска со скорингом
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                nutritionists:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/NutritionistSearchResult'
-                total:
-                  type: integer
-                  example: 5
+        schema:
+          type: object
+          properties:
+            nutritionists:
+              type: array
+              items:
+                $ref: '#/definitions/NutritionistSearchResult'
+            total:
+              type: integer
+              example: 5
     """
     data = request.get_json() or {}
     raw_filters = data.get("filters", {})
@@ -316,14 +293,12 @@ def get_filter_options():
     tags:
       - Public
     description: Возвращает все доступные опции для фильтров поиска (для построения UI)
+    produces:
+      - application/json
     responses:
       200:
         description: Опции фильтров
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/FilterOptions'
+        schema:
+          $ref: '#/definitions/FilterOptions'
     """
     return jsonify(FILTER_OPTIONS)
-
-

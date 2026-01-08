@@ -53,31 +53,31 @@ def upsert_nutritionist():
     description: |
       Создаёт новый или обновляет существующий профиль нутрициолога.
       Используется Botpress для онбординга нутрициологов.
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/NutritionistUpsertRequest'
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/NutritionistUpsertRequest'
     responses:
       200:
         description: Профиль создан/обновлён
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                nutritionist:
-                  $ref: '#/components/schemas/Nutritionist'
-                is_new:
-                  type: boolean
-                  description: true если это новый профиль
+        schema:
+          type: object
+          properties:
+            nutritionist:
+              $ref: '#/definitions/Nutritionist'
+            is_new:
+              type: boolean
+              description: true если это новый профиль
       400:
         description: Ошибка валидации
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
+        schema:
+          $ref: '#/definitions/Error'
     """
     try:
         data = request.get_json() or {}
@@ -152,29 +152,29 @@ def upload_document(nutritionist_id: str):
     tags:
       - Nutritionists
     description: Добавляет метаданные документа для верификации нутрициолога
+    consumes:
+      - application/json
+    produces:
+      - application/json
     parameters:
       - name: nutritionist_id
         in: path
         required: true
+        type: string
+        description: UUID нутрициолога
+      - in: body
+        name: body
+        required: true
         schema:
-          type: string
-          format: uuid
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/DocumentCreateRequest'
+          $ref: '#/definitions/DocumentCreateRequest'
     responses:
       201:
         description: Документ добавлен
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                document:
-                  $ref: '#/components/schemas/Document'
+        schema:
+          type: object
+          properties:
+            document:
+              $ref: '#/definitions/Document'
       400:
         description: Ошибка валидации
       404:
@@ -213,29 +213,29 @@ def create_service(nutritionist_id: str):
     ---
     tags:
       - Nutritionists
+    consumes:
+      - application/json
+    produces:
+      - application/json
     parameters:
       - name: nutritionist_id
         in: path
         required: true
+        type: string
+        description: UUID нутрициолога
+      - in: body
+        name: body
+        required: true
         schema:
-          type: string
-          format: uuid
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ServiceCreateRequest'
+          $ref: '#/definitions/ServiceCreateRequest'
     responses:
       201:
         description: Услуга создана
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                service:
-                  $ref: '#/components/schemas/Service'
+        schema:
+          type: object
+          properties:
+            service:
+              $ref: '#/definitions/Service'
       400:
         description: Ошибка валидации
       404:
@@ -277,34 +277,34 @@ def create_slots(nutritionist_id: str):
     tags:
       - Nutritionists
     description: Массовое создание слотов доступности для нутрициолога
+    consumes:
+      - application/json
+    produces:
+      - application/json
     parameters:
       - name: nutritionist_id
         in: path
         required: true
+        type: string
+        description: UUID нутрициолога
+      - in: body
+        name: body
+        required: true
         schema:
-          type: string
-          format: uuid
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/SlotCreateRequest'
+          $ref: '#/definitions/SlotCreateRequest'
     responses:
       201:
         description: Слоты созданы
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                slots:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/Slot'
-                created_count:
-                  type: integer
-                  example: 2
+        schema:
+          type: object
+          properties:
+            slots:
+              type: array
+              items:
+                $ref: '#/definitions/Slot'
+            created_count:
+              type: integer
+              example: 2
       400:
         description: Ошибка валидации
       404:
@@ -349,40 +349,39 @@ def get_dashboard(nutritionist_id: str):
     tags:
       - Nutritionists
     description: Возвращает профиль, услуги, ближайшие слоты и статистику
+    produces:
+      - application/json
     parameters:
       - name: nutritionist_id
         in: path
         required: true
-        schema:
-          type: string
-          format: uuid
+        type: string
+        description: UUID нутрициолога
     responses:
       200:
         description: Данные дашборда
-        content:
-          application/json:
-            schema:
+        schema:
+          type: object
+          properties:
+            nutritionist:
+              $ref: '#/definitions/Nutritionist'
+            services:
+              type: array
+              items:
+                $ref: '#/definitions/Service'
+            upcoming_slots:
+              type: array
+              items:
+                $ref: '#/definitions/Slot'
+            stats:
               type: object
               properties:
-                nutritionist:
-                  $ref: '#/components/schemas/Nutritionist'
-                services:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/Service'
-                upcoming_slots:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/Slot'
-                stats:
-                  type: object
-                  properties:
-                    total_bookings:
-                      type: integer
-                    completed_bookings:
-                      type: integer
-                    total_earnings_rub:
-                      type: integer
+                total_bookings:
+                  type: integer
+                completed_bookings:
+                  type: integer
+                total_earnings_rub:
+                  type: integer
       404:
         description: Нутрициолог не найден
     """
@@ -419,5 +418,3 @@ def get_dashboard(nutritionist_id: str):
             "total_earnings_rub": total_earnings,
         },
     })
-
-

@@ -32,37 +32,33 @@ def verify_telegram():
     ---
     tags:
       - Auth
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/TelegramAuthRequest'
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/TelegramAuthRequest'
     responses:
       200:
         description: Успешная аутентификация
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AuthResponse'
+        schema:
+          $ref: '#/definitions/AuthResponse'
       400:
         description: Некорректный запрос
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
+        schema:
+          $ref: '#/definitions/Error'
       401:
         description: Неверная или истекшая initData
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
+        schema:
+          $ref: '#/definitions/Error'
       500:
         description: TELEGRAM_BOT_TOKEN не настроен
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
+        schema:
+          $ref: '#/definitions/Error'
     """
     try:
         data = request.get_json()
@@ -129,30 +125,28 @@ def dev_login():
       В production этот эндпоинт отключён.
       
       По умолчанию используется telegram_user_id=300000001 (seeded client).
-    requestBody:
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/DevLoginRequest'
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        schema:
+          $ref: '#/definitions/DevLoginRequest'
     responses:
       200:
         description: Успешный вход
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AuthResponse'
+        schema:
+          $ref: '#/definitions/AuthResponse'
       403:
         description: Dev login отключён в production
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
+        schema:
+          $ref: '#/definitions/Error'
       404:
         description: Пользователь не найден. Запустите make seed
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
+        schema:
+          $ref: '#/definitions/Error'
     """
     # SECURITY: Only allow in development mode
     if not is_dev_mode():

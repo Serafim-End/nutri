@@ -40,48 +40,50 @@ def admin_login():
     ---
     tags:
       - Admin
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-              - email
-              - password
-            properties:
-              email:
-                type: string
-                format: email
-                example: admin@nutrimatch.io
-              password:
-                type: string
-                format: password
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - email
+            - password
+          properties:
+            email:
+              type: string
+              format: email
+              example: admin@nutrimatch.io
+            password:
+              type: string
+              format: password
     responses:
       200:
         description: Успешная авторизация
-        content:
-          application/json:
-            schema:
+        schema:
+          type: object
+          properties:
+            access_token:
+              type: string
+            token_type:
+              type: string
+              example: bearer
+            user:
               type: object
               properties:
-                access_token:
+                id:
                   type: string
-                token_type:
+                email:
                   type: string
-                  example: bearer
-                user:
-                  type: object
-                  properties:
-                    id:
-                      type: string
-                    email:
-                      type: string
-                    name:
-                      type: string
-                    role:
-                      type: string
-                      example: admin
+                name:
+                  type: string
+                role:
+                  type: string
+                  example: admin
       400:
         description: Email и password обязательны
       401:
@@ -177,26 +179,25 @@ def list_pending_nutritionists():
       - Admin
     security:
       - BearerAuth: []
+    produces:
+      - application/json
     parameters:
       - name: status
         in: query
-        schema:
-          type: string
-          enum: [draft, pending, approved, rejected, needs_update]
-          default: pending
+        type: string
+        enum: [draft, pending, approved, rejected, needs_update]
+        default: pending
         description: Фильтр по статусу верификации
     responses:
       200:
         description: Список нутрициологов
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                nutritionists:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/Nutritionist'
+        schema:
+          type: object
+          properties:
+            nutritionists:
+              type: array
+              items:
+                $ref: '#/definitions/Nutritionist'
       403:
         description: Требуются права администратора
     """
@@ -256,34 +257,34 @@ def approve_nutritionist(nutritionist_id: str):
       - Admin
     security:
       - BearerAuth: []
+    consumes:
+      - application/json
+    produces:
+      - application/json
     parameters:
       - name: nutritionist_id
         in: path
         required: true
+        type: string
+        description: UUID нутрициолога
+      - in: body
+        name: body
         schema:
-          type: string
-          format: uuid
-    requestBody:
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              note:
-                type: string
-                description: Примечание к одобрению
+          type: object
+          properties:
+            note:
+              type: string
+              description: Примечание к одобрению
     responses:
       200:
         description: Нутрициолог одобрен
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                nutritionist:
-                  $ref: '#/components/schemas/Nutritionist'
-                message:
-                  type: string
+        schema:
+          type: object
+          properties:
+            nutritionist:
+              $ref: '#/definitions/Nutritionist'
+            message:
+              type: string
       400:
         description: Невозможно одобрить с текущим статусом
       403:
@@ -328,31 +329,31 @@ def reject_nutritionist(nutritionist_id: str):
       - Admin
     security:
       - BearerAuth: []
+    consumes:
+      - application/json
+    produces:
+      - application/json
     parameters:
       - name: nutritionist_id
         in: path
         required: true
+        type: string
+        description: UUID нутрициолога
+      - in: body
+        name: body
+        required: true
         schema:
-          type: string
-          format: uuid
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/AdminRejectRequest'
+          $ref: '#/definitions/AdminRejectRequest'
     responses:
       200:
         description: Нутрициолог отклонён
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                nutritionist:
-                  $ref: '#/components/schemas/Nutritionist'
-                message:
-                  type: string
+        schema:
+          type: object
+          properties:
+            nutritionist:
+              $ref: '#/definitions/Nutritionist'
+            message:
+              type: string
       400:
         description: Причина обязательна или невозможно отклонить с текущим статусом
       403:
@@ -816,30 +817,30 @@ def get_dashboard_stats():
       - Admin
     security:
       - BearerAuth: []
+    produces:
+      - application/json
     responses:
       200:
         description: Статистика платформы
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                total_users:
-                  type: integer
-                  example: 100
-                total_nutritionists:
-                  type: integer
-                  example: 20
-                pending_verifications:
-                  type: integer
-                  example: 5
-                total_bookings:
-                  type: integer
-                  example: 150
-                revenue_this_month:
-                  type: integer
-                  description: Выручка за текущий месяц (в рублях)
-                  example: 150000
+        schema:
+          type: object
+          properties:
+            total_users:
+              type: integer
+              example: 100
+            total_nutritionists:
+              type: integer
+              example: 20
+            pending_verifications:
+              type: integer
+              example: 5
+            total_bookings:
+              type: integer
+              example: 150
+            revenue_this_month:
+              type: integer
+              description: Выручка за текущий месяц (в рублях)
+              example: 150000
       403:
         description: Требуются права администратора
     """
@@ -879,5 +880,3 @@ def get_dashboard_stats():
         "total_bookings": total_bookings,
         "revenue_this_month": revenue_this_month,
     })
-
-

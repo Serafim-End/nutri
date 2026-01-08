@@ -66,13 +66,13 @@ def create_app(config_class=Config):
         ---
         tags:
           - Health
+        produces:
+          - application/json
         responses:
           200:
             description: Сервис работает
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/HealthResponse'
+            schema:
+              $ref: '#/definitions/HealthResponse'
         """
         return {"status": "healthy", "service": "nutrimatch-api"}
 
@@ -88,19 +88,17 @@ def create_app(config_class=Config):
           Проверяет:
           - Подключение к базе данных (SELECT 1)
           - Текущую ревизию Alembic миграций
+        produces:
+          - application/json
         responses:
           200:
             description: БД доступна
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/DatabaseHealthResponse'
+            schema:
+              $ref: '#/definitions/DatabaseHealthResponse'
           503:
             description: БД недоступна
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/DatabaseHealthResponse'
+            schema:
+              $ref: '#/definitions/DatabaseHealthResponse'
         """
         result = {
             "status": "unknown",

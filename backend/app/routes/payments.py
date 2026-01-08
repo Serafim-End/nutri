@@ -31,25 +31,26 @@ def create_payment_intent():
     security:
       - BearerAuth: []
     description: Создаёт платёжное намерение (payment intent) для бронирования
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            type: object
-            required:
-              - booking_id
-            properties:
-              booking_id:
-                type: string
-                format: uuid
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - booking_id
+          properties:
+            booking_id:
+              type: string
     responses:
       200:
         description: Payment intent создан
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PaymentIntent'
+        schema:
+          $ref: '#/definitions/PaymentIntent'
       400:
         description: Ошибка валидации или неверный статус бронирования
       401:
@@ -104,32 +105,32 @@ def payment_webhook(provider: str):
       Обрабатывает webhooks от платёжных провайдеров при изменении статуса платежа.
       Каждый провайдер имеет свой URL: `/api/payments/webhook/telegram`, 
       `/api/payments/webhook/yookassa`, etc.
+    consumes:
+      - application/json
+    produces:
+      - application/json
     parameters:
       - name: provider
         in: path
         required: true
-        schema:
-          type: string
-          enum: [telegram, yookassa, mock]
+        type: string
+        enum: [telegram, yookassa, mock]
         description: Название платёжного провайдера
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/PaymentWebhookRequest'
+      - in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/PaymentWebhookRequest'
     responses:
       200:
         description: Webhook обработан
-        content:
-          application/json:
-            schema:
+        schema:
+          type: object
+          properties:
+            payment:
               type: object
-              properties:
-                payment:
-                  type: object
-                message:
-                  type: string
+            message:
+              type: string
       400:
         description: Неверный payload
       401:
@@ -173,28 +174,27 @@ def mock_payment(booking_id: str):
       
       Симулирует успешную оплату через mock webhook.
       Доступно только в dev-режиме или когда PAYMENT_PROVIDER=mock.
+    produces:
+      - application/json
     parameters:
       - name: booking_id
         in: path
         required: true
-        schema:
-          type: string
-          format: uuid
+        type: string
+        description: UUID бронирования
     responses:
       200:
         description: Оплата симулирована
-        content:
-          application/json:
-            schema:
+        schema:
+          type: object
+          properties:
+            payment:
               type: object
-              properties:
-                payment:
-                  type: object
-                booking:
-                  $ref: '#/components/schemas/Booking'
-                message:
-                  type: string
-                  example: "Payment simulated successfully"
+            booking:
+              $ref: '#/definitions/Booking'
+            message:
+              type: string
+              example: "Payment simulated successfully"
       403:
         description: Недоступно в production
       404:
@@ -244,23 +244,22 @@ def get_payment_status(booking_id: str):
       - Payments
     security:
       - BearerAuth: []
+    produces:
+      - application/json
     parameters:
       - name: booking_id
         in: path
         required: true
-        schema:
-          type: string
-          format: uuid
+        type: string
+        description: UUID бронирования
     responses:
       200:
         description: Данные платежа
-        content:
-          application/json:
-            schema:
+        schema:
+          type: object
+          properties:
+            payment:
               type: object
-              properties:
-                payment:
-                  type: object
       401:
         description: Требуется авторизация
       403:
@@ -300,11 +299,15 @@ def legacy_payment_webhook():
       **DEPRECATED:** Используйте `/api/payments/webhook/{provider}` вместо этого.
       
       Определяет провайдера из payload.
-    requestBody:
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/PaymentWebhookRequest'
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - in: body
+        name: body
+        schema:
+          $ref: '#/definitions/PaymentWebhookRequest'
     responses:
       200:
         description: Webhook обработан
