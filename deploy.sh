@@ -24,7 +24,7 @@ fi
 
 # 3. Build and start all containers
 echo "🔨 Building and starting containers..."
-docker-compose -f docker-compose.prod.yml up -d --build
+DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker-compose -f docker-compose.prod.yml up -d --build
 
 # 4. Wait for services to be ready
 echo "⏳ Waiting for services..."
