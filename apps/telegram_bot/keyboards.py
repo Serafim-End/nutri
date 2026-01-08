@@ -70,6 +70,23 @@ CB_REVIEWS_PREV = "reviews_prev"
 # Support
 CB_CANCEL_SUPPORT = "cancel_support"
 
+# Schedule (Slots)
+CB_SCHEDULE = "schedule"
+CB_ADD_SLOT = "add_slot"
+CB_DELETE_SLOT = "delete_slot"
+CB_REFRESH_SCHEDULE = "refresh_schedule"
+CB_SLOT_DATE_PREFIX = "slot_date:"
+CB_SLOT_DURATION_PREFIX = "slot_dur:"
+CB_CONFIRM_SLOT = "confirm_slot"
+CB_CANCEL_SLOT = "cancel_slot"
+CB_SELECT_SLOT_DELETE_PREFIX = "del_slot:"
+
+# Bookings
+CB_MY_BOOKINGS = "my_bookings"
+CB_REFRESH_BOOKINGS = "refresh_bookings"
+CB_BOOKINGS_NEXT = "bookings_next"
+CB_BOOKINGS_PREV = "bookings_prev"
+
 
 # ==========================================
 # Keyboard Builders
@@ -147,6 +164,18 @@ def get_nutritionist_menu_keyboard(has_profile: bool = False) -> InlineKeyboardM
 def get_personal_cabinet_keyboard() -> InlineKeyboardMarkup:
     """Personal cabinet menu."""
     builder = InlineKeyboardBuilder()
+    
+    # Primary actions: Schedule and Bookings
+    builder.row(
+        InlineKeyboardButton(
+            text="🕒 Расписание",
+            callback_data=CB_SCHEDULE,
+        ),
+        InlineKeyboardButton(
+            text="📋 Мои бронирования",
+            callback_data=CB_MY_BOOKINGS,
+        ),
+    )
     
     builder.row(
         InlineKeyboardButton(
@@ -540,6 +569,214 @@ def get_support_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(
             text="❌ Отмена",
             callback_data=CB_CANCEL_SUPPORT,
+        )
+    )
+    
+    return builder.as_markup()
+
+
+# ==========================================
+# Schedule (Slot Management) Keyboards
+# ==========================================
+
+def get_schedule_keyboard(has_free_slots: bool = False) -> InlineKeyboardMarkup:
+    """Schedule management keyboard."""
+    builder = InlineKeyboardBuilder()
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="➕ Добавить слот",
+            callback_data=CB_ADD_SLOT,
+        )
+    )
+    
+    if has_free_slots:
+        builder.row(
+            InlineKeyboardButton(
+                text="❌ Удалить слот",
+                callback_data=CB_DELETE_SLOT,
+            )
+        )
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="🔄 Обновить",
+            callback_data=CB_REFRESH_SCHEDULE,
+        )
+    )
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="◀️ Назад",
+            callback_data=CB_PERSONAL_CABINET,
+        )
+    )
+    
+    return builder.as_markup()
+
+
+def get_slot_date_keyboard(dates: list[dict]) -> InlineKeyboardMarkup:
+    """
+    Keyboard for selecting slot date.
+    dates: list of {"date": "2024-01-15", "label": "15 янв (Пн)"}
+    """
+    builder = InlineKeyboardBuilder()
+    
+    # Show dates in rows of 2
+    row_buttons = []
+    for date_info in dates:
+        row_buttons.append(
+            InlineKeyboardButton(
+                text=date_info["label"],
+                callback_data=f"{CB_SLOT_DATE_PREFIX}{date_info['date']}",
+            )
+        )
+        if len(row_buttons) == 2:
+            builder.row(*row_buttons)
+            row_buttons = []
+    
+    # Add remaining buttons
+    if row_buttons:
+        builder.row(*row_buttons)
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="❌ Отмена",
+            callback_data=CB_CANCEL_SLOT,
+        )
+    )
+    
+    return builder.as_markup()
+
+
+def get_slot_duration_keyboard() -> InlineKeyboardMarkup:
+    """Keyboard for selecting slot duration."""
+    builder = InlineKeyboardBuilder()
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="30 минут",
+            callback_data=f"{CB_SLOT_DURATION_PREFIX}30",
+        ),
+        InlineKeyboardButton(
+            text="45 минут",
+            callback_data=f"{CB_SLOT_DURATION_PREFIX}45",
+        ),
+    )
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="60 минут",
+            callback_data=f"{CB_SLOT_DURATION_PREFIX}60",
+        ),
+        InlineKeyboardButton(
+            text="90 минут",
+            callback_data=f"{CB_SLOT_DURATION_PREFIX}90",
+        ),
+    )
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="❌ Отмена",
+            callback_data=CB_CANCEL_SLOT,
+        )
+    )
+    
+    return builder.as_markup()
+
+
+def get_confirm_slot_keyboard() -> InlineKeyboardMarkup:
+    """Confirm slot creation keyboard."""
+    builder = InlineKeyboardBuilder()
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="✅ Добавить слот",
+            callback_data=CB_CONFIRM_SLOT,
+        )
+    )
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="❌ Отмена",
+            callback_data=CB_CANCEL_SLOT,
+        )
+    )
+    
+    return builder.as_markup()
+
+
+def get_delete_slot_keyboard(slots: list[dict]) -> InlineKeyboardMarkup:
+    """
+    Keyboard for selecting slot to delete.
+    slots: list of {"id": "uuid", "label": "15 янв, 12:00–13:00"}
+    """
+    builder = InlineKeyboardBuilder()
+    
+    for slot in slots:
+        builder.row(
+            InlineKeyboardButton(
+                text=slot["label"],
+                callback_data=f"{CB_SELECT_SLOT_DELETE_PREFIX}{slot['id']}",
+            )
+        )
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="❌ Отмена",
+            callback_data=CB_SCHEDULE,
+        )
+    )
+    
+    return builder.as_markup()
+
+
+# ==========================================
+# Bookings Keyboards
+# ==========================================
+
+def get_bookings_keyboard(
+    offset: int = 0,
+    total: int = 0,
+    limit: int = 10,
+) -> InlineKeyboardMarkup:
+    """Bookings list keyboard with pagination."""
+    builder = InlineKeyboardBuilder()
+    
+    nav_buttons = []
+    
+    # Previous page
+    if offset > 0:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="◀️ Назад",
+                callback_data=CB_BOOKINGS_PREV,
+            )
+        )
+    
+    # Next page
+    if offset + limit < total:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text="Далее ▶️",
+                callback_data=CB_BOOKINGS_NEXT,
+            )
+        )
+    
+    if nav_buttons:
+        builder.row(*nav_buttons)
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="🔄 Обновить",
+            callback_data=CB_REFRESH_BOOKINGS,
+        )
+    )
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="◀️ В кабинет",
+            callback_data=CB_PERSONAL_CABINET,
         )
     )
     

@@ -2,9 +2,9 @@
 Nutritionist Schemas
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class NutritionistUpsertRequest(BaseModel):
@@ -39,10 +39,38 @@ class ServiceCreateRequest(BaseModel):
 
 
 class SlotCreateRequest(BaseModel):
-    """Request schema for creating availability slots."""
+    """Request schema for creating a single availability slot."""
 
     start_at: datetime
     end_at: datetime
+
+    @field_validator('start_at', 'end_at', mode='before')
+    @classmethod
+    def parse_datetime(cls, v):
+        """Parse datetime string if needed."""
+        if isinstance(v, str):
+            return datetime.fromisoformat(v.replace('Z', '+00:00'))
+        return v
+
+    @field_validator('end_at')
+    @classmethod
+    def end_after_start(cls, v, info):
+        """Ensure end_at is after start_at."""
+        if 'start_at' in info.data and v <= info.data['start_at']:
+            raise ValueError('end_at must be after start_at')
+        return v
+
+    @field_validator('start_at')
+    @classmethod
+    def start_in_future(cls, v):
+        """Ensure slot starts in the future."""
+        now = datetime.now(timezone.utc)
+        # Make v timezone-aware if it isn't
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        if v <= now:
+            raise ValueError('Слот должен быть в будущем')
+        return v
 
 
 class BulkSlotCreateRequest(BaseModel):

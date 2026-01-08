@@ -659,3 +659,412 @@ class TestDashboardEndpoint:
         assert len(data["services"]) == 1
         assert data["services"][0]["title"] == "Dashboard Service"
 
+
+class TestAvailabilitySlots:
+    """Tests for availability slot management endpoints."""
+    
+    @pytest.fixture
+    def nutritionist(self, session):
+        """Create test nutritionist."""
+        from app.models import Profile, NutritionistProfile
+        
+        profile = Profile(
+            telegram_user_id=999111222,
+            full_name="Slots Test",
+            role="nutritionist",
+        )
+        session.add(profile)
+        session.flush()
+        
+        nutritionist = NutritionistProfile(
+            nutritionist_id=profile.id,
+            verification_status="approved",
+        )
+        session.add(nutritionist)
+        session.commit()
+        
+        return nutritionist
+    
+    def test_list_slots_empty(self, client, nutritionist):
+        """Test listing slots when none exist."""
+        response = client.get(
+            f"/api/bot/nutritionists/{nutritionist.nutritionist_id}/slots",
+            headers=get_service_headers(),
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        
+        assert data["slots"] == []
+        assert data["total"] == 0
+    
+    def test_create_slot_success(self, client, nutritionist):
+        """Test creating a valid slot."""
+        from datetime import datetime, timedelta, timezone
+        
+        # Future slot
+        start = datetime.now(timezone.utc) + timedelta(days=1, hours=2)
+        end = start + timedelta(hours=1)
+        
+        response = client.post(
+            f"/api/bot/nutritionists/{nutritionist.nutritionist_id}/slots",
+            json={
+                "start_at": start.isoformat(),
+                "end_at": end.isoformat(),
+            },
+            headers=get_service_headers(),
+        )
+        
+        assert response.status_code == 201
+        data = response.get_json()
+        
+        assert "slot" in data
+        assert data["slot"]["status"] == "free"
+        assert data["slot"]["source"] == "manual"
+    
+    def test_create_slot_in_past_fails(self, client, nutritionist):
+        """Test that creating a slot in the past fails."""
+        from datetime import datetime, timedelta, timezone
+        
+        # Past slot
+        start = datetime.now(timezone.utc) - timedelta(hours=2)
+        end = start + timedelta(hours=1)
+        
+        response = client.post(
+            f"/api/bot/nutritionists/{nutritionist.nutritionist_id}/slots",
+            json={
+                "start_at": start.isoformat(),
+                "end_at": end.isoformat(),
+            },
+            headers=get_service_headers(),
+        )
+        
+        assert response.status_code == 400
+    
+    def test_create_slot_end_before_start_fails(self, client, nutritionist):
+        """Test that end_at must be after start_at."""
+        from datetime import datetime, timedelta, timezone
+        
+        start = datetime.now(timezone.utc) + timedelta(days=1)
+        end = start - timedelta(hours=1)  # End before start
+        
+        response = client.post(
+            f"/api/bot/nutritionists/{nutritionist.nutritionist_id}/slots",
+            json={
+                "start_at": start.isoformat(),
+                "end_at": end.isoformat(),
+            },
+            headers=get_service_headers(),
+        )
+        
+        assert response.status_code == 400
+    
+    def test_create_overlapping_slot_fails(self, client, session, nutritionist):
+        """Test that overlapping slots are rejected."""
+        from datetime import datetime, timedelta, timezone
+        from app.models import AvailabilitySlot
+        
+        # Create existing slot
+        start = datetime.now(timezone.utc) + timedelta(days=2)
+        end = start + timedelta(hours=1)
+        
+        existing_slot = AvailabilitySlot(
+            nutritionist_id=nutritionist.nutritionist_id,
+            start_at=start,
+            end_at=end,
+            status="free",
+            source="manual",
+        )
+        session.add(existing_slot)
+        session.commit()
+        
+        # Try to create overlapping slot
+        new_start = start + timedelta(minutes=30)  # Overlaps with existing
+        new_end = new_start + timedelta(hours=1)
+        
+        response = client.post(
+            f"/api/bot/nutritionists/{nutritionist.nutritionist_id}/slots",
+            json={
+                "start_at": new_start.isoformat(),
+                "end_at": new_end.isoformat(),
+            },
+            headers=get_service_headers(),
+        )
+        
+        assert response.status_code == 409
+        data = response.get_json()
+        assert "пересекается" in data["error"].lower()
+    
+    def test_list_slots_with_date_range(self, client, session, nutritionist):
+        """Test listing slots with date range filter."""
+        from datetime import datetime, timedelta, timezone
+        from app.models import AvailabilitySlot
+        
+        now = datetime.now(timezone.utc)
+        
+        # Create slots
+        slot1 = AvailabilitySlot(
+            nutritionist_id=nutritionist.nutritionist_id,
+            start_at=now + timedelta(days=1),
+            end_at=now + timedelta(days=1, hours=1),
+            status="free",
+            source="manual",
+        )
+        slot2 = AvailabilitySlot(
+            nutritionist_id=nutritionist.nutritionist_id,
+            start_at=now + timedelta(days=5),
+            end_at=now + timedelta(days=5, hours=1),
+            status="free",
+            source="manual",
+        )
+        session.add_all([slot1, slot2])
+        session.commit()
+        
+        # List slots within 3 days
+        to_date = now + timedelta(days=3)
+        response = client.get(
+            f"/api/bot/nutritionists/{nutritionist.nutritionist_id}/slots",
+            query_string={"to": to_date.isoformat()},
+            headers=get_service_headers(),
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        
+        # Only slot1 should be in range
+        assert data["total"] == 1
+    
+    def test_delete_free_slot_success(self, client, session, nutritionist):
+        """Test deleting a free slot."""
+        from datetime import datetime, timedelta, timezone
+        from app.models import AvailabilitySlot
+        
+        # Create free slot
+        start = datetime.now(timezone.utc) + timedelta(days=1)
+        slot = AvailabilitySlot(
+            nutritionist_id=nutritionist.nutritionist_id,
+            start_at=start,
+            end_at=start + timedelta(hours=1),
+            status="free",
+            source="manual",
+        )
+        session.add(slot)
+        session.commit()
+        slot_id = slot.id
+        
+        # Delete
+        response = client.delete(
+            f"/api/bot/nutritionists/{nutritionist.nutritionist_id}/slots/{slot_id}",
+            headers=get_service_headers(),
+        )
+        
+        assert response.status_code == 200
+        
+        # Verify deleted
+        assert session.get(AvailabilitySlot, slot_id) is None
+    
+    def test_delete_booked_slot_fails(self, client, session, nutritionist):
+        """Test that booked slots cannot be deleted."""
+        from datetime import datetime, timedelta, timezone
+        from app.models import AvailabilitySlot
+        
+        # Create booked slot
+        start = datetime.now(timezone.utc) + timedelta(days=1)
+        slot = AvailabilitySlot(
+            nutritionist_id=nutritionist.nutritionist_id,
+            start_at=start,
+            end_at=start + timedelta(hours=1),
+            status="booked",  # Not free
+            source="manual",
+        )
+        session.add(slot)
+        session.commit()
+        
+        # Try to delete
+        response = client.delete(
+            f"/api/bot/nutritionists/{nutritionist.nutritionist_id}/slots/{slot.id}",
+            headers=get_service_headers(),
+        )
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert "используется" in data["error"].lower()
+    
+    def test_delete_held_slot_fails(self, client, session, nutritionist):
+        """Test that held slots cannot be deleted."""
+        from datetime import datetime, timedelta, timezone
+        from app.models import AvailabilitySlot
+        
+        # Create held slot
+        start = datetime.now(timezone.utc) + timedelta(days=1)
+        slot = AvailabilitySlot(
+            nutritionist_id=nutritionist.nutritionist_id,
+            start_at=start,
+            end_at=start + timedelta(hours=1),
+            status="held",  # Not free
+            source="manual",
+        )
+        session.add(slot)
+        session.commit()
+        
+        # Try to delete
+        response = client.delete(
+            f"/api/bot/nutritionists/{nutritionist.nutritionist_id}/slots/{slot.id}",
+            headers=get_service_headers(),
+        )
+        
+        assert response.status_code == 400
+    
+    def test_delete_other_nutritionist_slot_forbidden(self, client, session, nutritionist):
+        """Test that deleting another nutritionist's slot is forbidden."""
+        from datetime import datetime, timedelta, timezone
+        from app.models import Profile, NutritionistProfile, AvailabilitySlot
+        
+        # Create another nutritionist
+        other_profile = Profile(
+            telegram_user_id=333444555,
+            full_name="Other Nutritionist",
+            role="nutritionist",
+        )
+        session.add(other_profile)
+        session.flush()
+        
+        other_nutritionist = NutritionistProfile(
+            nutritionist_id=other_profile.id,
+        )
+        session.add(other_nutritionist)
+        
+        # Create slot for other nutritionist
+        start = datetime.now(timezone.utc) + timedelta(days=1)
+        slot = AvailabilitySlot(
+            nutritionist_id=other_profile.id,
+            start_at=start,
+            end_at=start + timedelta(hours=1),
+            status="free",
+            source="manual",
+        )
+        session.add(slot)
+        session.commit()
+        
+        # Try to delete from wrong nutritionist
+        response = client.delete(
+            f"/api/bot/nutritionists/{nutritionist.nutritionist_id}/slots/{slot.id}",
+            headers=get_service_headers(),
+        )
+        
+        assert response.status_code == 403
+
+
+class TestNutritionistBookings:
+    """Tests for nutritionist bookings endpoint."""
+    
+    @pytest.fixture
+    def nutritionist_with_booking(self, session):
+        """Create nutritionist with a booking."""
+        from datetime import datetime, timedelta, timezone
+        from app.models import Profile, NutritionistProfile, Service, AvailabilitySlot, Booking
+        
+        # Create nutritionist
+        profile = Profile(
+            telegram_user_id=888999000,
+            full_name="Bookings Test",
+            role="nutritionist",
+        )
+        session.add(profile)
+        session.flush()
+        
+        nutritionist = NutritionistProfile(
+            nutritionist_id=profile.id,
+            verification_status="approved",
+        )
+        session.add(nutritionist)
+        
+        # Create client
+        client_profile = Profile(
+            telegram_user_id=111222333,
+            full_name="Test Client",
+            role="client",
+        )
+        session.add(client_profile)
+        session.flush()
+        
+        # Create service
+        service = Service(
+            nutritionist_id=profile.id,
+            title="Test Consultation",
+            duration_minutes=60,
+            price_rub=3000,
+        )
+        session.add(service)
+        session.flush()
+        
+        # Create slot
+        start = datetime.now(timezone.utc) + timedelta(days=1)
+        slot = AvailabilitySlot(
+            nutritionist_id=profile.id,
+            start_at=start,
+            end_at=start + timedelta(hours=1),
+            status="booked",
+            source="manual",
+        )
+        session.add(slot)
+        session.flush()
+        
+        # Create booking
+        booking = Booking(
+            client_id=client_profile.id,
+            nutritionist_id=profile.id,
+            service_id=service.id,
+            slot_id=slot.id,
+            status="paid",
+            price_rub=3000,
+        )
+        session.add(booking)
+        session.commit()
+        
+        return nutritionist
+    
+    def test_get_bookings_success(self, client, nutritionist_with_booking):
+        """Test getting nutritionist bookings."""
+        response = client.get(
+            f"/api/bot/nutritionists/{nutritionist_with_booking.nutritionist_id}/bookings",
+            headers=get_service_headers(),
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        
+        assert "bookings" in data
+        assert "total" in data
+        assert data["total"] >= 1
+        
+        if data["bookings"]:
+            booking = data["bookings"][0]
+            assert "client_name" in booking
+            assert "service_title" in booking
+            assert "start_at" in booking
+            assert "end_at" in booking
+            assert "status" in booking
+    
+    def test_get_bookings_pagination(self, client, nutritionist_with_booking):
+        """Test bookings pagination params."""
+        response = client.get(
+            f"/api/bot/nutritionists/{nutritionist_with_booking.nutritionist_id}/bookings",
+            query_string={"limit": 5, "offset": 0},
+            headers=get_service_headers(),
+        )
+        
+        assert response.status_code == 200
+    
+    def test_get_bookings_not_found(self, client):
+        """Test bookings for non-existent nutritionist."""
+        import uuid
+        fake_id = str(uuid.uuid4())
+        
+        response = client.get(
+            f"/api/bot/nutritionists/{fake_id}/bookings",
+            headers=get_service_headers(),
+        )
+        
+        assert response.status_code == 404
+

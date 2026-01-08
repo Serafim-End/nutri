@@ -544,6 +544,85 @@ class BackendAPIClient:
         GET /api/public/filters/options
         """
         return await self._request("GET", "/api/public/filters/options")
+    
+    # ==========================================
+    # Availability Slots
+    # ==========================================
+    
+    async def get_slots(
+        self,
+        nutritionist_id: str,
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+    ) -> APIResponse:
+        """
+        Get nutritionist's availability slots.
+        GET /api/bot/nutritionists/<id>/slots
+        """
+        params = {}
+        if from_date:
+            params["from"] = from_date
+        if to_date:
+            params["to"] = to_date
+        
+        return await self._request(
+            "GET",
+            f"/api/bot/nutritionists/{nutritionist_id}/slots",
+            params=params if params else None,
+        )
+    
+    async def create_slot(
+        self,
+        nutritionist_id: str,
+        start_at: str,
+        end_at: str,
+    ) -> APIResponse:
+        """
+        Create a new availability slot.
+        POST /api/bot/nutritionists/<id>/slots
+        """
+        return await self._request(
+            "POST",
+            f"/api/bot/nutritionists/{nutritionist_id}/slots",
+            data={
+                "start_at": start_at,
+                "end_at": end_at,
+            },
+        )
+    
+    async def delete_slot(
+        self,
+        nutritionist_id: str,
+        slot_id: str,
+    ) -> APIResponse:
+        """
+        Delete an availability slot.
+        DELETE /api/bot/nutritionists/<id>/slots/<slot_id>
+        """
+        return await self._request(
+            "DELETE",
+            f"/api/bot/nutritionists/{nutritionist_id}/slots/{slot_id}",
+        )
+    
+    # ==========================================
+    # Nutritionist Bookings
+    # ==========================================
+    
+    async def get_nutritionist_bookings(
+        self,
+        nutritionist_id: str,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> APIResponse:
+        """
+        Get nutritionist's bookings.
+        GET /api/bot/nutritionists/<id>/bookings
+        """
+        return await self._request(
+            "GET",
+            f"/api/bot/nutritionists/{nutritionist_id}/bookings",
+            params={"limit": limit, "offset": offset},
+        )
 
 
 # Global client instance

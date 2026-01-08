@@ -566,12 +566,222 @@ This document provides step-by-step manual testing procedures for the NutriMatch
 
 ---
 
-## F) Schedule (Google Calendar)
+## F) Schedule Management (Manual Slots — PRIMARY)
 
-### F1. Calendar — Not Connected
+> **Note:** Manual slots are the PRIMARY method for availability management.
+> Google Calendar integration is OPTIONAL and non-blocking.
+
+### F1. Schedule View — Empty State
 
 **Preconditions:**
-- Nutritionist has not connected Google Calendar
+- Nutritionist has no availability slots
+- In personal cabinet
+
+**Steps:**
+1. Tap "🕒 Расписание"
+
+**Expected Results:**
+- [ ] Shows: "У вас пока нет доступных слотов"
+- [ ] Explains benefits of adding slots
+- [ ] Shows "➕ Добавить слот" button
+- [ ] Shows "🔄 Обновить" button
+- [ ] Shows "◀️ Назад" button
+- [ ] NO "❌ Удалить слот" button (no slots to delete)
+
+---
+
+### F2. Add Slot — Complete Flow
+
+**Preconditions:**
+- In schedule view
+
+**Steps:**
+1. Tap "➕ Добавить слот"
+2. Select date (e.g., tomorrow)
+3. Enter time: "14:00"
+4. Select duration: "60 минут"
+5. Confirm: "✅ Добавить слот"
+
+**Expected Results:**
+- [ ] Step 1: Date selection keyboard with next 14 days
+- [ ] Each date shows: "15 янв (Пн)" format
+- [ ] Step 2: Text input prompt for time (HH:MM)
+- [ ] Step 3: Duration selection (30/45/60/90 минут)
+- [ ] Step 4: Confirmation shows summary:
+  - "📅 15 января"
+  - "🕒 14:00–15:00"
+  - "⏱ 60 минут"
+- [ ] After confirm: "✅ Слот создан!"
+- [ ] Returns to schedule view with new slot visible
+
+**Verification:**
+- Logs: `[API] ... /slots POST status=201`
+- DB: `availability_slots` has new entry with `status='free'`, `source='manual'`
+
+---
+
+### F3. Add Slot — Validation: Invalid Time Format
+
+**Preconditions:**
+- In slot creation, time input step
+
+**Steps:**
+1. Enter "abc" (non-time format)
+2. Enter "25:00" (invalid hour)
+3. Enter "14:75" (invalid minutes)
+
+**Expected Results:**
+- [ ] Error: "⚠️ Неверный формат времени"
+- [ ] Stays on time input step
+- [ ] Shows example: "Введите время в формате ЧЧ:ММ"
+
+---
+
+### F4. Add Slot — Validation: Past Time
+
+**Preconditions:**
+- In slot creation, time input step
+- Selected date is today
+
+**Steps:**
+1. Enter a time that has already passed today
+
+**Expected Results:**
+- [ ] Error: "⚠️ Время слота должно быть в будущем"
+- [ ] Stays on time input step
+
+---
+
+### F5. Add Slot — Validation: Overlapping Slot
+
+**Preconditions:**
+- Existing slot: tomorrow 14:00–15:00
+
+**Steps:**
+1. Try to create slot: tomorrow 14:30–15:30
+
+**Expected Results:**
+- [ ] Error: "Этот слот пересекается с существующим. Выберите другое время."
+- [ ] Returns to schedule view
+- [ ] Original slot unchanged
+
+**Verification:**
+- Logs: `[API] ... /slots POST status=409`
+
+---
+
+### F6. Schedule View — With Slots
+
+**Preconditions:**
+- Nutritionist has multiple slots created
+
+**Steps:**
+1. Open "🕒 Расписание"
+
+**Expected Results:**
+- [ ] Shows slots grouped by date: "📅 15 января"
+- [ ] Each slot shows: "• 12:00–13:00 (свободно)"
+- [ ] Booked slots show: "• 15:00–16:00 (забронировано)"
+- [ ] Held slots show: "• 17:00–18:00 (удерживается)"
+- [ ] "❌ Удалить слот" button appears (has free slots)
+- [ ] All text in Russian
+
+---
+
+### F7. Delete Slot — Free Slot
+
+**Preconditions:**
+- Free slot exists
+
+**Steps:**
+1. In schedule, tap "❌ Удалить слот"
+2. Select a free slot from list
+3. Confirm
+
+**Expected Results:**
+- [ ] Shows list of free slots only
+- [ ] Each slot shows date and time: "15 янв (Пн), 14:00–15:00"
+- [ ] After select: "✅ Слот удалён!"
+- [ ] Slot disappears from schedule
+
+**Verification:**
+- Logs: `[API] ... /slots/{id} DELETE status=200`
+- DB: Slot record deleted
+
+---
+
+### F8. Delete Slot — Booked Slot (Not Allowed)
+
+**Preconditions:**
+- Booked slot exists (status=booked)
+
+**Steps:**
+1. Tap "❌ Удалить слот"
+2. Look for booked slot in list
+
+**Expected Results:**
+- [ ] Booked slots NOT shown in delete selection
+- [ ] Only free slots available for deletion
+- [ ] If no free slots: "Нет свободных слотов для удаления"
+
+---
+
+### F9. Delete Slot — Error Handling
+
+**Preconditions:**
+- Free slot in list
+- Slot gets booked by another process during delete
+
+**Steps:**
+1. Select slot to delete
+2. (Slot gets booked externally)
+3. Confirm deletion
+
+**Expected Results:**
+- [ ] Error: "Слот уже используется и не может быть удалён"
+- [ ] Returns to schedule view
+- [ ] Slot visible with "забронировано" status
+
+---
+
+### F10. Cancel Slot Creation
+
+**Preconditions:**
+- In any step of slot creation wizard
+
+**Steps:**
+1. Tap "❌ Отмена"
+
+**Expected Results:**
+- [ ] Returns to schedule view
+- [ ] No slot created
+- [ ] FSM state cleared
+
+---
+
+### F11. Refresh Schedule
+
+**Preconditions:**
+- On schedule view
+
+**Steps:**
+1. Tap "🔄 Обновить"
+
+**Expected Results:**
+- [ ] Schedule reloads from backend
+- [ ] Any new slots appear
+- [ ] Any deleted slots disappear
+
+---
+
+## F-CAL) Calendar Integration (OPTIONAL)
+
+> **Note:** Calendar integration is OPTIONAL and does NOT block manual slot creation.
+
+### F-CAL1. Calendar Status — Not Connected
+
+**Preconditions:**
+- Google Calendar not connected
 
 **Steps:**
 1. Open personal cabinet
@@ -579,37 +789,114 @@ This document provides step-by-step manual testing procedures for the NutriMatch
 
 **Expected Results:**
 - [ ] Shows: "❌ Google Calendar не подключён"
-- [ ] Explains benefits of connecting
-- [ ] Shows "🔗 Подключить Google Calendar" button (or placeholder)
+- [ ] Manual slots still work independently
+- [ ] Shows benefits of connecting (sync, no conflicts)
 
 ---
 
-### F2. Calendar — Connected Status
+### F-CAL2. Calendar Status — Connected
 
 **Preconditions:**
-- Nutritionist has connected calendar (mock or real)
+- Google Calendar connected (if implemented)
 
 **Steps:**
-1. Open calendar section
+1. Open "📅 Календарь"
 
 **Expected Results:**
 - [ ] Shows: "✅ Google Calendar подключён"
 - [ ] Shows connected email
-- [ ] Explains how it works (automatic slots)
+- [ ] In schedule view: "📅 Google Calendar подключён" note
 
 ---
 
-### F3. No Manual Slots Feature
+### F-CAL3. Calendar Disconnected — Everything Works
 
 **Preconditions:**
-- In calendar section
+- Calendar NOT connected
+- Manual slots exist
 
 **Steps:**
-1. Look for "Add slot" or "Create availability" options
+1. Create manual slots
+2. View schedule
+3. Delete slots
+4. View bookings
 
 **Expected Results:**
-- [ ] NO manual slot creation UI exists
-- [ ] Only Google Calendar sync is mentioned
+- [ ] ALL features work without calendar
+- [ ] No errors or warnings about calendar
+- [ ] Manual slots are fully functional
+
+---
+
+## F-BOOK) Nutritionist Bookings View
+
+### F-BOOK1. Bookings — Empty State
+
+**Preconditions:**
+- Nutritionist has no bookings
+
+**Steps:**
+1. Open personal cabinet
+2. Tap "📋 Мои бронирования"
+
+**Expected Results:**
+- [ ] Shows: "Пока нет предстоящих бронирований"
+- [ ] Explains that bookings appear after clients book
+- [ ] Shows "🔄 Обновить" button
+- [ ] Shows "◀️ В кабинет" button
+
+---
+
+### F-BOOK2. Bookings — With Data
+
+**Preconditions:**
+- Nutritionist has confirmed bookings
+
+**Steps:**
+1. Tap "📋 Мои бронирования"
+
+**Expected Results:**
+- [ ] Shows list of upcoming bookings
+- [ ] Each booking shows:
+  - "📅 15 янв, 14:00–15:00"
+  - "👤 Имя клиента"
+  - "💼 Название услуги"
+  - "✅ Подтверждено" or "☑️ Завершено"
+- [ ] Sorted by date (upcoming first)
+- [ ] All text in Russian
+
+---
+
+### F-BOOK3. Bookings — Pagination
+
+**Preconditions:**
+- More than 10 bookings exist
+
+**Steps:**
+1. Open bookings
+2. Tap "Далее ▶️"
+3. Tap "◀️ Назад"
+
+**Expected Results:**
+- [ ] Page indicator: "1-10 из 15"
+- [ ] Navigation buttons appear correctly
+- [ ] "Далее ▶️" hidden on last page
+- [ ] "◀️ Назад" hidden on first page
+
+---
+
+### F-BOOK4. Bookings — Refresh
+
+**Preconditions:**
+- On bookings view
+
+**Steps:**
+1. Tap "🔄 Обновить"
+
+**Expected Results:**
+- [ ] Bookings list reloads from backend
+- [ ] Any new bookings appear
+- [ ] Cancelled bookings disappear
 
 ---
 

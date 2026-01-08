@@ -59,6 +59,25 @@ class ServiceStates(StatesGroup):
     editing_price = State()
 
 
+class SlotStates(StatesGroup):
+    """States for availability slot creation flow."""
+    
+    # Selecting date for new slot
+    selecting_date = State()
+    
+    # Waiting for start time input (HH:MM)
+    waiting_start_time = State()
+    
+    # Selecting slot duration
+    selecting_duration = State()
+    
+    # Confirming slot creation
+    confirming_slot = State()
+    
+    # Selecting slot to delete
+    selecting_slot_to_delete = State()
+
+
 class SupportStates(StatesGroup):
     """States for support message flow."""
     

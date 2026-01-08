@@ -7,11 +7,13 @@ Protected by service token authentication.
 import os
 import logging
 from functools import wraps
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from flask import Blueprint, request, jsonify
+from pydantic import ValidationError
 
 from app.extensions import db
-from app.models import Profile, NutritionistProfile, Service, Booking
+from app.models import Profile, NutritionistProfile, Service, Booking, AvailabilitySlot
+from app.schemas.nutritionist import SlotCreateRequest
 
 
 logger = logging.getLogger(__name__)
@@ -456,3 +458,408 @@ def create_support_message():
         "message": "Support request received",
         "ticket_id": None,  # Would be real ticket ID
     }), 201
+
+
+# ==========================================
+# Slot Management (Manual slots are PRIMARY)
+# ==========================================
+
+def check_slot_overlap(nutritionist_id: str, start_at: datetime, end_at: datetime, exclude_slot_id: str = None) -> bool:
+    """
+    Check if a slot overlaps with existing slots.
+    Returns True if there's an overlap.
+    """
+    query = AvailabilitySlot.query.filter(
+        AvailabilitySlot.nutritionist_id == nutritionist_id,
+        AvailabilitySlot.status.in_(["free", "held", "booked"]),
+        # Overlap check: new slot starts before existing ends AND new slot ends after existing starts
+        AvailabilitySlot.start_at < end_at,
+        AvailabilitySlot.end_at > start_at,
+    )
+    
+    if exclude_slot_id:
+        query = query.filter(AvailabilitySlot.id != exclude_slot_id)
+    
+    return query.first() is not None
+
+
+@bot_bp.route("/nutritionists/<nutritionist_id>/slots", methods=["POST"])
+@require_service_token
+def create_slot(nutritionist_id: str):
+    """
+    Создать слот доступности
+    ---
+    tags:
+      - Bot
+    description: |
+      Создаёт новый слот доступности для нутрициолога.
+      Слот создаётся с source=manual и status=free.
+      
+      **Требуется заголовок:** `X-Service-Token`
+      
+      **Валидация:**
+      - start_at < end_at
+      - start_at в будущем
+      - Нет пересечений с существующими слотами
+    consumes:
+      - application/json
+    produces:
+      - application/json
+    parameters:
+      - name: X-Service-Token
+        in: header
+        required: true
+        type: string
+      - name: nutritionist_id
+        in: path
+        required: true
+        type: string
+        description: UUID нутрициолога
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required:
+            - start_at
+            - end_at
+          properties:
+            start_at:
+              type: string
+              format: date-time
+              example: "2024-01-15T12:00:00+00:00"
+            end_at:
+              type: string
+              format: date-time
+              example: "2024-01-15T13:00:00+00:00"
+    responses:
+      201:
+        description: Слот создан
+        schema:
+          type: object
+          properties:
+            slot:
+              $ref: '#/definitions/Slot'
+      400:
+        description: Ошибка валидации
+      404:
+        description: Нутрициолог не найден
+      409:
+        description: Слот пересекается с существующим
+    """
+    nutritionist = NutritionistProfile.query.get(nutritionist_id)
+    if not nutritionist:
+        return jsonify({"error": "Нутрициолог не найден"}), 404
+    
+    try:
+        data = request.get_json() or {}
+        schema = SlotCreateRequest(**data)
+    except ValidationError as e:
+        # Extract user-friendly error messages
+        errors = e.errors()
+        if errors:
+            first_error = errors[0]
+            msg = first_error.get("msg", "Ошибка валидации")
+            if "future" in msg.lower():
+                return jsonify({"error": "Слот должен быть в будущем"}), 400
+            if "after" in msg.lower():
+                return jsonify({"error": "Время окончания должно быть после времени начала"}), 400
+        return jsonify({"error": "Ошибка валидации данных", "details": errors}), 400
+    
+    # Check for overlapping slots
+    if check_slot_overlap(nutritionist_id, schema.start_at, schema.end_at):
+        return jsonify({
+            "error": "Этот слот пересекается с существующим. Выберите другое время."
+        }), 409
+    
+    # Create slot
+    slot = AvailabilitySlot(
+        nutritionist_id=nutritionist_id,
+        start_at=schema.start_at,
+        end_at=schema.end_at,
+        status="free",
+        source="manual",
+    )
+    
+    db.session.add(slot)
+    db.session.commit()
+    
+    logger.info(f"Slot created: {slot.id} for nutritionist {nutritionist_id}")
+    
+    return jsonify({"slot": slot.to_dict()}), 201
+
+
+@bot_bp.route("/nutritionists/<nutritionist_id>/slots", methods=["GET"])
+@require_service_token
+def list_slots(nutritionist_id: str):
+    """
+    Получить слоты нутрициолога
+    ---
+    tags:
+      - Bot
+    description: |
+      Возвращает слоты нутрициолога в заданном диапазоне дат.
+      По умолчанию: от сейчас до +14 дней.
+      
+      **Требуется заголовок:** `X-Service-Token`
+    produces:
+      - application/json
+    parameters:
+      - name: X-Service-Token
+        in: header
+        required: true
+        type: string
+      - name: nutritionist_id
+        in: path
+        required: true
+        type: string
+        description: UUID нутрициолога
+      - name: from
+        in: query
+        type: string
+        format: date-time
+        description: Начало диапазона (по умолчанию - сейчас)
+      - name: to
+        in: query
+        type: string
+        format: date-time
+        description: Конец диапазона (по умолчанию - +14 дней)
+    responses:
+      200:
+        description: Список слотов
+        schema:
+          type: object
+          properties:
+            slots:
+              type: array
+              items:
+                $ref: '#/definitions/Slot'
+            total:
+              type: integer
+      404:
+        description: Нутрициолог не найден
+    """
+    nutritionist = NutritionistProfile.query.get(nutritionist_id)
+    if not nutritionist:
+        return jsonify({"error": "Нутрициолог не найден"}), 404
+    
+    # Parse date range
+    now = datetime.now(timezone.utc)
+    
+    from_str = request.args.get("from")
+    to_str = request.args.get("to")
+    
+    if from_str:
+        try:
+            from_date = datetime.fromisoformat(from_str.replace('Z', '+00:00'))
+        except ValueError:
+            from_date = now
+    else:
+        from_date = now
+    
+    if to_str:
+        try:
+            to_date = datetime.fromisoformat(to_str.replace('Z', '+00:00'))
+        except ValueError:
+            to_date = now + timedelta(days=14)
+    else:
+        to_date = now + timedelta(days=14)
+    
+    # Query slots
+    slots = AvailabilitySlot.query.filter(
+        AvailabilitySlot.nutritionist_id == nutritionist_id,
+        AvailabilitySlot.start_at >= from_date,
+        AvailabilitySlot.start_at <= to_date,
+        AvailabilitySlot.status.in_(["free", "held", "booked"]),  # Exclude cancelled
+    ).order_by(AvailabilitySlot.start_at).all()
+    
+    return jsonify({
+        "slots": [s.to_dict() for s in slots],
+        "total": len(slots),
+    })
+
+
+@bot_bp.route("/nutritionists/<nutritionist_id>/slots/<slot_id>", methods=["DELETE"])
+@require_service_token
+def delete_slot(nutritionist_id: str, slot_id: str):
+    """
+    Удалить слот доступности
+    ---
+    tags:
+      - Bot
+    description: |
+      Удаляет слот доступности.
+      Можно удалить только слоты со статусом 'free'.
+      
+      **Требуется заголовок:** `X-Service-Token`
+    produces:
+      - application/json
+    parameters:
+      - name: X-Service-Token
+        in: header
+        required: true
+        type: string
+      - name: nutritionist_id
+        in: path
+        required: true
+        type: string
+        description: UUID нутрициолога
+      - name: slot_id
+        in: path
+        required: true
+        type: string
+        description: UUID слота
+    responses:
+      200:
+        description: Слот удалён
+        schema:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Слот удалён"
+      400:
+        description: Слот нельзя удалить (не свободен)
+      404:
+        description: Слот не найден
+    """
+    slot = AvailabilitySlot.query.get(slot_id)
+    
+    if not slot:
+        return jsonify({"error": "Слот не найден"}), 404
+    
+    if str(slot.nutritionist_id) != nutritionist_id:
+        return jsonify({"error": "Слот не принадлежит этому нутрициологу"}), 403
+    
+    if slot.status != "free":
+        return jsonify({
+            "error": "Слот уже используется и не может быть удалён"
+        }), 400
+    
+    # Delete the slot
+    db.session.delete(slot)
+    db.session.commit()
+    
+    logger.info(f"Slot deleted: {slot_id} by nutritionist {nutritionist_id}")
+    
+    return jsonify({"message": "Слот удалён"})
+
+
+# ==========================================
+# Nutritionist Bookings (read-only)
+# ==========================================
+
+@bot_bp.route("/nutritionists/<nutritionist_id>/bookings", methods=["GET"])
+@require_service_token
+def get_nutritionist_bookings(nutritionist_id: str):
+    """
+    Получить бронирования нутрициолога
+    ---
+    tags:
+      - Bot
+    description: |
+      Возвращает предстоящие бронирования нутрициолога.
+      Включает данные о клиенте и услуге.
+      
+      **Требуется заголовок:** `X-Service-Token`
+    produces:
+      - application/json
+    parameters:
+      - name: X-Service-Token
+        in: header
+        required: true
+        type: string
+      - name: nutritionist_id
+        in: path
+        required: true
+        type: string
+        description: UUID нутрициолога
+      - name: limit
+        in: query
+        type: integer
+        default: 20
+        description: Максимальное количество
+      - name: offset
+        in: query
+        type: integer
+        default: 0
+        description: Смещение для пагинации
+    responses:
+      200:
+        description: Список бронирований
+        schema:
+          type: object
+          properties:
+            bookings:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  client_name:
+                    type: string
+                  service_title:
+                    type: string
+                  start_at:
+                    type: string
+                  end_at:
+                    type: string
+                  status:
+                    type: string
+            total:
+              type: integer
+      404:
+        description: Нутрициолог не найден
+    """
+    nutritionist = NutritionistProfile.query.get(nutritionist_id)
+    if not nutritionist:
+        return jsonify({"error": "Нутрициолог не найден"}), 404
+    
+    limit = request.args.get("limit", 20, type=int)
+    offset = request.args.get("offset", 0, type=int)
+    now = datetime.now(timezone.utc)
+    
+    # Get upcoming bookings with paid status
+    bookings_query = Booking.query.filter(
+        Booking.nutritionist_id == nutritionist_id,
+        Booking.status.in_(["paid", "completed"]),
+    ).order_by(Booking.created_at.desc())
+    
+    total = bookings_query.count()
+    bookings = bookings_query.offset(offset).limit(limit).all()
+    
+    result = []
+    for booking in bookings:
+        # Get slot info
+        slot = booking.slot
+        if not slot:
+            continue
+        
+        # Only include upcoming bookings
+        if slot.start_at < now and booking.status != "completed":
+            continue
+        
+        # Get client info
+        client = Profile.query.get(booking.client_id) if booking.client_id else None
+        client_name = client.full_name if client else "Клиент"
+        
+        # Get service info
+        service = Service.query.get(booking.service_id) if booking.service_id else None
+        service_title = service.title if service else "Консультация"
+        
+        result.append({
+            "id": str(booking.id),
+            "client_name": client_name,
+            "service_title": service_title,
+            "start_at": slot.start_at.isoformat(),
+            "end_at": slot.end_at.isoformat(),
+            "status": booking.status,
+            "price_rub": booking.price_rub,
+            "meeting_link": booking.meeting_link,
+        })
+    
+    return jsonify({
+        "bookings": result,
+        "total": len(result),
+    })

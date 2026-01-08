@@ -6,10 +6,29 @@ Telegram bot for nutritionists to manage their profiles, services, and view stat
 
 - **Profile Management**: Create and update nutritionist profiles with FSM-based wizard
 - **Services**: Add, edit, toggle, and delete consultation services
-- **Calendar**: View Google Calendar connection status (integration planned)
+- **Schedule Management**: Create, view, and delete availability slots (PRIMARY)
+- **Bookings View**: View upcoming client bookings with details
+- **Calendar**: Optional Google Calendar integration (SECONDARY, non-blocking)
 - **Reviews**: View client reviews with pagination
 - **Statistics**: View income and consultation statistics
 - **Support**: Send messages to platform support
+
+## Availability Management
+
+> **Important:** Manual slots are the PRIMARY method for availability management.
+> Google Calendar integration is OPTIONAL and does not block any functionality.
+
+Nutritionists can manage their availability directly in the bot:
+
+1. **Schedule View** (`🕒 Расписание`): See all slots grouped by date
+2. **Add Slot**: FSM wizard to create slots (date → time → duration → confirm)
+3. **Delete Slot**: Remove free slots (booked slots cannot be deleted)
+4. **View Bookings** (`📋 Мои бронирования`): See upcoming client bookings
+
+This design ensures:
+- ✅ Works without any external integrations
+- ✅ Simple, intuitive UX for nutritionists
+- ✅ Calendar integration can be added later without breaking existing flows
 
 ## Tech Stack
 
@@ -156,7 +175,9 @@ apps/telegram_bot/
 │   ├── menu.py         # Menu navigation
 │   ├── profile.py      # Profile FSM flow
 │   ├── services.py     # Services management
-│   └── cabinet.py      # Cabinet (reviews, stats, etc.)
+│   ├── schedule.py     # Schedule & bookings management
+│   ├── cabinet.py      # Cabinet (reviews, stats, etc.)
+│   └── debug.py        # Debug utilities
 ├── requirements.txt    # Python dependencies
 ├── Dockerfile          # Production container
 └── env.example         # Environment template
@@ -172,7 +193,11 @@ The bot requires these backend endpoints (under `/api/bot/`):
 | `/nutritionists/<id>/services` | GET | List services |
 | `/nutritionists/<id>/services/<sid>` | PUT | Update service |
 | `/nutritionists/<id>/services/<sid>` | DELETE | Delete service |
-| `/nutritionists/<id>/calendar/status` | GET | Calendar status |
+| `/nutritionists/<id>/slots` | GET | List availability slots |
+| `/nutritionists/<id>/slots` | POST | Create availability slot |
+| `/nutritionists/<id>/slots/<slot_id>` | DELETE | Delete availability slot |
+| `/nutritionists/<id>/bookings` | GET | Get nutritionist bookings |
+| `/nutritionists/<id>/calendar/status` | GET | Calendar status (optional) |
 | `/nutritionists/<id>/reviews` | GET | Get reviews |
 | `/nutritionists/<id>/statistics` | GET | Get statistics |
 | `/support/messages` | POST | Create support ticket |
