@@ -120,7 +120,7 @@ services:
       context: ./client
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://api.nutrutioncoach.com}
     container_name: nutri-client
     restart: unless-stopped
     expose:
@@ -150,7 +150,7 @@ services:
       context: ./apps/admin_panel
       dockerfile: Dockerfile
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://api.nutrutioncoach.com}
     container_name: nutri-admin
     restart: unless-stopped
     expose:
