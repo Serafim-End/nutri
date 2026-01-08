@@ -123,7 +123,7 @@ function ProgressBar({ currentStep, totalSteps }: { currentStep: number; totalSt
 export default function IntakePage() {
   const navigate = useNavigate()
   const { currentStep, answers, setStep, updateAnswers, setIntakeId } = useIntakeStore()
-  const { setOnboardingCompleted } = useAuthStore()
+  const { setOnboardingCompleted, isAuthenticated, token } = useAuthStore()
   const [selectedBudget, setSelectedBudget] = useState<number | null>(
     answers.budget_max !== null
       ? BUDGET_RANGES.findIndex(
@@ -133,7 +133,12 @@ export default function IntakePage() {
   )
 
   const submitMutation = useMutation({
-    mutationFn: () => clientApi.createIntake(answers),
+    mutationFn: () => {
+      if (!isAuthenticated || !token) {
+        throw new Error('Необходима авторизация. Пожалуйста, обновите страницу.')
+      }
+      return clientApi.createIntake(answers)
+    },
     onSuccess: (data: { intake_id: string }) => {
       setIntakeId(data.intake_id)
       setOnboardingCompleted()

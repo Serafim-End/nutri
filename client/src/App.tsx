@@ -47,8 +47,8 @@ function DevLoginButton() {
 }
 
 function App() {
-  const { authenticate, isLoading: authLoading } = useTelegramAuth()
-  const { isLoading, hasCompletedOnboarding } = useAuthStore()
+  const { authenticate, isLoading: authLoading, error: authError } = useTelegramAuth()
+  const { isLoading, hasCompletedOnboarding, isAuthenticated } = useAuthStore()
 
   useEffect(() => {
     // Попытка аутентификации при загрузке
@@ -71,6 +71,24 @@ function App() {
     return (
       <ToastProvider>
         <LoadingScreen />
+        <DevLoginButton />
+      </ToastProvider>
+    )
+  }
+
+  // Show error if authentication failed in production
+  if (!isAuthenticated && !import.meta.env.DEV && authError) {
+    return (
+      <ToastProvider>
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold mb-4">Ошибка авторизации</h1>
+            <p className="text-gray-600 mb-4">{authError}</p>
+            <p className="text-sm text-gray-500">
+              Пожалуйста, откройте приложение через Telegram.
+            </p>
+          </div>
+        </div>
         <DevLoginButton />
       </ToastProvider>
     )

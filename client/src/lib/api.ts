@@ -30,6 +30,11 @@ api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  } else {
+    // Log warning in development to help debug auth issues
+    if (import.meta.env.DEV) {
+      console.warn('API request made without authentication token:', config.url)
+    }
   }
   return config
 })
