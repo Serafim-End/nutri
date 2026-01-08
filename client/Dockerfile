@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Client Dockerfile (Telegram Mini App)
 # Multi-stage build: Node build + nginx serve
 # Exposes HTTP on port 3000 (Cloudflare provides HTTPS externally)
@@ -9,18 +10,20 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Build args for environment variables at build time
-ARG VITE_API_BASE_URL
-ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
-
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies with BuildKit cache mount
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
 # Copy source
 COPY . .
+
+# Build args for environment variables at build time
+# Moved here so earlier layers stay cached when ARG changes
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
 # Build for production
 RUN npm run build
