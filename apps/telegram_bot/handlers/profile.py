@@ -53,10 +53,6 @@ SPECIALIZATIONS = [
 TAGS = [
     {"id": "vegetarian", "label": "Вегетарианство"},
     {"id": "vegan", "label": "Веганство"},
-    {"id": "keto", "label": "Кето-диета"},
-    {"id": "intermittent_fasting", "label": "Интервальное голодание"},
-    {"id": "anti_aging", "label": "Anti-age питание"},
-    {"id": "detox", "label": "Детокс"},
     {"id": "allergy", "label": "Аллергия/непереносимость"},
     {"id": "online_only", "label": "Только онлайн"},
 ]
@@ -526,4 +522,3 @@ async def cancel_profile(callback: CallbackQuery, state: FSMContext):
         text="❌ Создание профиля отменено.",
         reply_markup=get_nutritionist_menu_keyboard(has_profile),
     )
-

@@ -4,6 +4,7 @@ import { publicApi } from '../lib/api'
 import ServiceCard from '../components/ServiceCard'
 import type { Service } from '../types'
 import { useState } from 'react'
+import { formatFilterLabel } from '../lib/labels'
 import {
   PageContainer,
   Stack,
@@ -118,7 +119,7 @@ export default function NutritionistPage() {
               <div className="flex flex-wrap gap-2">
                 {nutritionist.specializations.map((spec: string) => (
                   <Badge key={spec} variant="primary" size="md">
-                    {spec.replace(/_/g, ' ')}
+                    {formatFilterLabel(spec)}
                   </Badge>
                 ))}
               </div>
@@ -134,7 +135,7 @@ export default function NutritionistPage() {
               <div className="flex flex-wrap gap-2">
                 {nutritionist.tags.map((tag: string) => (
                   <Badge key={tag} variant="default" size="md">
-                    {tag.replace(/_/g, ' ')}
+                    {formatFilterLabel(tag)}
                   </Badge>
                 ))}
               </div>

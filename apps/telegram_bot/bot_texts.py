@@ -133,10 +133,6 @@ PROFILE_STEP5_SELECTED_COUNT = "Выбрано: {count}"
 # Tag labels
 TAG_VEGETARIAN = "Вегетарианство"
 TAG_VEGAN = "Веганство"
-TAG_KETO = "Кето-диета"
-TAG_INTERMITTENT_FASTING = "Интервальное голодание"
-TAG_ANTI_AGING = "Anti-age питание"
-TAG_DETOX = "Детокс"
 TAG_ALLERGY = "Аллергия/непереносимость"
 TAG_ONLINE_ONLY = "Только онлайн"
 
@@ -672,10 +668,6 @@ SPECIALIZATIONS = [
 TAGS = [
     {"id": "vegetarian", "label": TAG_VEGETARIAN},
     {"id": "vegan", "label": TAG_VEGAN},
-    {"id": "keto", "label": TAG_KETO},
-    {"id": "intermittent_fasting", "label": TAG_INTERMITTENT_FASTING},
-    {"id": "anti_aging", "label": TAG_ANTI_AGING},
-    {"id": "detox", "label": TAG_DETOX},
     {"id": "allergy", "label": TAG_ALLERGY},
     {"id": "online_only", "label": TAG_ONLINE_ONLY},
 ]

@@ -6,6 +6,7 @@ import { useIntakeStore } from '../store/intake'
 import { useAuthStore } from '../store/auth'
 import FilterDrawer from '../components/FilterDrawer'
 import type { SearchFilters, NutritionistSearchResult, FiltersResponse } from '../types'
+import { formatFilterLabel } from '../lib/labels'
 import {
   PageContainer,
   Header,
@@ -388,7 +389,7 @@ function NutritionistResultCard({
             <div className="mt-2 flex flex-wrap gap-1">
               {nutritionist.specializations.slice(0, 3).map((spec) => (
                 <Badge key={spec} variant="primary" size="sm">
-                  {spec.replace(/_/g, ' ')}
+                  {formatFilterLabel(spec)}
                 </Badge>
               ))}
               {nutritionist.specializations.length > 3 && (

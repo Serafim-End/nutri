@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Tuple
 from sqlalchemy import and_, or_
 
 from app.models import NutritionistProfile, Service, Intake
+from app.services.filters import FILTER_OPTIONS
 
 
 # Help mode to service title keyword mapping
@@ -15,6 +16,36 @@ HELP_MODE_KEYWORDS = {
     "plan": ["план", "plan", "программа", "program", "рацион", "меню"],
     "long_term": ["сопровождение", "support", "курс", "course", "месяц", "month"],
 }
+
+LABELS_BY_ID = {
+    item["id"]: item["label"]
+    for group in FILTER_OPTIONS.values()
+    for item in group
+}
+
+EXTRA_LABELS = {
+    "plant_based": "Растительное питание",
+    "holistic": "Холистический подход",
+    "mindful_eating": "Осознанное питание",
+    "performance": "Результативность",
+    "digestive_wellness": "Здоровое пищеварение",
+    "research": "Научный подход",
+    "ibs": "СРК",
+    "metabolic_health": "Метаболическое здоровье",
+    "clinical": "Клиническое питание",
+    "family": "Семейное питание",
+    "breastfeeding": "Грудное вскармливание",
+    "pediatric": "Педиатрия",
+    "budget_friendly": "Бюджетное питание",
+    "meal_prep": "Заготовки еды",
+    "practical": "Практичный подход",
+    "ayurveda": "Аюрведа",
+    "functional": "Функциональная медицина",
+}
+
+
+def _label_for(value: str) -> str:
+    return LABELS_BY_ID.get(value) or EXTRA_LABELS.get(value) or value.replace("_", " ")
 
 
 class MatchingService:
@@ -253,7 +284,7 @@ class MatchingService:
             if goal_overlaps:
                 score += len(goal_overlaps) * 3
                 for g in list(goal_overlaps)[:2]:  # Show max 2 reasons
-                    matched_reasons.append(f"Specializes in {g.replace('_', ' ')}")
+                    matched_reasons.append(f"Специализация: {_label_for(g)}")
             
             # Score: +1 per overlap between topics/dietary and nutritionist tags
             tag_overlaps = all_tags & (n_tags | n_specs)
@@ -261,7 +292,7 @@ class MatchingService:
                 score += len(tag_overlaps) * 1
                 for t in list(tag_overlaps)[:2]:
                     if t not in goal_overlaps:  # Don't duplicate
-                        matched_reasons.append(f"Experience with {t.replace('_', ' ')}")
+                        matched_reasons.append(f"Опыт работы с: {_label_for(t)}")
             
             # Score: +2 if any service price <= budget_max_rub (if budget provided)
             if budget_max is not None:
@@ -273,7 +304,7 @@ class MatchingService:
                 has_affordable = any(s.price_rub <= budget_max for s in services)
                 if has_affordable:
                     score += 2
-                    matched_reasons.append("Within budget")
+                    matched_reasons.append("В пределах бюджета")
             
             # Score: +1 if help_mode matches service_type (inferred from title)
             if help_mode:
@@ -288,11 +319,13 @@ class MatchingService:
                     if any(kw in title_lower for kw in keywords):
                         score += 1
                         mode_labels = {
-                            "one_time": "one-time consultations",
-                            "plan": "meal planning",
-                            "long_term": "long-term support",
+                            "one_time": "Разовая консультация",
+                            "plan": "План питания",
+                            "long_term": "Длительное сопровождение",
                         }
-                        matched_reasons.append(f"Offers {mode_labels.get(help_mode, help_mode)}")
+                        matched_reasons.append(
+                            f"Формат: {mode_labels.get(help_mode, _label_for(help_mode))}"
+                        )
                         break
             
             # Add rating bonus (0.5 per rating point)
@@ -312,5 +345,3 @@ class MatchingService:
         )
         
         return results[:limit]
-
-

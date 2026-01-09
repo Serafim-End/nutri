@@ -173,7 +173,7 @@ Authorization: Bearer <token>
                 "tags": {
                     "type": "array",
                     "items": {"type": "string"},
-                    "example": ["vegetarian", "keto"],
+                    "example": ["vegetarian", "vegan"],
                 },
                 "rating": {"type": "number", "format": "float", "example": 4.85},
                 "reviews_count": {"type": "integer", "example": 47},

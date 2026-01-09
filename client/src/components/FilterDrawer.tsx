@@ -38,6 +38,8 @@ const DEFAULT_OPTIONS: FilterOptions = {
     { id: 'weight_management', label: 'Контроль веса' },
     { id: 'sports_performance', label: 'Спортивные результаты' },
     { id: 'chronic_conditions', label: 'Хронические заболевания' },
+    { id: 'eating_disorders', label: 'Расстройства пищевого поведения' },
+    { id: 'pediatric_nutrition', label: 'Детское питание' },
   ],
   dietary: [
     { id: 'vegetarian', label: 'Вегетарианство' },

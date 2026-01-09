@@ -107,7 +107,7 @@ def seed_nutritionist_1() -> Profile:
     """Create or get nutritionist 1 (Elena)."""
     profile, created = get_or_create_profile(
         telegram_user_id=NUTRI1_TELEGRAM_ID,
-        full_name="Dr. Elena Petrova",
+        full_name="Елена Петрова",
         role="nutritionist",
         photo_url="https://api.dicebear.com/7.x/personas/svg?seed=elena",
     )
@@ -118,8 +118,8 @@ def seed_nutritionist_1() -> Profile:
         # Create nutritionist profile
         nutri_profile = NutritionistProfile(
             nutritionist_id=profile.id,
-            bio="Certified clinical nutritionist with 10 years of experience. "
-                "Specializing in weight management, diabetes care, and sports nutrition.",
+            bio="Сертифицированный клинический нутрициолог с 10-летним опытом. "
+                "Специализируется на контроле веса, диабете и спортивном питании.",
             tags=["vegetarian", "vegan", "gluten_free", "sports_nutrition"],
             specializations=["weight_loss", "diabetes", "gut_health", "sports_nutrition"],
             verification_status="approved",
@@ -135,9 +135,9 @@ def seed_nutritionist_1() -> Profile:
             Service(
                 id=uuid4(),
                 nutritionist_id=profile.id,
-                title="Initial Consultation",
-                description="Comprehensive 60-minute assessment of your health goals, "
-                            "dietary habits, and personalized nutrition plan development.",
+                title="Первичная консультация",
+                description="Комплексная 60‑минутная оценка ваших целей, "
+                            "пищевых привычек и разработка персонального плана питания.",
                 duration_minutes=60,
                 price_rub=3500,
                 is_active=True,
@@ -145,8 +145,8 @@ def seed_nutritionist_1() -> Profile:
             Service(
                 id=uuid4(),
                 nutritionist_id=profile.id,
-                title="Follow-up Session",
-                description="30-minute progress check and plan adjustments.",
+                title="Повторная консультация",
+                description="30‑минутная проверка прогресса и корректировка плана.",
                 duration_minutes=30,
                 price_rub=2000,
                 is_active=True,
@@ -161,7 +161,7 @@ def seed_nutritionist_1() -> Profile:
         if not profile.nutritionist_profile:
             nutri_profile = NutritionistProfile(
                 nutritionist_id=profile.id,
-                bio="Certified clinical nutritionist with 10 years of experience.",
+                bio="Сертифицированный клинический нутрициолог с 10-летним опытом.",
                 tags=["vegetarian", "vegan"],
                 specializations=["weight_loss", "diabetes"],
                 verification_status="approved",
@@ -182,7 +182,7 @@ def seed_nutritionist_2() -> Profile:
     """Create or get nutritionist 2 (Michael)."""
     profile, created = get_or_create_profile(
         telegram_user_id=NUTRI2_TELEGRAM_ID,
-        full_name="Michael Chen, RD",
+        full_name="Михаил Чен, RD",
         role="nutritionist",
         photo_url="https://api.dicebear.com/7.x/personas/svg?seed=michael",
     )
@@ -193,10 +193,10 @@ def seed_nutritionist_2() -> Profile:
         # Create nutritionist profile
         nutri_profile = NutritionistProfile(
             nutritionist_id=profile.id,
-            bio="Registered Dietitian focusing on plant-based nutrition and "
-                "holistic wellness. Helping clients achieve balance through mindful eating.",
+            bio="Дипломированный диетолог, специализирующийся на растительном питании и "
+                "холистическом подходе. Помогаю клиентам находить баланс через осознанное питание.",
             tags=["plant_based", "vegan", "holistic", "mindful_eating"],
-            specializations=["weight_loss", "plant_based", "mental_wellness", "detox"],
+            specializations=["weight_loss", "plant_based", "mental_wellness"],
             verification_status="approved",
             rating=4.72,
             reviews_count=31,
@@ -210,8 +210,8 @@ def seed_nutritionist_2() -> Profile:
             Service(
                 id=uuid4(),
                 nutritionist_id=profile.id,
-                title="Wellness Consultation",
-                description="Holistic 45-minute session focusing on nutrition and lifestyle balance.",
+                title="Консультация по благополучию",
+                description="Холистическая 45‑минутная сессия о питании и балансе образа жизни.",
                 duration_minutes=45,
                 price_rub=2800,
                 is_active=True,
@@ -219,9 +219,9 @@ def seed_nutritionist_2() -> Profile:
             Service(
                 id=uuid4(),
                 nutritionist_id=profile.id,
-                title="Plant-Based Transition",
-                description="Complete guide to transitioning to a plant-based diet. "
-                            "Includes meal planning and recipe suggestions.",
+                title="Переход на растительное питание",
+                description="Полный гид по переходу на растительный рацион. "
+                            "Включает планирование питания и подбор рецептов.",
                 duration_minutes=60,
                 price_rub=3200,
                 is_active=True,
@@ -236,7 +236,7 @@ def seed_nutritionist_2() -> Profile:
         if not profile.nutritionist_profile:
             nutri_profile = NutritionistProfile(
                 nutritionist_id=profile.id,
-                bio="Registered Dietitian focusing on plant-based nutrition.",
+                bio="Дипломированный диетолог, специализирующийся на растительном питании.",
                 tags=["plant_based", "vegan"],
                 specializations=["weight_loss", "plant_based"],
                 verification_status="approved",
@@ -257,92 +257,92 @@ def seed_nutritionist_2() -> Profile:
 ADDITIONAL_NUTRITIONISTS = [
     {
         "telegram_id": NUTRI3_TELEGRAM_ID,
-        "name": "Dr. Anna Sokolova",
+        "name": "Анна Соколова",
         "seed": "anna",
-        "bio": "Specialist in sports nutrition with 8 years of experience. Former Olympic team nutritionist. Helping athletes achieve peak performance through optimal nutrition.",
+        "bio": "Специалист по спортивному питанию с опытом 8 лет. Бывший нутрициолог олимпийской сборной. Помогаю спортсменам достигать пика формы через оптимальное питание.",
         "tags": ["sports_nutrition", "performance", "supplements", "muscle_gain"],
         "specializations": ["sports_nutrition", "muscle_gain", "weight_loss", "performance"],
         "rating": 4.91,
         "reviews": 63,
         "services": [
-            ("Sports Performance Consultation", "Comprehensive nutritional assessment for athletes. Includes body composition analysis and personalized fueling strategies.", 60, 4500),
-            ("Athlete Meal Plan", "Custom weekly meal plan designed for your training schedule and competition goals.", 45, 3500),
-            ("Pre-Competition Strategy", "Optimize your nutrition for peak performance on competition day.", 30, 2500),
+            ("Консультация по спортивной эффективности", "Комплексная оценка питания для спортсменов. Включает анализ состава тела и персональные стратегии питания.", 60, 4500),
+            ("План питания для спортсмена", "Индивидуальный недельный план питания под график тренировок и цели соревнований.", 45, 3500),
+            ("Стратегия перед соревнованиями", "Оптимизация питания для максимальной формы в день старта.", 30, 2500),
         ],
     },
     {
         "telegram_id": NUTRI4_TELEGRAM_ID,
-        "name": "Maria Ivanova, PhD",
+        "name": "Мария Иванова, PhD",
         "seed": "maria",
-        "bio": "PhD in Nutritional Sciences. Research-backed approach to gut health and digestive wellness. Published author and lecturer.",
+        "bio": "PhD в области нутрициологии. Научный подход к здоровью ЖКТ и пищеварения. Автор публикаций и лектор.",
         "tags": ["gut_health", "digestive_wellness", "research", "ibs"],
         "specializations": ["gut_health", "better_nutrition", "diabetes", "chronic_conditions"],
         "rating": 4.88,
         "reviews": 42,
         "services": [
-            ("Gut Health Assessment", "Comprehensive evaluation of digestive health with personalized recommendations.", 60, 4000),
-            ("IBS Management Program", "6-week program to manage IBS symptoms through diet and lifestyle.", 45, 3000),
-            ("Follow-up Consultation", "Progress check and plan adjustments.", 30, 1500),
+            ("Оценка здоровья ЖКТ", "Комплексная оценка состояния ЖКТ с персональными рекомендациями.", 60, 4000),
+            ("Программа по управлению СРК", "6-недельная программа контроля симптомов СРК через питание и образ жизни.", 45, 3000),
+            ("Повторная консультация", "Проверка прогресса и корректировка плана.", 30, 1500),
         ],
     },
     {
         "telegram_id": NUTRI5_TELEGRAM_ID,
-        "name": "Alexei Volkov",
+        "name": "Алексей Волков",
         "seed": "alexei",
-        "bio": "Certified nutritionist specializing in diabetes management and metabolic health. 12 years of clinical experience helping patients manage chronic conditions.",
+        "bio": "Сертифицированный нутрициолог, специализирующийся на диабете и метаболическом здоровье. 12 лет клинической практики.",
         "tags": ["diabetes", "metabolic_health", "clinical", "weight_management"],
         "specializations": ["diabetes", "weight_loss", "chronic_conditions", "better_nutrition"],
         "rating": 4.79,
         "reviews": 89,
         "services": [
-            ("Diabetes Nutrition Consultation", "Personalized nutrition plan for blood sugar management.", 60, 3500),
-            ("Metabolic Health Assessment", "Comprehensive metabolic health evaluation with action plan.", 75, 4500),
-            ("Monthly Support Session", "Ongoing support for diabetes management.", 30, 2000),
+            ("Консультация по питанию при диабете", "Персональный план питания для контроля сахара в крови.", 60, 3500),
+            ("Оценка метаболического здоровья", "Комплексная оценка метаболического здоровья с планом действий.", 75, 4500),
+            ("Ежемесячная поддержка", "Регулярное сопровождение при диабете.", 30, 2000),
         ],
     },
     {
         "telegram_id": NUTRI6_TELEGRAM_ID,
-        "name": "Olga Kuznetsova",
+        "name": "Ольга Кузнецова",
         "seed": "olga",
-        "bio": "Passionate about pregnancy and pediatric nutrition. Helping families raise healthy eaters from conception through childhood.",
+        "bio": "Специалист по питанию при беременности и в детском возрасте. Помогаю семьям сформировать здоровые пищевые привычки.",
         "tags": ["pregnancy", "pediatric", "family", "breastfeeding"],
         "specializations": ["pregnancy", "better_nutrition", "gut_health"],
         "rating": 4.95,
         "reviews": 37,
         "services": [
-            ("Pregnancy Nutrition Plan", "Trimester-specific nutrition guidance for a healthy pregnancy.", 60, 3800),
-            ("Postpartum & Breastfeeding", "Nutritional support for new mothers and breastfeeding.", 45, 3000),
-            ("Pediatric Nutrition Consultation", "Age-appropriate nutrition for infants and children.", 45, 2800),
+            ("План питания при беременности", "Рекомендации по питанию по триместрам для здоровой беременности.", 60, 3800),
+            ("Послеродовой период и ГВ", "Поддержка питания для молодых мам и грудного вскармливания.", 45, 3000),
+            ("Консультация по детскому питанию", "Питание по возрасту для детей и младенцев.", 45, 2800),
         ],
     },
     {
         "telegram_id": NUTRI7_TELEGRAM_ID,
-        "name": "Dmitry Novikov",
+        "name": "Дмитрий Новиков",
         "seed": "dmitry",
-        "bio": "Budget-friendly nutrition expert. Proving that healthy eating doesn't have to be expensive. Meal prep specialist.",
+        "bio": "Эксперт по доступному питанию. Доказываю, что здоровое питание может быть бюджетным. Специалист по заготовкам.",
         "tags": ["budget_friendly", "meal_prep", "practical", "weight_management"],
         "specializations": ["weight_loss", "better_nutrition", "meal_planning"],
         "rating": 4.67,
         "reviews": 124,
         "services": [
-            ("Budget Nutrition Consultation", "Learn to eat healthy on any budget.", 45, 1500),
-            ("Meal Prep Masterclass", "Weekly meal prep strategies that save time and money.", 60, 2000),
-            ("Quick Check-in", "15-minute progress check and tips.", 15, 800),
+            ("Бюджетная консультация по питанию", "Как питаться полезно при любом бюджете.", 45, 1500),
+            ("Мастер‑класс по заготовкам", "Стратегии еженедельных заготовок, экономящие время и деньги.", 60, 2000),
+            ("Короткий чек‑ин", "15‑минутная проверка прогресса и рекомендации.", 15, 800),
         ],
     },
     {
         "telegram_id": NUTRI8_TELEGRAM_ID,
-        "name": "Victoria Smirnova",
+        "name": "Виктория Смирнова",
         "seed": "victoria",
-        "bio": "Holistic nutritionist combining Eastern and Western approaches. Certified in Ayurvedic nutrition and functional medicine.",
+        "bio": "Холистический нутрициолог, сочетающий восточные и западные подходы. Сертифицирована в аюрведическом питании и функциональной медицине.",
         "tags": ["holistic", "ayurveda", "functional", "mental_wellness"],
-        "specializations": ["mental_wellness", "gut_health", "detox", "better_nutrition"],
+        "specializations": ["mental_wellness", "gut_health", "better_nutrition"],
         "rating": 4.82,
         "reviews": 56,
         "services": [
-            ("Holistic Health Assessment", "Mind-body-nutrition evaluation with personalized wellness plan.", 90, 5000),
-            ("Ayurvedic Consultation", "Discover your dosha and receive personalized dietary recommendations.", 60, 3500),
-            ("Stress & Nutrition Session", "How nutrition impacts mental health and stress management.", 45, 2800),
+            ("Холистическая оценка здоровья", "Оценка тела, психики и питания с персональным планом оздоровления.", 90, 5000),
+            ("Аюрведическая консультация", "Определение доши и персональные рекомендации по питанию.", 60, 3500),
+            ("Питание и стресс", "Как питание влияет на психическое здоровье и управление стрессом.", 45, 2800),
         ],
     },
 ]
