@@ -5,13 +5,34 @@ import { authApi } from '../lib/api'
 export function useTelegramAuth() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { setAuth, setLoading, token } = useAuthStore()
+  const { setAuth, setLoading, token, clearAuth } = useAuthStore()
+
+  const isTokenExpired = (jwtToken: string): boolean => {
+    const parts = jwtToken.split('.')
+    if (parts.length !== 3) {
+      return true
+    }
+
+    try {
+      const payload = JSON.parse(atob(parts[1]))
+      const exp = typeof payload.exp === 'number' ? payload.exp : null
+      if (!exp) {
+        return true
+      }
+      return Date.now() / 1000 >= exp
+    } catch {
+      return true
+    }
+  }
 
   const authenticate = useCallback(async () => {
-    // If already authenticated, skip
-    if (token) {
+    // If already authenticated and token is still valid, skip
+    if (token && !isTokenExpired(token)) {
       setLoading(false)
       return
+    }
+    if (token && isTokenExpired(token)) {
+      clearAuth()
     }
 
     setIsLoading(true)

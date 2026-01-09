@@ -39,6 +39,15 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+const getTelegramInitData = (): string | null => {
+  try {
+    const tg = window.Telegram?.WebApp
+    return tg?.initData || null
+  } catch {
+    return null
+  }
+}
+
 // Handle auth errors with retry capability
 let isRefreshing = false
 let failedQueue: Array<{
@@ -73,6 +82,18 @@ api.interceptors.response.use(
       isRefreshing = true
 
       try {
+        const initData = getTelegramInitData()
+        if (initData) {
+          const response = await api.post<AuthResponse>('/auth/telegram/verify', {
+            init_data: initData,
+          })
+          const { access_token, profile } = response.data
+          useAuthStore.getState().setAuth(access_token, profile)
+          processQueue()
+          isRefreshing = false
+          return api(originalRequest!)
+        }
+
         // Try dev login if in development mode
         if (import.meta.env.DEV) {
           const response = await api.post<AuthResponse>('/auth/dev-login')

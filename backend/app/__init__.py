@@ -39,6 +39,26 @@ def create_app(config_class=Config):
         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     )
 
+    @jwt.unauthorized_loader
+    def handle_missing_token(reason):
+        logger.warning(f"JWT missing: {reason}")
+        return jsonify({"error": "Missing Authorization header"}), 401
+
+    @jwt.invalid_token_loader
+    def handle_invalid_token(reason):
+        logger.warning(f"JWT invalid: {reason}")
+        return jsonify({"error": "Invalid token"}), 401
+
+    @jwt.expired_token_loader
+    def handle_expired_token(jwt_header, jwt_payload):
+        logger.info("JWT expired")
+        return jsonify({"error": "Token has expired"}), 401
+
+    @jwt.revoked_token_loader
+    def handle_revoked_token(jwt_header, jwt_payload):
+        logger.warning("JWT revoked")
+        return jsonify({"error": "Token has been revoked"}), 401
+
     # Register blueprints
     from app.routes.auth import auth_bp
     from app.routes.clients import clients_bp
