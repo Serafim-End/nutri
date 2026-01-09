@@ -21,8 +21,15 @@ class Profile(db.Model):
         db.String(20), nullable=False, default="client"
     )  # client/nutritionist/admin
     telegram_user_id = db.Column(db.BigInteger, unique=True, nullable=False, index=True)
+    telegram_username = db.Column(db.String(255), nullable=True, index=True)
     full_name = db.Column(db.String(255), nullable=False)
     photo_url = db.Column(db.Text, nullable=True)
+    first_mini_app_at = db.Column(db.DateTime, nullable=True)
+    last_mini_app_at = db.Column(db.DateTime, nullable=True)
+    first_bot_start_at = db.Column(db.DateTime, nullable=True)
+    last_bot_start_at = db.Column(db.DateTime, nullable=True)
+    first_nutritionist_intent_at = db.Column(db.DateTime, nullable=True)
+    last_nutritionist_intent_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
@@ -52,10 +59,24 @@ class Profile(db.Model):
             "id": str(self.id),
             "role": self.role,
             "telegram_user_id": self.telegram_user_id,
+            "telegram_username": self.telegram_username,
             "full_name": self.full_name,
             "photo_url": self.photo_url,
+            "first_mini_app_at": self.first_mini_app_at.isoformat() if self.first_mini_app_at else None,
+            "last_mini_app_at": self.last_mini_app_at.isoformat() if self.last_mini_app_at else None,
+            "first_bot_start_at": self.first_bot_start_at.isoformat() if self.first_bot_start_at else None,
+            "last_bot_start_at": self.last_bot_start_at.isoformat() if self.last_bot_start_at else None,
+            "first_nutritionist_intent_at": (
+                self.first_nutritionist_intent_at.isoformat()
+                if self.first_nutritionist_intent_at
+                else None
+            ),
+            "last_nutritionist_intent_at": (
+                self.last_nutritionist_intent_at.isoformat()
+                if self.last_nutritionist_intent_at
+                else None
+            ),
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
-
 

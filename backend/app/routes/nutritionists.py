@@ -107,6 +107,7 @@ def upsert_nutritionist():
             full_name=schema.full_name,
             photo_url=schema.photo_url,
             role="nutritionist",
+            telegram_username=schema.telegram_username,
         )
         db.session.add(profile)
         db.session.flush()
@@ -116,8 +117,15 @@ def upsert_nutritionist():
         profile.full_name = schema.full_name
         if schema.photo_url:
             profile.photo_url = schema.photo_url
+        if schema.telegram_username:
+            profile.telegram_username = schema.telegram_username
         if profile.role != "nutritionist":
             profile.role = "nutritionist"
+    if schema.nutritionist_intent:
+        now = datetime.utcnow()
+        if not profile.first_nutritionist_intent_at:
+            profile.first_nutritionist_intent_at = now
+        profile.last_nutritionist_intent_at = now
 
     # Get or create nutritionist profile
     nutritionist = NutritionistProfile.query.get(profile.id)

@@ -85,7 +85,9 @@ async def handle_i_am_nutritionist(callback: CallbackQuery, state: FSMContext):
     response = await api.upsert_nutritionist(
         telegram_user_id=telegram_user_id,
         full_name=callback.from_user.full_name,
+        telegram_username=callback.from_user.username,
         submit_for_verification=False,
+        nutritionist_intent=True,
     )
     
     if response.success and response.data:
@@ -221,4 +223,3 @@ async def handle_back_nutritionist(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_nutritionist_menu_keyboard(has_profile),
         parse_mode="HTML",
     )
-

@@ -12,12 +12,16 @@ class NutritionistUpsertRequest(BaseModel):
 
     telegram_user_id: int = Field(..., description="Telegram user ID")
     full_name: str = Field(..., min_length=1, max_length=255)
+    telegram_username: Optional[str] = None
     photo_url: Optional[str] = None
     bio: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
     specializations: List[str] = Field(default_factory=list)
     submit_for_verification: bool = Field(
         default=False, description="Set to true to submit for verification"
+    )
+    nutritionist_intent: bool = Field(
+        default=False, description="Set to true when user clicks 'I am nutritionist'"
     )
 
 
@@ -154,4 +158,3 @@ class DateExceptionUpdateRequest(BaseModel):
             if info.data['exception_type'] == 'custom' and (not v or len(v) == 0):
                 raise ValueError('custom_hours is required when exception_type is "custom"')
         return v
-

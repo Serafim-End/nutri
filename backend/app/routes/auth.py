@@ -91,6 +91,8 @@ def verify_telegram():
         telegram_user_id=user_data["id"],
         full_name=full_name,
         photo_url=user_data.get("photo_url"),
+        telegram_username=user_data.get("username"),
+        mark_mini_app_visit=True,
     )
 
     # Create JWT token

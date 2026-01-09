@@ -62,6 +62,12 @@ export const adminApi = {
     return response.data
   },
 
+  // Users
+  getUsers: async (params?: { page?: number; limit?: number }) => {
+    const response = await api.get('/admin/users', { params })
+    return response.data
+  },
+
   getNutritionist: async (id: string) => {
     const response = await api.get(`/admin/nutritionists/${id}`)
     return response.data
@@ -184,4 +190,3 @@ export const adminApi = {
     return response.data
   },
 }
-

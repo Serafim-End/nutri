@@ -882,6 +882,82 @@ def get_dashboard_stats():
     })
 
 
+@admin_bp.route("/users", methods=["GET"])
+@jwt_required()
+def list_users():
+    """
+    Список пользователей с активностью
+    ---
+    tags:
+      - Admin
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: page
+        in: query
+        type: integer
+        description: Page number (default: 1)
+      - name: limit
+        in: query
+        type: integer
+        description: Page size (default: 50)
+    responses:
+      200:
+        description: Список пользователей
+      403:
+        description: Требуются права администратора
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    page = request.args.get("page", type=int, default=1)
+    limit = request.args.get("limit", type=int, default=50)
+    limit = max(1, min(limit, 200))
+    offset = (page - 1) * limit
+
+    total = Profile.query.count()
+    profiles = Profile.query.order_by(Profile.created_at.desc()).offset(offset).limit(limit).all()
+
+    def last_seen(profile: Profile):
+        events = [
+            ("mini_app", profile.last_mini_app_at),
+            ("bot_start", profile.last_bot_start_at),
+            ("nutritionist_intent", profile.last_nutritionist_intent_at),
+        ]
+        events = [(name, ts) for name, ts in events if ts]
+        if not events:
+            return None, None
+        name, ts = max(events, key=lambda item: item[1])
+        return name, ts
+
+    users = []
+    for profile in profiles:
+        source, last_seen_at = last_seen(profile)
+        data = profile.to_dict()
+        data.update({
+            "last_seen_at": last_seen_at.isoformat() if last_seen_at else None,
+            "last_seen_source": source,
+            "has_nutritionist_profile": profile.nutritionist_profile is not None,
+        })
+        users.append(data)
+
+    stats = {
+        "total_users": total,
+        "mini_app_users": Profile.query.filter(Profile.last_mini_app_at.isnot(None)).count(),
+        "bot_start_users": Profile.query.filter(Profile.last_bot_start_at.isnot(None)).count(),
+        "nutritionist_intent_users": Profile.query.filter(Profile.last_nutritionist_intent_at.isnot(None)).count(),
+    }
+
+    return jsonify({
+        "users": users,
+        "total": total,
+        "page": page,
+        "pages": (total + limit - 1) // limit,
+        "stats": stats,
+    })
+
+
 # ============================================================================
 # REVIEW MANAGEMENT
 # ============================================================================

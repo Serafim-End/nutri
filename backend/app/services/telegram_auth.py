@@ -7,6 +7,7 @@ import hashlib
 import hmac
 import json
 import time
+from datetime import datetime
 from urllib.parse import parse_qs, unquote
 from typing import Optional, Tuple
 from flask import current_app
@@ -114,6 +115,8 @@ class TelegramAuthService:
         full_name: str,
         photo_url: Optional[str] = None,
         role: str = "client",
+        telegram_username: Optional[str] = None,
+        mark_mini_app_visit: bool = False,
     ) -> Profile:
         """
         Get existing profile or create a new one.
@@ -128,6 +131,7 @@ class TelegramAuthService:
             Profile instance
         """
         profile = Profile.query.filter_by(telegram_user_id=telegram_user_id).first()
+        now = datetime.utcnow()
 
         if profile:
             # Update name and photo if changed
@@ -135,6 +139,12 @@ class TelegramAuthService:
                 profile.full_name = full_name
             if photo_url and profile.photo_url != photo_url:
                 profile.photo_url = photo_url
+            if telegram_username and profile.telegram_username != telegram_username:
+                profile.telegram_username = telegram_username
+            if mark_mini_app_visit:
+                if not profile.first_mini_app_at:
+                    profile.first_mini_app_at = now
+                profile.last_mini_app_at = now
             db.session.commit()
         else:
             # Create new profile
@@ -143,10 +153,11 @@ class TelegramAuthService:
                 full_name=full_name,
                 photo_url=photo_url,
                 role=role,
+                telegram_username=telegram_username,
+                first_mini_app_at=now if mark_mini_app_visit else None,
+                last_mini_app_at=now if mark_mini_app_visit else None,
             )
             db.session.add(profile)
             db.session.commit()
 
         return profile
-
-

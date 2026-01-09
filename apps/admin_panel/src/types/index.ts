@@ -16,6 +16,39 @@ export interface AuthResponse {
   user: AdminUser
 }
 
+export interface AdminUserEntry {
+  id: string
+  role: 'client' | 'nutritionist' | 'admin'
+  telegram_user_id: number
+  telegram_username: string | null
+  full_name: string
+  photo_url: string | null
+  first_mini_app_at: string | null
+  last_mini_app_at: string | null
+  first_bot_start_at: string | null
+  last_bot_start_at: string | null
+  first_nutritionist_intent_at: string | null
+  last_nutritionist_intent_at: string | null
+  last_seen_at: string | null
+  last_seen_source: 'mini_app' | 'bot_start' | 'nutritionist_intent' | null
+  has_nutritionist_profile: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminUsersResponse {
+  users: AdminUserEntry[]
+  total: number
+  page: number
+  pages: number
+  stats: {
+    total_users: number
+    mini_app_users: number
+    bot_start_users: number
+    nutritionist_intent_users: number
+  }
+}
+
 export interface Nutritionist {
   id: string
   nutritionist_id: string
@@ -159,4 +192,3 @@ export interface Payment {
   provider: string
   created_at: string
 }
-

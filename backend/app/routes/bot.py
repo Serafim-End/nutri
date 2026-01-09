@@ -90,19 +90,34 @@ def resolve_telegram_user():
         description: BOT_SERVICE_TOKEN не настроен
     """
     telegram_user_id = request.args.get("telegram_user_id", type=int)
+    telegram_username = request.args.get("telegram_username")
+    full_name = request.args.get("full_name")
     
     if not telegram_user_id:
         return jsonify({"error": "telegram_user_id required"}), 400
     
-    # Find profile
+    # Find or create profile
     profile = Profile.query.filter_by(telegram_user_id=telegram_user_id).first()
     
     if not profile:
-        return jsonify({
-            "profile": None,
-            "nutritionist": None,
-            "role": "client",
-        })
+        profile = Profile(
+            telegram_user_id=telegram_user_id,
+            full_name=full_name or "User",
+            telegram_username=telegram_username,
+            role="client",
+        )
+        db.session.add(profile)
+        db.session.flush()
+
+    now = datetime.utcnow()
+    if telegram_username and profile.telegram_username != telegram_username:
+        profile.telegram_username = telegram_username
+    if full_name and profile.full_name != full_name:
+        profile.full_name = full_name
+    if not profile.first_bot_start_at:
+        profile.first_bot_start_at = now
+    profile.last_bot_start_at = now
+    db.session.commit()
     
     # Check if nutritionist
     nutritionist = None

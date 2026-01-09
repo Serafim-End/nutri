@@ -189,15 +189,25 @@ class BackendAPIClient:
     # Auth & User Resolution
     # ==========================================
     
-    async def resolve_telegram_user(self, telegram_user_id: int) -> APIResponse:
+    async def resolve_telegram_user(
+        self,
+        telegram_user_id: int,
+        full_name: Optional[str] = None,
+        telegram_username: Optional[str] = None,
+    ) -> APIResponse:
         """
         Resolve Telegram user to get profile and role.
         GET /api/bot/resolve-telegram-user?telegram_user_id=123
         """
+        params = {"telegram_user_id": telegram_user_id}
+        if full_name:
+            params["full_name"] = full_name
+        if telegram_username:
+            params["telegram_username"] = telegram_username
         return await self._request(
             "GET",
             "/api/bot/resolve-telegram-user",
-            params={"telegram_user_id": telegram_user_id},
+            params=params,
         )
     
     # ==========================================
@@ -208,11 +218,13 @@ class BackendAPIClient:
         self,
         telegram_user_id: int,
         full_name: str,
+        telegram_username: Optional[str] = None,
         photo_url: Optional[str] = None,
         bio: Optional[str] = None,
         tags: Optional[list[str]] = None,
         specializations: Optional[list[str]] = None,
         submit_for_verification: bool = False,
+        nutritionist_intent: bool = False,
     ) -> APIResponse:
         """
         Create or update nutritionist profile.
@@ -222,7 +234,10 @@ class BackendAPIClient:
             "telegram_user_id": telegram_user_id,
             "full_name": full_name,
             "submit_for_verification": submit_for_verification,
+            "nutritionist_intent": nutritionist_intent,
         }
+        if telegram_username:
+            data["telegram_username"] = telegram_username
         if photo_url:
             data["photo_url"] = photo_url
         if bio:

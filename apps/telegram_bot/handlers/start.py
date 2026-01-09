@@ -33,7 +33,11 @@ async def cmd_start(message: Message, state: FSMContext):
     
     # Resolve user via backend
     api = get_api_client()
-    response = await api.resolve_telegram_user(telegram_user_id)
+    response = await api.resolve_telegram_user(
+        telegram_user_id,
+        full_name=user.full_name,
+        telegram_username=user.username,
+    )
     
     # Determine greeting based on user data
     user_name = user.first_name or "Пользователь"
@@ -70,4 +74,3 @@ async def cmd_start(message: Message, state: FSMContext):
         text=welcome_text,
         reply_markup=get_main_menu_keyboard(),
     )
-
