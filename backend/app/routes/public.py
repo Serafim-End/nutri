@@ -13,7 +13,9 @@ from app.models import (
     WorkingHoursTemplate,
     DateException,
     GoogleCalendar,
+    AvailabilitySlot,
 )
+from app.extensions import db
 from app.services.matching import MatchingService
 from app.services.filters import FILTER_OPTIONS, validate_filters, get_empty_filters
 from app.services.availability import (
@@ -230,23 +232,34 @@ def list_slots(nutritionist_id: str):
         if not service or str(service.nutritionist_id) != nutritionist_id:
             return jsonify({"error": "Service not found"}), 404
 
-    # Calculate availability using working hours, exceptions, and Google Calendar
+    # Determine date range and prefetch existing slots (manual/calendar) for booking
     try:
+        start_date = date.today()
+        end_date = start_date + timedelta(days=days_ahead)
+        time_min = datetime.now(timezone.utc)
+        time_max = datetime.combine(end_date, time(23, 59, 59)).replace(tzinfo=timezone.utc)
+
+        existing_slots = AvailabilitySlot.query.filter(
+            AvailabilitySlot.nutritionist_id == nutritionist_id,
+            AvailabilitySlot.start_at >= time_min,
+            AvailabilitySlot.start_at <= time_max,
+            AvailabilitySlot.status.in_(["free", "held", "booked"]),
+        ).order_by(AvailabilitySlot.start_at).all()
+
+        free_slots = [slot for slot in existing_slots if slot.status == "free"]
+
         # Get working hours template
         working_hours = WorkingHoursTemplate.query.filter_by(
             nutritionist_id=nutritionist_id
         ).first()
         
         if not working_hours or not working_hours.weekly_schedule:
-            # No working hours configured, return empty slots
-            return jsonify({"slots": []})
+            # No working hours configured, return existing manual slots only
+            return jsonify({"slots": [s.to_dict() for s in free_slots]})
 
         weekly_schedule = working_hours.weekly_schedule
 
         # Get date exceptions
-        start_date = date.today()
-        end_date = start_date + timedelta(days=days_ahead)
-        
         date_exceptions_query = DateException.query.filter(
             DateException.nutritionist_id == nutritionist_id,
             DateException.exception_date >= start_date,
@@ -260,28 +273,29 @@ def list_slots(nutritionist_id: str):
                 "custom_hours": exc.custom_hours or [],
             }
 
+        # Build busy intervals from existing slots to avoid overlaps with manual/calendar slots
+        busy_intervals = [
+            TimeRange(start=slot.start_at, end=slot.end_at) for slot in existing_slots
+        ]
+
         # Get Google Calendar busy intervals (if connected)
-        busy_intervals = []
         google_calendar = GoogleCalendar.query.filter_by(
             nutritionist_id=nutritionist_id
         ).first()
         
         if google_calendar and google_calendar.is_connected and google_calendar.selected_calendar_id:
             try:
-                time_min = datetime.now(timezone.utc)
                 # Set time_max to end of end_date
-                time_max = datetime.combine(end_date, time(23, 59, 59)).replace(tzinfo=timezone.utc)
-                
                 freebusy_result = GoogleCalendarService.get_freebusy(
                     nutritionist_id=nutritionist_id,
                     time_min=time_min,
                     time_max=time_max,
                 )
                 
-                busy_intervals = parse_google_calendar_busy(
+                busy_intervals.extend(parse_google_calendar_busy(
                     freebusy_result,
                     calendar_id=google_calendar.selected_calendar_id,
-                )
+                ))
             except Exception as e:
                 # Log error but continue without Google Calendar data
                 current_app.logger.warning(
@@ -297,22 +311,29 @@ def list_slots(nutritionist_id: str):
             end_date=end_date,
         )
 
-        # Convert TimeRange objects to slot format
-        slots = []
+        # Create calculated slots in DB if they don't already exist
+        existing_keys = {(s.start_at, s.end_at) for s in existing_slots}
+        created_slots = []
         for tr in available_ranges:
-            slots.append({
-                "id": None,  # Calculated slots don't have IDs
-                "nutritionist_id": nutritionist_id,
-                "start_at": tr.start.isoformat(),
-                "end_at": tr.end.isoformat(),
-                "status": "free",
-                "source": "calculated",
-                "hold_expires_at": None,
-                "created_at": datetime.now(timezone.utc).isoformat(),
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            })
+            key = (tr.start, tr.end)
+            if key in existing_keys:
+                continue
+            slot = AvailabilitySlot(
+                nutritionist_id=nutritionist_id,
+                start_at=tr.start,
+                end_at=tr.end,
+                status="free",
+                source="calculated",
+            )
+            db.session.add(slot)
+            created_slots.append(slot)
+            existing_keys.add(key)
 
-        return jsonify({"slots": slots})
+        if created_slots:
+            db.session.commit()
+
+        all_free_slots = free_slots + created_slots
+        return jsonify({"slots": [s.to_dict() for s in all_free_slots]})
 
     except Exception as e:
         current_app.logger.error(f"Error calculating availability for {nutritionist_id}: {e}")
