@@ -40,6 +40,13 @@ export function ReviewsPage() {
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: adminApi.deleteReview,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reviews'] })
+    },
+  })
+
   const filterButtons: { value: RatingFilter; label: string }[] = [
     { value: 'all', label: 'All Reviews' },
     { value: 'low', label: 'Rating ≤ 3' },
@@ -223,6 +230,17 @@ export function ReviewsPage() {
                         )}
                       >
                         {review.is_problematic ? 'Clear Flag' : 'Flag'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
+                            deleteMutation.mutate(review.id)
+                          }
+                        }}
+                        disabled={deleteMutation.isPending}
+                        className="px-3 py-1.5 text-sm font-medium text-error-400 hover:bg-error-500/10 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        Delete
                       </button>
                     </div>
                   </td>

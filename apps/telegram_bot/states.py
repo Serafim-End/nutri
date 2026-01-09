@@ -84,3 +84,47 @@ class SupportStates(StatesGroup):
     # Waiting for support message
     waiting_message = State()
 
+
+class WorkingHoursStates(StatesGroup):
+    """States for working hours template setup flow."""
+    
+    # Selecting day of week
+    selecting_day = State()
+    
+    # Waiting for time range input (start time)
+    waiting_start_time = State()
+    
+    # Waiting for end time
+    waiting_end_time = State()
+    
+    # Confirming time range
+    confirming_time_range = State()
+    
+    # Confirming template save
+    confirming_template = State()
+
+
+class DateExceptionStates(StatesGroup):
+    """States for date exception flow."""
+    
+    # Selecting date for exception
+    selecting_date = State()
+    
+    # Selecting exception type (off/custom)
+    selecting_type = State()
+    
+    # Waiting for custom hours start time
+    waiting_custom_start_time = State()
+    
+    # Waiting for custom hours end time
+    waiting_custom_end_time = State()
+    
+    # Confirming custom time range
+    confirming_custom_time_range = State()
+    
+    # Confirming exception creation
+    confirming_exception = State()
+    
+    # Selecting exception to edit/delete
+    selecting_exception = State()
+

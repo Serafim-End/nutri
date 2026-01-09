@@ -623,6 +623,121 @@ class BackendAPIClient:
             f"/api/bot/nutritionists/{nutritionist_id}/bookings",
             params={"limit": limit, "offset": offset},
         )
+    
+    # ==========================================
+    # Working Hours Template
+    # ==========================================
+    
+    async def get_working_hours_template(self, nutritionist_id: str) -> APIResponse:
+        """
+        Get working hours template.
+        GET /api/nutritionists/<id>/working-hours-template
+        """
+        return await self._request(
+            "GET",
+            f"/api/nutritionists/{nutritionist_id}/working-hours-template",
+        )
+    
+    async def update_working_hours_template(
+        self,
+        nutritionist_id: str,
+        weekly_schedule: dict[int, list[dict[str, str]]],
+    ) -> APIResponse:
+        """
+        Update working hours template.
+        PUT /api/nutritionists/<id>/working-hours-template
+        """
+        # Convert day numbers to strings for JSON (backend expects string keys)
+        schedule_dict = {
+            str(day): time_ranges for day, time_ranges in weekly_schedule.items()
+        }
+        return await self._request(
+            "PUT",
+            f"/api/nutritionists/{nutritionist_id}/working-hours-template",
+            data={"weekly_schedule": schedule_dict},
+        )
+    
+    # ==========================================
+    # Date Exceptions
+    # ==========================================
+    
+    async def list_date_exceptions(
+        self,
+        nutritionist_id: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> APIResponse:
+        """
+        List date exceptions.
+        GET /api/nutritionists/<id>/date-exceptions
+        """
+        params = {}
+        if start_date:
+            params["start_date"] = start_date
+        if end_date:
+            params["end_date"] = end_date
+        return await self._request(
+            "GET",
+            f"/api/nutritionists/{nutritionist_id}/date-exceptions",
+            params=params if params else None,
+        )
+    
+    async def create_date_exception(
+        self,
+        nutritionist_id: str,
+        exception_date: str,
+        exception_type: str,
+        custom_hours: Optional[list[dict[str, str]]] = None,
+    ) -> APIResponse:
+        """
+        Create date exception.
+        POST /api/nutritionists/<id>/date-exceptions
+        """
+        data = {
+            "exception_date": exception_date,
+            "exception_type": exception_type,
+        }
+        if custom_hours:
+            data["custom_hours"] = custom_hours
+        return await self._request(
+            "POST",
+            f"/api/nutritionists/{nutritionist_id}/date-exceptions",
+            data=data,
+        )
+    
+    async def update_date_exception(
+        self,
+        nutritionist_id: str,
+        exception_id: str,
+        exception_type: str,
+        custom_hours: Optional[list[dict[str, str]]] = None,
+    ) -> APIResponse:
+        """
+        Update date exception.
+        PUT /api/nutritionists/<id>/date-exceptions/<exception_id>
+        """
+        data = {"exception_type": exception_type}
+        if custom_hours:
+            data["custom_hours"] = custom_hours
+        return await self._request(
+            "PUT",
+            f"/api/nutritionists/{nutritionist_id}/date-exceptions/{exception_id}",
+            data=data,
+        )
+    
+    async def delete_date_exception(
+        self,
+        nutritionist_id: str,
+        exception_id: str,
+    ) -> APIResponse:
+        """
+        Delete date exception.
+        DELETE /api/nutritionists/<id>/date-exceptions/<exception_id>
+        """
+        return await self._request(
+            "DELETE",
+            f"/api/nutritionists/{nutritionist_id}/date-exceptions/{exception_id}",
+        )
 
 
 # Global client instance

@@ -87,6 +87,25 @@ CB_REFRESH_BOOKINGS = "refresh_bookings"
 CB_BOOKINGS_NEXT = "bookings_next"
 CB_BOOKINGS_PREV = "bookings_prev"
 
+# Working Hours Template
+CB_WORKING_HOURS = "working_hours"
+CB_WORKING_HOURS_DAY_PREFIX = "wh_day:"
+CB_ADD_TIME_RANGE = "add_time_range"
+CB_CONFIRM_TIME_RANGE = "confirm_time_range"
+CB_SAVE_TEMPLATE = "save_template"
+CB_CANCEL_WORKING_HOURS = "cancel_working_hours"
+
+# Date Exceptions
+CB_EXCEPTIONS = "exceptions"
+CB_ADD_EXCEPTION = "add_exception"
+CB_DELETE_EXCEPTION = "delete_exception"
+CB_EXCEPTION_DATE_PREFIX = "exc_date:"
+CB_EXCEPTION_TYPE_OFF = "exc_type_off"
+CB_EXCEPTION_TYPE_CUSTOM = "exc_type_custom"
+CB_EXCEPTION_DELETE_PREFIX = "exc_del:"
+CB_CANCEL_EXCEPTION = "cancel_exception"
+CB_CONFIRM_EXCEPTION = "confirm_exception"
+
 
 # ==========================================
 # Keyboard Builders
@@ -600,6 +619,17 @@ def get_schedule_keyboard(has_free_slots: bool = False) -> InlineKeyboardMarkup:
     
     builder.row(
         InlineKeyboardButton(
+            text="🕐 Рабочие часы",
+            callback_data=CB_WORKING_HOURS,
+        ),
+        InlineKeyboardButton(
+            text="📅 Исключения",
+            callback_data=CB_EXCEPTIONS,
+        ),
+    )
+    
+    builder.row(
+        InlineKeyboardButton(
             text="🔄 Обновить",
             callback_data=CB_REFRESH_SCHEDULE,
         )
@@ -777,6 +807,234 @@ def get_bookings_keyboard(
         InlineKeyboardButton(
             text="◀️ В кабинет",
             callback_data=CB_PERSONAL_CABINET,
+        )
+    )
+    
+    return builder.as_markup()
+
+
+# ==========================================
+# Working Hours Template Keyboards
+# ==========================================
+
+def get_working_hours_keyboard() -> InlineKeyboardMarkup:
+    """Working hours main keyboard."""
+    builder = InlineKeyboardBuilder()
+    
+    # Days of week (Monday=0 to Sunday=6)
+    day_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+    day_buttons = []
+    for day_num, day_name in enumerate(day_names):
+        day_buttons.append(
+            InlineKeyboardButton(
+                text=day_name,
+                callback_data=f"{CB_WORKING_HOURS_DAY_PREFIX}{day_num}",
+            )
+        )
+        if len(day_buttons) == 3:
+            builder.row(*day_buttons)
+            day_buttons = []
+    
+    if day_buttons:
+        builder.row(*day_buttons)
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="💾 Сохранить шаблон",
+            callback_data=CB_SAVE_TEMPLATE,
+        )
+    )
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="◀️ Назад",
+            callback_data=CB_SCHEDULE,
+        )
+    )
+    
+    return builder.as_markup()
+
+
+def get_day_time_ranges_keyboard(has_ranges: bool = False) -> InlineKeyboardMarkup:
+    """Keyboard for managing time ranges for a day."""
+    builder = InlineKeyboardBuilder()
+    
+    if has_ranges:
+        builder.row(
+            InlineKeyboardButton(
+                text="➕ Добавить диапазон",
+                callback_data=CB_ADD_TIME_RANGE,
+            )
+        )
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="◀️ Назад к дням",
+            callback_data=CB_WORKING_HOURS,
+        )
+    )
+    
+    return builder.as_markup()
+
+
+def get_confirm_time_range_keyboard() -> InlineKeyboardMarkup:
+    """Confirm time range addition."""
+    builder = InlineKeyboardBuilder()
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="✅ Добавить",
+            callback_data=CB_CONFIRM_TIME_RANGE,
+        ),
+        InlineKeyboardButton(
+            text="❌ Отмена",
+            callback_data=CB_CANCEL_WORKING_HOURS,
+        ),
+    )
+    
+    return builder.as_markup()
+
+
+def get_confirm_template_keyboard() -> InlineKeyboardMarkup:
+    """Confirm template save."""
+    builder = InlineKeyboardBuilder()
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="✅ Сохранить",
+            callback_data=CB_SAVE_TEMPLATE,
+        ),
+        InlineKeyboardButton(
+            text="❌ Отмена",
+            callback_data=CB_CANCEL_WORKING_HOURS,
+        ),
+    )
+    
+    return builder.as_markup()
+
+
+# ==========================================
+# Date Exceptions Keyboards
+# ==========================================
+
+def get_exceptions_keyboard(has_exceptions: bool = False) -> InlineKeyboardMarkup:
+    """Exceptions main keyboard."""
+    builder = InlineKeyboardBuilder()
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="➕ Добавить исключение",
+            callback_data=CB_ADD_EXCEPTION,
+        )
+    )
+    
+    if has_exceptions:
+        builder.row(
+            InlineKeyboardButton(
+                text="❌ Удалить исключение",
+                callback_data=CB_DELETE_EXCEPTION,
+            )
+        )
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="◀️ Назад",
+            callback_data=CB_SCHEDULE,
+        )
+    )
+    
+    return builder.as_markup()
+
+
+def get_exception_date_keyboard(dates: list[dict]) -> InlineKeyboardMarkup:
+    """Keyboard for selecting exception date."""
+    builder = InlineKeyboardBuilder()
+    
+    # Show dates in rows of 2
+    row_buttons = []
+    for date_info in dates:
+        row_buttons.append(
+            InlineKeyboardButton(
+                text=date_info["label"],
+                callback_data=f"{CB_EXCEPTION_DATE_PREFIX}{date_info['date']}",
+            )
+        )
+        if len(row_buttons) == 2:
+            builder.row(*row_buttons)
+            row_buttons = []
+    
+    if row_buttons:
+        builder.row(*row_buttons)
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="❌ Отмена",
+            callback_data=CB_CANCEL_EXCEPTION,
+        )
+    )
+    
+    return builder.as_markup()
+
+
+def get_exception_type_keyboard() -> InlineKeyboardMarkup:
+    """Keyboard for selecting exception type."""
+    builder = InlineKeyboardBuilder()
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="🚫 Выходной",
+            callback_data=CB_EXCEPTION_TYPE_OFF,
+        ),
+        InlineKeyboardButton(
+            text="🕐 Особые часы",
+            callback_data=CB_EXCEPTION_TYPE_CUSTOM,
+        ),
+    )
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="❌ Отмена",
+            callback_data=CB_CANCEL_EXCEPTION,
+        )
+    )
+    
+    return builder.as_markup()
+
+
+def get_confirm_exception_keyboard() -> InlineKeyboardMarkup:
+    """Confirm exception creation."""
+    builder = InlineKeyboardBuilder()
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="✅ Создать",
+            callback_data=CB_CONFIRM_EXCEPTION,
+        ),
+        InlineKeyboardButton(
+            text="❌ Отмена",
+            callback_data=CB_CANCEL_EXCEPTION,
+        ),
+    )
+    
+    return builder.as_markup()
+
+
+def get_delete_exception_keyboard(exceptions: list[dict]) -> InlineKeyboardMarkup:
+    """Keyboard for selecting exception to delete."""
+    builder = InlineKeyboardBuilder()
+    
+    for exc in exceptions:
+        builder.row(
+            InlineKeyboardButton(
+                text=exc["label"],
+                callback_data=f"{CB_EXCEPTION_DELETE_PREFIX}{exc['id']}",
+            )
+        )
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="❌ Отмена",
+            callback_data=CB_EXCEPTIONS,
         )
     )
     

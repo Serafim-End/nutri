@@ -3,8 +3,8 @@ Nutritionist Schemas
 """
 
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, List
-from datetime import datetime, timezone
+from typing import Optional, List, Dict, Any
+from datetime import datetime, timezone, date
 
 
 class NutritionistUpsertRequest(BaseModel):
@@ -78,4 +78,80 @@ class BulkSlotCreateRequest(BaseModel):
 
     slots: List[SlotCreateRequest] = Field(..., min_length=1)
 
+
+class TimeRange(BaseModel):
+    """Time range schema (e.g., {"start": "09:00", "end": "12:00"})."""
+
+    start: str = Field(..., pattern=r"^([0-1][0-9]|2[0-3]):[0-5][0-9]$", description="Start time in HH:MM format")
+    end: str = Field(..., pattern=r"^([0-1][0-9]|2[0-3]):[0-5][0-9]$", description="End time in HH:MM format")
+
+    @field_validator('end')
+    @classmethod
+    def end_after_start(cls, v, info):
+        """Ensure end time is after start time."""
+        if 'start' in info.data:
+            start_parts = info.data['start'].split(':')
+            end_parts = v.split(':')
+            start_minutes = int(start_parts[0]) * 60 + int(start_parts[1])
+            end_minutes = int(end_parts[0]) * 60 + int(end_parts[1])
+            if end_minutes <= start_minutes:
+                raise ValueError('end time must be after start time')
+        return v
+
+
+class WorkingHoursTemplateUpdateRequest(BaseModel):
+    """Request schema for creating/updating working hours template."""
+
+    weekly_schedule: Dict[int, List[TimeRange]] = Field(
+        ...,
+        description="Weekly schedule: {0: [TimeRange, ...], 1: [...], ...} where 0=Monday, 6=Sunday"
+    )
+
+    @field_validator('weekly_schedule')
+    @classmethod
+    def validate_day_numbers(cls, v):
+        """Ensure day numbers are 0-6 (Monday-Sunday)."""
+        for day in v.keys():
+            if day < 0 or day > 6:
+                raise ValueError('Day numbers must be 0-6 (Monday=0, Sunday=6)')
+        return v
+
+
+class DateExceptionCreateRequest(BaseModel):
+    """Request schema for creating a date exception."""
+
+    exception_date: date = Field(..., description="Date for the exception")
+    exception_type: str = Field(..., pattern="^(off|custom)$", description="Type: 'off' or 'custom'")
+    custom_hours: Optional[List[TimeRange]] = Field(
+        None,
+        description="Custom hours for 'custom' type. Required if exception_type='custom', ignored if 'off'"
+    )
+
+    @field_validator('custom_hours')
+    @classmethod
+    def validate_custom_hours(cls, v, info):
+        """Ensure custom_hours is provided for 'custom' type."""
+        if 'exception_type' in info.data:
+            if info.data['exception_type'] == 'custom' and (not v or len(v) == 0):
+                raise ValueError('custom_hours is required when exception_type is "custom"')
+        return v
+
+
+class DateExceptionUpdateRequest(BaseModel):
+    """Request schema for updating a date exception."""
+
+    exception_type: str = Field(..., pattern="^(off|custom)$", description="Type: 'off' or 'custom'")
+    custom_hours: Optional[List[TimeRange]] = Field(
+        None,
+        description="Custom hours for 'custom' type. Required if exception_type='custom', ignored if 'off'"
+    )
+
+    @field_validator('custom_hours')
+    @classmethod
+    def validate_custom_hours(cls, v, info):
+        """Ensure custom_hours is provided for 'custom' type."""
+        if 'exception_type' in info.data:
+            if info.data['exception_type'] == 'custom' and (not v or len(v) == 0):
+                raise ValueError('custom_hours is required when exception_type is "custom"')
+        return v
 

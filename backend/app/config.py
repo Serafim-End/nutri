@@ -153,6 +153,14 @@ class Config:
     # Development mode flag
     DEV_MODE = os.environ.get("FLASK_ENV", "production") == "development"
 
+    # Google Calendar OAuth Configuration
+    GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+    GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+    GOOGLE_REDIRECT_URI = os.environ.get(
+        "GOOGLE_REDIRECT_URI",
+        "http://localhost:5000/api/nutritionists/{nutritionist_id}/calendar/callback"
+    )
+
 
 class DevelopmentConfig(Config):
     """Development configuration."""

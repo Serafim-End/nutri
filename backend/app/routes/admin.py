@@ -11,7 +11,7 @@ from flask_jwt_extended import jwt_required, get_jwt, create_access_token
 from sqlalchemy import or_, and_
 
 from app.extensions import db
-from app.models import NutritionistProfile, NutritionistDocument, Profile, Booking, AvailabilitySlot, Service, Payment
+from app.models import NutritionistProfile, NutritionistDocument, Profile, Booking, AvailabilitySlot, Service, Payment, Review
 from app.services.notifications import NotificationService
 
 
@@ -879,4 +879,157 @@ def get_dashboard_stats():
         "pending_verifications": pending_verifications,
         "total_bookings": total_bookings,
         "revenue_this_month": revenue_this_month,
+    })
+
+
+# ============================================================================
+# REVIEW MANAGEMENT
+# ============================================================================
+
+
+@admin_bp.route("/reviews", methods=["GET"])
+@jwt_required()
+def list_reviews_admin():
+    """
+    List all reviews with optional filters (admin only).
+    
+    Request:
+        GET /api/admin/reviews?is_hidden=false&nutritionist_id=...&page=1&limit=20
+        Authorization: Bearer <admin_token>
+    
+    Response:
+        200: { "reviews": [...], "total": 100, "page": 1, "pages": 5 }
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    # Parse query parameters
+    page = request.args.get("page", 1, type=int)
+    limit = request.args.get("limit", 20, type=int)
+    is_hidden = request.args.get("is_hidden")
+    nutritionist_id = request.args.get("nutritionist_id")
+
+    # Build query
+    query = Review.query
+
+    # Apply filters
+    if is_hidden is not None:
+        is_hidden_bool = is_hidden.lower() == "true"
+        query = query.filter(Review.is_hidden == is_hidden_bool)
+
+    if nutritionist_id:
+        query = query.filter(Review.nutritionist_id == nutritionist_id)
+
+    # Order by most recent first
+    query = query.order_by(Review.created_at.desc())
+
+    # Paginate
+    total = query.count()
+    pages = (total + limit - 1) // limit
+    reviews = query.offset((page - 1) * limit).limit(limit).all()
+
+    return jsonify({
+        "reviews": [r.to_dict(include_relations=True) for r in reviews],
+        "total": total,
+        "page": page,
+        "pages": pages,
+    })
+
+
+@admin_bp.route("/reviews/<review_id>/hide", methods=["POST"])
+@jwt_required()
+def hide_review(review_id: str):
+    """
+    Hide a review (admin only).
+    
+    Request:
+        POST /api/admin/reviews/<id>/hide
+        Authorization: Bearer <admin_token>
+    
+    Response:
+        200: { "review": {...}, "message": "Review hidden" }
+        404: Not found
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    review = Review.query.get(review_id)
+    if not review:
+        return jsonify({"error": "Review not found"}), 404
+
+    review.is_hidden = True
+    db.session.commit()
+
+    logger.info(f"Admin hid review: {review_id}")
+
+    return jsonify({
+        "review": review.to_dict(include_relations=True),
+        "message": "Review hidden successfully",
+    })
+
+
+@admin_bp.route("/reviews/<review_id>/unhide", methods=["POST"])
+@jwt_required()
+def unhide_review(review_id: str):
+    """
+    Unhide a review (admin only).
+    
+    Request:
+        POST /api/admin/reviews/<id>/unhide
+        Authorization: Bearer <admin_token>
+    
+    Response:
+        200: { "review": {...}, "message": "Review unhidden" }
+        404: Not found
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    review = Review.query.get(review_id)
+    if not review:
+        return jsonify({"error": "Review not found"}), 404
+
+    review.is_hidden = False
+    db.session.commit()
+
+    logger.info(f"Admin unhid review: {review_id}")
+
+    return jsonify({
+        "review": review.to_dict(include_relations=True),
+        "message": "Review unhidden successfully",
+    })
+
+
+@admin_bp.route("/reviews/<review_id>", methods=["DELETE"])
+@jwt_required()
+def delete_review(review_id: str):
+    """
+    Delete a review (admin only).
+    
+    Request:
+        DELETE /api/admin/reviews/<id>
+        Authorization: Bearer <admin_token>
+    
+    Response:
+        200: { "message": "Review deleted" }
+        404: Not found
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    review = Review.query.get(review_id)
+    if not review:
+        return jsonify({"error": "Review not found"}), 404
+
+    db.session.delete(review)
+    db.session.commit()
+
+    logger.info(f"Admin deleted review: {review_id}")
+
+    return jsonify({
+        "message": "Review deleted successfully",
     })

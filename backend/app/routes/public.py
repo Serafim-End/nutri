@@ -3,12 +3,25 @@ Public Routes
 Public endpoints for browsing nutritionists (no auth required).
 """
 
-from datetime import datetime
+from datetime import datetime, date, time, timedelta, timezone
 from flask import Blueprint, request, jsonify
+from flask import current_app
 
-from app.models import NutritionistProfile, Service, AvailabilitySlot
+from app.models import (
+    NutritionistProfile,
+    Service,
+    WorkingHoursTemplate,
+    DateException,
+    GoogleCalendar,
+)
 from app.services.matching import MatchingService
 from app.services.filters import FILTER_OPTIONS, validate_filters, get_empty_filters
+from app.services.availability import (
+    calculate_availability,
+    parse_google_calendar_busy,
+    TimeRange,
+)
+from app.services.google_calendar import GoogleCalendarService
 
 
 public_bp = Blueprint("public", __name__)
@@ -180,6 +193,10 @@ def list_slots(nutritionist_id: str):
         in: query
         type: string
         description: UUID услуги (опционально)
+      - name: days_ahead
+        in: query
+        type: integer
+        description: Number of days ahead to calculate availability (default: 30)
     responses:
       200:
         description: Список свободных слотов
@@ -196,6 +213,7 @@ def list_slots(nutritionist_id: str):
           $ref: '#/definitions/Error'
     """
     service_id = request.args.get("service_id")
+    days_ahead = request.args.get("days_ahead", type=int, default=30)
 
     nutritionist = NutritionistProfile.query.get(nutritionist_id)
 
@@ -212,16 +230,94 @@ def list_slots(nutritionist_id: str):
         if not service or str(service.nutritionist_id) != nutritionist_id:
             return jsonify({"error": "Service not found"}), 404
 
-    # Get available slots (free slots in the future)
-    slots = AvailabilitySlot.query.filter(
-        AvailabilitySlot.nutritionist_id == nutritionist_id,
-        AvailabilitySlot.status == "free",
-        AvailabilitySlot.start_at > datetime.utcnow(),
-    ).order_by(AvailabilitySlot.start_at).all()
+    # Calculate availability using working hours, exceptions, and Google Calendar
+    try:
+        # Get working hours template
+        working_hours = WorkingHoursTemplate.query.filter_by(
+            nutritionist_id=nutritionist_id
+        ).first()
+        
+        if not working_hours or not working_hours.weekly_schedule:
+            # No working hours configured, return empty slots
+            return jsonify({"slots": []})
 
-    return jsonify({
-        "slots": [s.to_dict() for s in slots],
-    })
+        weekly_schedule = working_hours.weekly_schedule
+
+        # Get date exceptions
+        start_date = date.today()
+        end_date = start_date + timedelta(days=days_ahead)
+        
+        date_exceptions_query = DateException.query.filter(
+            DateException.nutritionist_id == nutritionist_id,
+            DateException.exception_date >= start_date,
+            DateException.exception_date <= end_date,
+        ).all()
+        
+        date_exceptions = {}
+        for exc in date_exceptions_query:
+            date_exceptions[exc.exception_date] = {
+                "exception_type": exc.exception_type,
+                "custom_hours": exc.custom_hours or [],
+            }
+
+        # Get Google Calendar busy intervals (if connected)
+        busy_intervals = []
+        google_calendar = GoogleCalendar.query.filter_by(
+            nutritionist_id=nutritionist_id
+        ).first()
+        
+        if google_calendar and google_calendar.is_connected and google_calendar.selected_calendar_id:
+            try:
+                time_min = datetime.now(timezone.utc)
+                # Set time_max to end of end_date
+                time_max = datetime.combine(end_date, time(23, 59, 59)).replace(tzinfo=timezone.utc)
+                
+                freebusy_result = GoogleCalendarService.get_freebusy(
+                    nutritionist_id=nutritionist_id,
+                    time_min=time_min,
+                    time_max=time_max,
+                )
+                
+                busy_intervals = parse_google_calendar_busy(
+                    freebusy_result,
+                    calendar_id=google_calendar.selected_calendar_id,
+                )
+            except Exception as e:
+                # Log error but continue without Google Calendar data
+                current_app.logger.warning(
+                    f"Failed to fetch Google Calendar busy intervals for {nutritionist_id}: {e}"
+                )
+
+        # Calculate available slots
+        available_ranges = calculate_availability(
+            weekly_schedule=weekly_schedule,
+            date_exceptions=date_exceptions,
+            busy_intervals=busy_intervals,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # Convert TimeRange objects to slot format
+        slots = []
+        for tr in available_ranges:
+            slots.append({
+                "id": None,  # Calculated slots don't have IDs
+                "nutritionist_id": nutritionist_id,
+                "start_at": tr.start.isoformat(),
+                "end_at": tr.end.isoformat(),
+                "status": "free",
+                "source": "calculated",
+                "hold_expires_at": None,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            })
+
+        return jsonify({"slots": slots})
+
+    except Exception as e:
+        current_app.logger.error(f"Error calculating availability for {nutritionist_id}: {e}")
+        # Fallback: return empty slots on error
+        return jsonify({"slots": []})
 
 
 @public_bp.route("/nutritionists/search", methods=["POST"])

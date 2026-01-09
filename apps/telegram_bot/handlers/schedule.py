@@ -35,6 +35,8 @@ from keyboards import (
     CB_BOOKINGS_NEXT,
     CB_BOOKINGS_PREV,
     CB_PERSONAL_CABINET,
+    CB_WORKING_HOURS,
+    CB_EXCEPTIONS,
 )
 
 

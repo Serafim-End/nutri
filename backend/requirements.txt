@@ -27,4 +27,10 @@ black==23.12.1
 ruff==0.1.9
 mypy==1.8.0
 
+# Google Calendar API
+google-auth==2.25.2
+google-auth-oauthlib==1.2.0
+google-auth-httplib2==0.2.0
+google-api-python-client==2.108.0
+
 

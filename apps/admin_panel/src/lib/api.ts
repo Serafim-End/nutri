@@ -98,12 +98,6 @@ export const adminApi = {
     return response.data
   },
 
-  // Users
-  getUsers: async (page = 1, limit = 20) => {
-    const response = await api.get('/admin/users', { params: { page, limit } })
-    return response.data
-  },
-
   // Bookings
   getBookings: async (params: {
     page?: number
@@ -131,30 +125,6 @@ export const adminApi = {
     return response.data
   },
 
-  // Payments
-  getPayments: async (params: { 
-    page?: number
-    limit?: number
-    status?: string
-    from?: string
-    to?: string 
-  } = {}) => {
-    const response = await api.get('/admin/payments', { params })
-    return response.data
-  },
-
-  exportPaymentsCsv: async (from?: string, to?: string) => {
-    const params: Record<string, string> = {}
-    if (from) params.from = from
-    if (to) params.to = to
-    
-    const response = await api.get('/admin/payments/export', { 
-      params,
-      responseType: 'blob'
-    })
-    return response.data
-  },
-
   // Reviews
   getReviews: async (params?: { rating_lte?: number }) => {
     const response = await api.get('/admin/reviews', { params })
@@ -176,15 +146,41 @@ export const adminApi = {
     return response.data
   },
 
+  deleteReview: async (id: string) => {
+    const response = await api.delete(`/admin/reviews/${id}`)
+    return response.data
+  },
+
+  // Payments
+  getPayments: async (params?: {
+    status?: string
+    from?: string
+    to?: string
+  }) => {
+    const response = await api.get('/admin/payments', { params })
+    return response.data
+  },
+
+  exportPaymentsCsv: async (from?: string, to?: string) => {
+    const params: Record<string, string> = {}
+    if (from) params.from = from
+    if (to) params.to = to
+    const response = await api.get('/admin/payments/export', {
+      params,
+      responseType: 'blob',
+    })
+    return response.data
+  },
+
   // Support
   getSupportTickets: async (status?: string) => {
     const params = status ? { status } : {}
-    const response = await api.get('/admin/support', { params })
+    const response = await api.get('/admin/support/tickets', { params })
     return response.data
   },
 
   closeSupportTicket: async (id: string) => {
-    const response = await api.post(`/admin/support/${id}/close`)
+    const response = await api.post(`/admin/support/tickets/${id}/close`)
     return response.data
   },
 }

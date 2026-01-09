@@ -211,6 +211,11 @@ test:
 test-cov:
 	cd backend && pytest --cov=app --cov-report=html
 
+# Run all tests (backend, bot, admin)
+test-all:
+	@echo "Running all tests..."
+	@./scripts/test_all.sh
+
 # Run linters
 lint:
 	cd backend && black . && ruff check . && mypy app/

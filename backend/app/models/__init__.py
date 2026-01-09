@@ -9,9 +9,12 @@ from app.models.availability_slot import AvailabilitySlot
 from app.models.booking import Booking
 from app.models.payment import Payment
 from app.models.nutritionist_document import NutritionistDocument
-from app.models.policy_acknowledgement import PolicyAcknowledgement
 from app.models.intake import Intake
 from app.models.client_filter_state import ClientFilterState
+from app.models.working_hours_template import WorkingHoursTemplate
+from app.models.date_exception import DateException
+from app.models.google_calendar import GoogleCalendar
+from app.models.review import Review
 
 __all__ = [
     "Profile",
@@ -21,9 +24,12 @@ __all__ = [
     "Booking",
     "Payment",
     "NutritionistDocument",
-    "PolicyAcknowledgement",
     "Intake",
     "ClientFilterState",
+    "WorkingHoursTemplate",
+    "DateException",
+    "GoogleCalendar",
+    "Review",
 ]
 
 

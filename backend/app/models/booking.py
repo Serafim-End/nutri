@@ -46,6 +46,7 @@ class Booking(db.Model):
     price_rub = db.Column(db.Integer, nullable=False)
     currency = db.Column(db.String(3), nullable=False, default="RUB")
     meeting_link = db.Column(db.Text, nullable=True)
+    google_calendar_event_id = db.Column(db.String(255), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     paid_at = db.Column(db.DateTime, nullable=True)
     cancelled_at = db.Column(db.DateTime, nullable=True)

@@ -14,6 +14,7 @@ from sqlalchemy.exc import OperationalError
 from app.extensions import db
 from app.models import AvailabilitySlot, Booking, Service
 from app.services.notifications import NotificationService
+from app.services.booking_calendar_sync import BookingCalendarSync
 
 
 logger = logging.getLogger(__name__)
@@ -198,6 +199,12 @@ class BookingHoldService:
                             NotificationService.booking_cancelled(booking, "Payment timeout")
                         except Exception as e:
                             logger.warning(f"Failed to send cancellation notification: {e}")
+                        
+                        # Sync to Google Calendar (non-blocking, idempotent)
+                        try:
+                            BookingCalendarSync.sync_booking_cancelled(booking)
+                        except Exception as e:
+                            logger.warning(f"Failed to sync booking cancellation to calendar: {e}")
 
                     # Release the slot
                     slot.status = "free"
@@ -219,103 +226,6 @@ class BookingHoldService:
             logger.error(f"Error in release_expired_holds: {e}")
 
         return released_count
-
-    @staticmethod
-    def mark_booking_paid(booking_id: str) -> Tuple[Optional[Booking], Optional[str]]:
-        """
-        Mark a booking as paid after successful payment.
-        Atomic operation with row locks.
-
-        Args:
-            booking_id: UUID of the booking
-
-        Returns:
-            Tuple of (booking or None, error message or None)
-        """
-        now = utc_now()
-
-        try:
-            # Lock booking row
-            booking = db.session.query(Booking).filter(
-                Booking.id == booking_id
-            ).with_for_update(nowait=True).first()
-
-            if not booking:
-                return None, "Booking not found"
-
-            if booking.status != "pending_payment":
-                return None, f"Booking status is {booking.status}, cannot mark as paid"
-
-            # Lock slot row
-            slot = db.session.query(AvailabilitySlot).filter(
-                AvailabilitySlot.id == booking.slot_id
-            ).with_for_update(nowait=True).first()
-
-            if not slot:
-                return None, "Slot not found"
-
-            if slot.status != "held":
-                return None, f"Slot status is {slot.status}, expected 'held'"
-
-            # Check if hold has expired
-            if slot.hold_expires_at:
-                hold_expires = slot.hold_expires_at
-                if hold_expires.tzinfo is None:
-                    hold_expires = hold_expires.replace(tzinfo=timezone.utc)
-                if hold_expires < now:
-                    return None, "Slot hold has expired, please book again"
-
-            # Validate transitions
-            if not BookingHoldService._can_transition_booking("pending_payment", "paid"):
-                return None, "Invalid booking state transition"
-            if not BookingHoldService._can_transition_slot("held", "booked"):
-                return None, "Invalid slot state transition"
-
-            # Update booking
-            booking.status = "paid"
-            booking.paid_at = now
-
-            # Update slot
-            slot.status = "booked"
-            slot.hold_expires_at = None
-
-            db.session.commit()
-
-            logger.info(f"Booking marked as paid: id={booking.id}")
-
-            # Send notifications
-            try:
-                NotificationService.booking_confirmed(booking)
-            except Exception as e:
-                logger.warning(f"Failed to send confirmation notification: {e}")
-
-            return booking, None
-
-        except OperationalError as e:
-            db.session.rollback()
-            if "could not obtain lock" in str(e) or "LockNotAvailable" in str(e):
-                logger.warning(f"Booking {booking_id} locked by concurrent transaction")
-                return None, "Booking is being processed, please try again"
-            logger.error(f"Database error marking booking paid: {e}")
-            return None, "Failed to process payment"
-
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error marking booking paid: {e}")
-            return None, "Failed to process payment"
-
-    @staticmethod
-    def confirm_booking(booking_id: str) -> Tuple[Optional[Booking], Optional[str]]:
-        """
-        Confirm a booking after successful payment (alias for mark_booking_paid).
-
-        Args:
-            booking_id: UUID of the booking
-
-        Returns:
-            Tuple of (booking or None, error message or None)
-        """
-        return BookingHoldService.mark_booking_paid(booking_id)
 
     @staticmethod
     def cancel_booking(
@@ -386,6 +296,12 @@ class BookingHoldService:
                 NotificationService.booking_cancelled(booking, reason)
             except Exception as e:
                 logger.warning(f"Failed to send cancellation notification: {e}")
+
+            # Sync to Google Calendar (non-blocking, idempotent)
+            try:
+                BookingCalendarSync.sync_booking_cancelled(booking)
+            except Exception as e:
+                logger.warning(f"Failed to sync booking cancellation to calendar: {e}")
 
             return booking, None
 

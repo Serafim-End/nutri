@@ -42,9 +42,6 @@ class Profile(db.Model):
         lazy="dynamic",
     )
     intakes = db.relationship("Intake", backref="client", lazy="dynamic")
-    policy_acknowledgements = db.relationship(
-        "PolicyAcknowledgement", backref="user", lazy="dynamic"
-    )
 
     def __repr__(self):
         return f"<Profile {self.full_name} ({self.role})>"

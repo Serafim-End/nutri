@@ -22,6 +22,7 @@ from app.models import Payment, Booking, AvailabilitySlot
 from app.payments import get_provider, PaymentResult
 from app.payments.base import PaymentStatus, PaymentIntent
 from app.services.notifications import NotificationService
+from app.services.booking_calendar_sync import BookingCalendarSync
 
 logger = logging.getLogger(__name__)
 
@@ -249,6 +250,12 @@ class PaymentService:
                     NotificationService.booking_confirmed(booking)
                 except Exception as e:
                     logger.warning(f"Failed to send payment notification: {e}")
+                
+                # Sync to Google Calendar (non-blocking, idempotent)
+                try:
+                    BookingCalendarSync.sync_booking_paid(booking)
+                except Exception as e:
+                    logger.warning(f"Failed to sync booking to calendar: {e}")
                 
                 return payment, None
                 
