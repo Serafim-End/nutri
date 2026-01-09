@@ -1,7 +1,7 @@
 """Add source and updated_at to availability_slots
 
 Revision ID: 20241229_000001
-Revises: 20241228_000001_add_currency_to_payments
+Revises: 20241228_000001
 Create Date: 2024-12-29 00:00:01
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '20241229_000001'
-down_revision = '20241228_000001_add_currency_to_payments'
+down_revision = '20241228_000001'
 branch_labels = None
 depends_on = None
 

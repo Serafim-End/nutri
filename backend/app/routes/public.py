@@ -196,7 +196,7 @@ def list_slots(nutritionist_id: str):
       - name: days_ahead
         in: query
         type: integer
-        description: Number of days ahead to calculate availability (default: 30)
+        description: "Number of days ahead to calculate availability (default: 30)"
     responses:
       200:
         description: Список свободных слотов

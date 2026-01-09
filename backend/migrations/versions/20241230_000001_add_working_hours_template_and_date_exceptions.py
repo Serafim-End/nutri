@@ -1,7 +1,7 @@
 """Add working hours template and date exceptions
 
 Revision ID: 20241230_000001
-Revises: 20241229_000001_add_slot_source_and_updated_at
+Revises: 20241229_000001
 Create Date: 2024-12-30 00:00:01
 
 """
@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = '20241230_000001'
-down_revision = '20241229_000001_add_slot_source_and_updated_at'
+down_revision = '20241229_000001'
 branch_labels = None
 depends_on = None
 
