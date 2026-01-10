@@ -954,7 +954,7 @@ def _handle_google_calendar_callback(authorization_code: str, nutritionist_id: s
 
     if calendar:
         return jsonify({"calendar": calendar.to_dict()})
-    return jsonify({"error": "Failed to connect calendar"}), 400
+        return jsonify({"error": "Не удалось подключить календарь"}), 400
 
 
 def _render_calendar_callback_page(
@@ -962,9 +962,9 @@ def _render_calendar_callback_page(
     message: str,
     webapp_url: str | None = None,
 ):
-    status_title = "Google Calendar Connected" if success else "Google Calendar Error"
-    button_label = "Back to app" if success else "Back to app"
-    button_href = webapp_url or "https://t.me/your_bot/app"
+    status_title = "Google Calendar подключён" if success else "Ошибка подключения календаря"
+    button_label = "Вернуться в бот"
+    button_href = "https://t.me/nutritionstagebot"
 
     html = f"""
 <!doctype html>
@@ -976,19 +976,19 @@ def _render_calendar_callback_page(
     <style>
       body {{
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #0f172a;
-        color: #e2e8f0;
+        background: #f7f8fb;
+        color: #0f172a;
         margin: 0;
-        padding: 40px 16px;
+        padding: 48px 16px;
       }}
       .card {{
         max-width: 520px;
         margin: 0 auto;
-        background: #111827;
-        border: 1px solid #1f2937;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
         border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        padding: 28px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
       }}
       h1 {{
         font-size: 20px;
@@ -997,13 +997,14 @@ def _render_calendar_callback_page(
       p {{
         margin: 0 0 18px 0;
         line-height: 1.5;
+        color: #334155;
       }}
       a.button {{
         display: inline-block;
-        background: #22c55e;
-        color: #0b1220;
+        background: #2563eb;
+        color: #ffffff;
         text-decoration: none;
-        padding: 10px 16px;
+        padding: 10px 18px;
         border-radius: 10px;
         font-weight: 600;
       }}
@@ -1065,14 +1066,14 @@ def google_calendar_callback_global():
         current_app.logger.warning("Calendar callback missing code")
         return _render_calendar_callback_page(
             False,
-            "Authorization code is missing. Please try again.",
+            "Код авторизации отсутствует. Попробуйте ещё раз.",
             webapp_url,
         ), 400
     if not state:
         current_app.logger.warning("Calendar callback missing state")
         return _render_calendar_callback_page(
             False,
-            "State parameter is missing. Please try again.",
+            "Параметр state отсутствует. Попробуйте ещё раз.",
             webapp_url,
         ), 400
     try:
@@ -1081,7 +1082,7 @@ def google_calendar_callback_global():
         current_app.logger.warning(f"Calendar callback invalid state: {state}")
         return _render_calendar_callback_page(
             False,
-            "Invalid state parameter. Please try again.",
+            "Неверный параметр state. Попробуйте ещё раз.",
             webapp_url,
         ), 400
 
@@ -1090,7 +1091,7 @@ def google_calendar_callback_global():
         current_app.logger.warning(f"Calendar callback nutritionist not found: {state}")
         return _render_calendar_callback_page(
             False,
-            "Nutritionist profile not found. Please contact support.",
+            "Профиль нутрициолога не найден. Обратитесь в поддержку.",
             webapp_url,
         ), 404
 
@@ -1103,14 +1104,14 @@ def google_calendar_callback_global():
             )
             return _render_calendar_callback_page(
                 False,
-                "Failed to connect Google Calendar. Please try again.",
+                "Не удалось подключить Google Calendar. Попробуйте ещё раз.",
                 webapp_url,
             ), status
 
     current_app.logger.info(f"Calendar connected: nutritionist_id={state}")
     return _render_calendar_callback_page(
         True,
-        "Google Calendar connected successfully. You can return to the app.",
+        "Google Calendar подключён. Можете вернуться в бот.",
         webapp_url,
     )
 
@@ -1169,7 +1170,7 @@ def google_calendar_callback(nutritionist_id: str):
         current_app.logger.warning("Calendar callback (legacy) missing code")
         return _render_calendar_callback_page(
             False,
-            "Authorization code is missing. Please try again.",
+            "Код авторизации отсутствует. Попробуйте ещё раз.",
             webapp_url,
         ), 400
 
@@ -1179,7 +1180,7 @@ def google_calendar_callback(nutritionist_id: str):
         )
         return _render_calendar_callback_page(
             False,
-            "Invalid state parameter. Please try again.",
+            "Неверный параметр state. Попробуйте ещё раз.",
             webapp_url,
         ), 400
 
@@ -1193,13 +1194,13 @@ def google_calendar_callback(nutritionist_id: str):
                 )
                 return _render_calendar_callback_page(
                     False,
-                    "Failed to connect Google Calendar. Please try again.",
+                    "Не удалось подключить Google Calendar. Попробуйте ещё раз.",
                     webapp_url,
                 ), status
         current_app.logger.info(f"Calendar connected (legacy): nutritionist_id={nutritionist_id}")
         return _render_calendar_callback_page(
             True,
-            "Google Calendar connected successfully. You can return to the app.",
+            "Google Calendar подключён. Можете вернуться в бот.",
             webapp_url,
         )
     except ValueError as e:
@@ -1208,7 +1209,7 @@ def google_calendar_callback(nutritionist_id: str):
         )
         return _render_calendar_callback_page(
             False,
-            "Google Calendar connection failed. Please try again.",
+            "Не удалось подключить Google Calendar. Попробуйте ещё раз.",
             webapp_url,
         ), 400
 
