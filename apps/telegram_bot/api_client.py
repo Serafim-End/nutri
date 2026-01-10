@@ -491,6 +491,26 @@ class BackendAPIClient:
         GET /api/bot/nutritionists/<id>/calendar/oauth-url
         """
         return await self._request("GET", f"/api/bot/nutritionists/{nutritionist_id}/calendar/oauth-url")
+
+    async def list_calendars(self, nutritionist_id: str) -> APIResponse:
+        """
+        List Google calendars for nutritionist.
+        GET /api/bot/nutritionists/<id>/calendar/calendars
+        """
+        return await self._request(
+            "GET", f"/api/bot/nutritionists/{nutritionist_id}/calendar/calendars"
+        )
+
+    async def select_calendar(self, nutritionist_id: str, calendar_id: str) -> APIResponse:
+        """
+        Select Google calendar for nutritionist.
+        POST /api/bot/nutritionists/<id>/calendar/select
+        """
+        return await self._request(
+            "POST",
+            f"/api/bot/nutritionists/{nutritionist_id}/calendar/select",
+            data={"calendar_id": calendar_id},
+        )
     
     # ==========================================
     # Reviews

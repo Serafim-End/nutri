@@ -289,6 +289,43 @@ def get_calendar_oauth_url(nutritionist_id: str):
         return jsonify({"error": str(e)}), 400
 
 
+@bot_bp.route("/nutritionists/<nutritionist_id>/calendar/calendars", methods=["GET"])
+@require_service_token
+def list_calendar_options(nutritionist_id: str):
+    nutritionist = NutritionistProfile.query.get(nutritionist_id)
+    if not nutritionist:
+        return jsonify({"error": "Nutritionist not found"}), 404
+
+    try:
+        from app.services.google_calendar import GoogleCalendarService
+        calendars = GoogleCalendarService.list_calendars(nutritionist_id)
+        return jsonify({"calendars": calendars})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@bot_bp.route("/nutritionists/<nutritionist_id>/calendar/select", methods=["POST"])
+@require_service_token
+def select_calendar(nutritionist_id: str):
+    nutritionist = NutritionistProfile.query.get(nutritionist_id)
+    if not nutritionist:
+        return jsonify({"error": "Nutritionist not found"}), 404
+
+    data = request.get_json() or {}
+    calendar_id = data.get("calendar_id")
+    if not calendar_id:
+        return jsonify({"error": "calendar_id is required"}), 400
+
+    try:
+        from app.services.google_calendar import GoogleCalendarService
+        calendar = GoogleCalendarService.select_calendar(nutritionist_id, calendar_id)
+        if not calendar:
+            return jsonify({"error": "Failed to select calendar"}), 400
+        return jsonify({"calendar": calendar.to_dict()})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
 @bot_bp.route("/nutritionists/<nutritionist_id>/reviews", methods=["GET"])
 @require_service_token
 def get_reviews(nutritionist_id: str):

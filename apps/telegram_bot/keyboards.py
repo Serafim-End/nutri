@@ -32,6 +32,9 @@ CB_BACK_MAIN = "back_main"
 # Personal cabinet
 CB_MY_SERVICES = "my_services"
 CB_CALENDAR = "calendar"
+CB_CALENDAR_REFRESH = "calendar_refresh"
+CB_CALENDAR_SELECT = "calendar_select"
+CB_CALENDAR_PICK_PREFIX = "calendar_pick:"
 CB_REVIEWS = "reviews"
 CB_STATISTICS = "statistics"
 CB_SETTINGS = "settings"
@@ -544,7 +547,11 @@ def get_reviews_keyboard(
     return builder.as_markup()
 
 
-def get_calendar_keyboard(oauth_url: Optional[str] = None) -> InlineKeyboardMarkup:
+def get_calendar_keyboard(
+    oauth_url: Optional[str] = None,
+    is_connected: bool = False,
+    can_select_calendar: bool = False,
+) -> InlineKeyboardMarkup:
     """Calendar connection keyboard."""
     builder = InlineKeyboardBuilder()
     
@@ -555,11 +562,55 @@ def get_calendar_keyboard(oauth_url: Optional[str] = None) -> InlineKeyboardMark
                 url=oauth_url,
             )
         )
+
+    builder.row(
+        InlineKeyboardButton(
+            text="🔄 Проверить подключение",
+            callback_data=CB_CALENDAR_REFRESH,
+        )
+    )
+
+    if is_connected and can_select_calendar:
+        builder.row(
+            InlineKeyboardButton(
+                text="📌 Выбрать календарь",
+                callback_data=CB_CALENDAR_SELECT,
+            )
+        )
     
     builder.row(
         InlineKeyboardButton(
             text="◀️ Назад",
             callback_data=CB_PERSONAL_CABINET,
+        )
+    )
+    
+    return builder.as_markup()
+
+
+def get_calendar_select_keyboard(
+    calendars: list[dict],
+    selected_id: Optional[str] = None,
+) -> InlineKeyboardMarkup:
+    """Calendar selection keyboard."""
+    builder = InlineKeyboardBuilder()
+    
+    for idx, calendar in enumerate(calendars):
+        summary = calendar.get("summary") or "Calendar"
+        calendar_id = calendar.get("id")
+        is_selected = selected_id and calendar_id == selected_id
+        prefix = "✅ " if is_selected else ""
+        builder.row(
+            InlineKeyboardButton(
+                text=f"{prefix}{summary}",
+                callback_data=f"{CB_CALENDAR_PICK_PREFIX}{idx}",
+            )
+        )
+    
+    builder.row(
+        InlineKeyboardButton(
+            text="◀️ Назад",
+            callback_data=CB_CALENDAR,
         )
     )
     
@@ -1039,4 +1090,3 @@ def get_delete_exception_keyboard(exceptions: list[dict]) -> InlineKeyboardMarku
     )
     
     return builder.as_markup()
-

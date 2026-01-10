@@ -13,10 +13,14 @@ from states import SupportStates
 from keyboards import (
     get_reviews_keyboard,
     get_calendar_keyboard,
+    get_calendar_select_keyboard,
     get_back_keyboard,
     get_support_keyboard,
     get_personal_cabinet_keyboard,
     CB_CALENDAR,
+    CB_CALENDAR_REFRESH,
+    CB_CALENDAR_SELECT,
+    CB_CALENDAR_PICK_PREFIX,
     CB_REVIEWS,
     CB_STATISTICS,
     CB_SETTINGS,
@@ -56,15 +60,30 @@ async def show_calendar(callback: CallbackQuery, state: FSMContext):
     api = get_api_client()
     status_response = await api.get_calendar_status(nutritionist_id)
     
+    calendars = []
+    can_select_calendar = False
+    selected_calendar_summary = None
+    selected_calendar_id = None
+    is_connected = False
+
     if status_response.success and status_response.data:
         is_connected = status_response.data.get("connected", False)
         calendar_email = status_response.data.get("email", "")
+        selected_calendar_id = status_response.data.get("selected_calendar_id")
+        selected_calendar_summary = status_response.data.get("selected_calendar_summary")
+        await state.update_data(selected_calendar_id=selected_calendar_id)
         
         if is_connected:
+            calendars_response = await api.list_calendars(nutritionist_id)
+            if calendars_response.success and calendars_response.data:
+                calendars = calendars_response.data.get("calendars", [])
+                can_select_calendar = len(calendars) > 1
+                await state.update_data(calendar_options=calendars)
             text = (
                 "📅 <b>Календарь</b>\n\n"
                 f"✅ Google Calendar подключён\n"
-                f"📧 {calendar_email}\n\n"
+                f"📧 {calendar_email}\n"
+                f"📌 {selected_calendar_summary or 'Календарь не выбран'}\n\n"
                 "<b>Как это работает:</b>\n"
                 "• Ваши свободные слоты определяются автоматически\n"
                 "• Мы смотрим на занятые события в вашем календаре\n"
@@ -100,8 +119,110 @@ async def show_calendar(callback: CallbackQuery, state: FSMContext):
     
     await callback.message.edit_text(
         text=text,
-        reply_markup=get_calendar_keyboard(oauth_url),
+        reply_markup=get_calendar_keyboard(
+            oauth_url,
+            is_connected=is_connected,
+            can_select_calendar=can_select_calendar,
+        ),
         parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data == CB_CALENDAR_REFRESH)
+async def refresh_calendar(callback: CallbackQuery, state: FSMContext):
+    await show_calendar(callback, state)
+
+
+@router.callback_query(F.data == CB_CALENDAR_SELECT)
+async def select_calendar_menu(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    data = await state.get_data()
+    calendars = data.get("calendar_options", [])
+    nutritionist = data.get("nutritionist", {})
+    nutritionist_id = nutritionist.get("nutritionist_id")
+
+    if not nutritionist_id:
+        await callback.message.edit_text(
+            text="❌ Профиль не найден.",
+            reply_markup=get_back_keyboard(CB_PERSONAL_CABINET),
+        )
+        return
+
+    if not calendars:
+        api = get_api_client()
+        calendars_response = await api.list_calendars(nutritionist_id)
+        if calendars_response.success and calendars_response.data:
+            calendars = calendars_response.data.get("calendars", [])
+            await state.update_data(calendar_options=calendars)
+
+    if not calendars:
+        await callback.message.edit_text(
+            text="❌ Нет доступных календарей для выбора.",
+            reply_markup=get_back_keyboard(CB_CALENDAR),
+        )
+        return
+
+    selected_id = data.get("selected_calendar_id")
+    await callback.message.edit_text(
+        text="📌 Выберите календарь для синхронизации:",
+        reply_markup=get_calendar_select_keyboard(calendars, selected_id),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data.startswith(CB_CALENDAR_PICK_PREFIX))
+async def pick_calendar(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    data = await state.get_data()
+    calendars = data.get("calendar_options", [])
+    nutritionist = data.get("nutritionist", {})
+    nutritionist_id = nutritionist.get("nutritionist_id")
+
+    if not nutritionist_id:
+        await callback.message.edit_text(
+            text="❌ Профиль не найден.",
+            reply_markup=get_back_keyboard(CB_PERSONAL_CABINET),
+        )
+        return
+
+    try:
+        index_str = callback.data.split(CB_CALENDAR_PICK_PREFIX, 1)[1]
+        idx = int(index_str)
+    except (IndexError, ValueError):
+        await callback.message.edit_text(
+            text="❌ Неверный выбор календаря.",
+            reply_markup=get_back_keyboard(CB_CALENDAR),
+        )
+        return
+
+    if idx < 0 or idx >= len(calendars):
+        await callback.message.edit_text(
+            text="❌ Неверный выбор календаря.",
+            reply_markup=get_back_keyboard(CB_CALENDAR),
+        )
+        return
+
+    calendar_id = calendars[idx].get("id")
+    if not calendar_id:
+        await callback.message.edit_text(
+            text="❌ Неверный выбор календаря.",
+            reply_markup=get_back_keyboard(CB_CALENDAR),
+        )
+        return
+
+    api = get_api_client()
+    select_response = await api.select_calendar(nutritionist_id, calendar_id)
+    if select_response.success:
+        await state.update_data(selected_calendar_id=calendar_id)
+        await callback.message.edit_text(
+            text="✅ Календарь выбран. Теперь он используется для синхронизации.",
+            reply_markup=get_back_keyboard(CB_CALENDAR),
+        )
+        return
+
+    await callback.message.edit_text(
+        text="❌ Не удалось выбрать календарь. Попробуйте позже.",
+        reply_markup=get_back_keyboard(CB_CALENDAR),
     )
 
 
@@ -398,4 +519,3 @@ async def cancel_support(callback: CallbackQuery, state: FSMContext):
         text="❌ Обращение в поддержку отменено.",
         reply_markup=get_personal_cabinet_keyboard(),
     )
-
