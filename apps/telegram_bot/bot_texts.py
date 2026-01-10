@@ -737,6 +737,13 @@ WORKING_HOURS_RANGE_OVERLAP = (
     "⚠️ Диапазон пересекается с существующим.\n"
     "Удалите старый диапазон или выберите другое время."
 )
+WORKING_HOURS_PRESET_APPLIED = "⚡️ Пресет применён."
+WORKING_HOURS_COPY_PICK_TARGET = (
+    "Копировать расписание из дня: <b>{day_name}</b>\n\n"
+    "Выберите день, куда скопировать:"
+)
+WORKING_HOURS_COPY_EMPTY = "⚠️ Нечего копировать: для дня нет диапазонов."
+WORKING_HOURS_COPY_DONE = "✅ Диапазоны скопированы."
 WORKING_HOURS_SAVE_TEMPLATE = "Сохранить шаблон рабочих часов?"
 WORKING_HOURS_TEMPLATE_SAVED = (
     "✅ <b>Шаблон рабочих часов сохранён!</b>\n\n"

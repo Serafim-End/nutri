@@ -19,12 +19,17 @@ from keyboards import (
     get_confirm_template_keyboard,
     get_back_keyboard,
     get_working_hours_input_keyboard,
+    get_copy_day_keyboard,
     CB_WORKING_HOURS,
     CB_WORKING_HOURS_DAY_PREFIX,
     CB_ADD_TIME_RANGE,
     CB_DELETE_TIME_RANGE_PREFIX,
     CB_CLEAR_DAY_RANGES,
     CB_BACK_DAY,
+    CB_PRESET_PREFIX,
+    CB_COPY_DAY,
+    CB_COPY_DAY_PREFIX,
+    CB_COPY_ALL_DAYS,
     CB_CONFIRM_TIME_RANGE,
     CB_SAVE_TEMPLATE,
     CB_CANCEL_WORKING_HOURS,
@@ -47,6 +52,10 @@ from bot_texts import (
     WORKING_HOURS_RANGE_REMOVED,
     WORKING_HOURS_DAY_CLEARED,
     WORKING_HOURS_RANGE_OVERLAP,
+    WORKING_HOURS_PRESET_APPLIED,
+    WORKING_HOURS_COPY_PICK_TARGET,
+    WORKING_HOURS_COPY_EMPTY,
+    WORKING_HOURS_COPY_DONE,
     WORKING_HOURS_SAVE_TEMPLATE,
     WORKING_HOURS_TEMPLATE_SAVED,
     WORKING_HOURS_TEMPLATE_ERROR,
@@ -100,6 +109,20 @@ def build_day_view(day_num: int, schedule: dict, notice: str | None = None) -> t
 
     text += WORKING_HOURS_ADD_RANGE
     return text, time_ranges
+
+
+def parse_preset_ranges(preset_str: str) -> list[dict]:
+    """Parse preset string like '09:00-18:00,14:00-18:00' into ranges."""
+    ranges = []
+    parts = [p.strip() for p in preset_str.split(",") if p.strip()]
+    for part in parts:
+        start_end = part.split("-")
+        if len(start_end) != 2:
+            continue
+        start = start_end[0].strip()
+        end = start_end[1].strip()
+        ranges.append({"start": start, "end": end})
+    return ranges
 
 
 @router.callback_query(F.data == CB_WORKING_HOURS)
@@ -451,6 +474,186 @@ async def back_to_day(callback: CallbackQuery, state: FSMContext):
         return
 
     text, time_ranges = build_day_view(day_num, schedule)
+    await callback.message.edit_text(
+        text=text,
+        reply_markup=get_day_time_ranges_keyboard(time_ranges=time_ranges),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data.startswith(CB_PRESET_PREFIX))
+async def apply_preset(callback: CallbackQuery, state: FSMContext):
+    """Apply a preset time range to the current day."""
+    await callback.answer()
+
+    preset_str = callback.data.replace(CB_PRESET_PREFIX, "")
+    preset_ranges = parse_preset_ranges(preset_str)
+
+    data = await state.get_data()
+    day_num = data.get("working_hours_current_day")
+    schedule = data.get("working_hours_schedule", {})
+
+    if day_num is None or not preset_ranges:
+        await callback.message.edit_text(
+            text=WORKING_HOURS_TITLE + WORKING_HOURS_EMPTY,
+            reply_markup=get_working_hours_keyboard(),
+            parse_mode="HTML",
+        )
+        return
+
+    schedule[str(day_num)] = sort_time_ranges(preset_ranges)
+    await state.update_data(working_hours_schedule=schedule)
+
+    text, time_ranges = build_day_view(
+        day_num,
+        schedule,
+        notice=WORKING_HOURS_PRESET_APPLIED,
+    )
+    await callback.message.edit_text(
+        text=text,
+        reply_markup=get_day_time_ranges_keyboard(time_ranges=time_ranges),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data == CB_COPY_DAY)
+async def copy_day_prompt(callback: CallbackQuery, state: FSMContext):
+    """Prompt user to choose copy target day."""
+    await callback.answer()
+
+    data = await state.get_data()
+    day_num = data.get("working_hours_current_day")
+    schedule = data.get("working_hours_schedule", {})
+
+    if day_num is None:
+        await callback.message.edit_text(
+            text=WORKING_HOURS_TITLE + WORKING_HOURS_EMPTY,
+            reply_markup=get_working_hours_keyboard(),
+            parse_mode="HTML",
+        )
+        return
+
+    day_key = str(day_num)
+    if not schedule.get(day_key):
+        text, time_ranges = build_day_view(
+            day_num,
+            schedule,
+            notice=WORKING_HOURS_COPY_EMPTY,
+        )
+        await callback.message.edit_text(
+            text=text,
+            reply_markup=get_day_time_ranges_keyboard(time_ranges=time_ranges),
+            parse_mode="HTML",
+        )
+        return
+
+    day_name = DAY_NAMES.get(day_num, f"День {day_num}")
+    text = (
+        WORKING_HOURS_TITLE +
+        WORKING_HOURS_COPY_PICK_TARGET.format(day_name=day_name)
+    )
+    await callback.message.edit_text(
+        text=text,
+        reply_markup=get_copy_day_keyboard(current_day=day_num),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data.startswith(CB_COPY_DAY_PREFIX))
+async def copy_day_to_target(callback: CallbackQuery, state: FSMContext):
+    """Copy current day ranges to a target day."""
+    await callback.answer()
+
+    data = await state.get_data()
+    current_day = data.get("working_hours_current_day")
+    schedule = data.get("working_hours_schedule", {})
+
+    if current_day is None:
+        await callback.message.edit_text(
+            text=WORKING_HOURS_TITLE + WORKING_HOURS_EMPTY,
+            reply_markup=get_working_hours_keyboard(),
+            parse_mode="HTML",
+        )
+        return
+
+    try:
+        target_day = int(callback.data.replace(CB_COPY_DAY_PREFIX, ""))
+    except ValueError:
+        await callback.answer("Некорректный день")
+        return
+
+    source_ranges = schedule.get(str(current_day), [])
+    if not source_ranges:
+        text, time_ranges = build_day_view(
+            current_day,
+            schedule,
+            notice=WORKING_HOURS_COPY_EMPTY,
+        )
+        await callback.message.edit_text(
+            text=text,
+            reply_markup=get_day_time_ranges_keyboard(time_ranges=time_ranges),
+            parse_mode="HTML",
+        )
+        return
+
+    schedule[str(target_day)] = sort_time_ranges([dict(r) for r in source_ranges])
+    await state.update_data(working_hours_schedule=schedule)
+
+    text, time_ranges = build_day_view(
+        current_day,
+        schedule,
+        notice=WORKING_HOURS_COPY_DONE,
+    )
+    await callback.message.edit_text(
+        text=text,
+        reply_markup=get_day_time_ranges_keyboard(time_ranges=time_ranges),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data == CB_COPY_ALL_DAYS)
+async def copy_day_to_all(callback: CallbackQuery, state: FSMContext):
+    """Copy current day ranges to all days."""
+    await callback.answer()
+
+    data = await state.get_data()
+    current_day = data.get("working_hours_current_day")
+    schedule = data.get("working_hours_schedule", {})
+
+    if current_day is None:
+        await callback.message.edit_text(
+            text=WORKING_HOURS_TITLE + WORKING_HOURS_EMPTY,
+            reply_markup=get_working_hours_keyboard(),
+            parse_mode="HTML",
+        )
+        return
+
+    source_ranges = schedule.get(str(current_day), [])
+    if not source_ranges:
+        text, time_ranges = build_day_view(
+            current_day,
+            schedule,
+            notice=WORKING_HOURS_COPY_EMPTY,
+        )
+        await callback.message.edit_text(
+            text=text,
+            reply_markup=get_day_time_ranges_keyboard(time_ranges=time_ranges),
+            parse_mode="HTML",
+        )
+        return
+
+    for day_num in range(7):
+        if day_num == current_day:
+            continue
+        schedule[str(day_num)] = sort_time_ranges([dict(r) for r in source_ranges])
+
+    await state.update_data(working_hours_schedule=schedule)
+
+    text, time_ranges = build_day_view(
+        current_day,
+        schedule,
+        notice=WORKING_HOURS_COPY_DONE,
+    )
     await callback.message.edit_text(
         text=text,
         reply_markup=get_day_time_ranges_keyboard(time_ranges=time_ranges),

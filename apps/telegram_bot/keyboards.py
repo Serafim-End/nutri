@@ -97,6 +97,10 @@ CB_ADD_TIME_RANGE = "add_time_range"
 CB_DELETE_TIME_RANGE_PREFIX = "del_time_range:"
 CB_CLEAR_DAY_RANGES = "clear_day_ranges"
 CB_BACK_DAY = "wh_back_day"
+CB_PRESET_PREFIX = "wh_preset:"
+CB_COPY_DAY = "wh_copy_day"
+CB_COPY_DAY_PREFIX = "wh_copy_to:"
+CB_COPY_ALL_DAYS = "wh_copy_all"
 CB_CONFIRM_TIME_RANGE = "confirm_time_range"
 CB_SAVE_TEMPLATE = "save_template"
 CB_CANCEL_WORKING_HOURS = "cancel_working_hours"
@@ -922,6 +926,24 @@ def get_day_time_ranges_keyboard(time_ranges: Optional[list[dict]] = None) -> In
         )
     )
 
+    builder.row(
+        InlineKeyboardButton(
+            text="⚡️ 09:00–18:00",
+            callback_data=f"{CB_PRESET_PREFIX}09:00-18:00",
+        ),
+        InlineKeyboardButton(
+            text="⚡️ 10:00–19:00",
+            callback_data=f"{CB_PRESET_PREFIX}10:00-19:00",
+        ),
+    )
+
+    builder.row(
+        InlineKeyboardButton(
+            text="⚡️ 09:00–13:00 + 14:00–18:00",
+            callback_data=f"{CB_PRESET_PREFIX}09:00-13:00,14:00-18:00",
+        )
+    )
+
     for index, time_range in enumerate(ranges):
         label = f"{time_range.get('start')}–{time_range.get('end')}"
         builder.row(
@@ -939,6 +961,13 @@ def get_day_time_ranges_keyboard(time_ranges: Optional[list[dict]] = None) -> In
             )
         )
 
+        builder.row(
+            InlineKeyboardButton(
+                text="📋 Копировать на…",
+                callback_data=CB_COPY_DAY,
+            )
+        )
+
     builder.row(
         InlineKeyboardButton(
             text="💾 Сохранить шаблон",
@@ -950,6 +979,45 @@ def get_day_time_ranges_keyboard(time_ranges: Optional[list[dict]] = None) -> In
         InlineKeyboardButton(
             text="◀️ Назад к дням",
             callback_data=CB_WORKING_HOURS,
+        )
+    )
+
+    return builder.as_markup()
+
+
+def get_copy_day_keyboard(current_day: int) -> InlineKeyboardMarkup:
+    """Keyboard for choosing copy target day(s)."""
+    builder = InlineKeyboardBuilder()
+
+    day_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+    row_buttons = []
+    for day_num, day_name in enumerate(day_names):
+        if day_num == current_day:
+            continue
+        row_buttons.append(
+            InlineKeyboardButton(
+                text=day_name,
+                callback_data=f"{CB_COPY_DAY_PREFIX}{day_num}",
+            )
+        )
+        if len(row_buttons) == 3:
+            builder.row(*row_buttons)
+            row_buttons = []
+
+    if row_buttons:
+        builder.row(*row_buttons)
+
+    builder.row(
+        InlineKeyboardButton(
+            text="📋 На все дни",
+            callback_data=CB_COPY_ALL_DAYS,
+        )
+    )
+
+    builder.row(
+        InlineKeyboardButton(
+            text="◀️ Назад к дню",
+            callback_data=CB_BACK_DAY,
         )
     )
 
