@@ -60,15 +60,19 @@ async def cmd_start(message: Message, state: FSMContext):
     # Build welcome message
     welcome_text = (
         f"👋 Привет, {user_name}!\n\n"
-        "Добро пожаловать в NutriMatch — сервис подбора нутрициологов.\n\n"
+        "Добро пожаловать в NutriMatch.\n"
+        "Это бот‑помощник для клиентов и нутрициологов.\n\n"
     )
     
     if role == "nutritionist":
-        welcome_text += "🩺 Вы зарегистрированы как нутрициолог.\n\n"
+        welcome_text += (
+            "🩺 Вы зарегистрированы как нутрициолог.\n"
+            "Если вы здесь впервые, нажмите «Для нутрициологов» и следуйте шагам.\n\n"
+        )
     elif role == "admin":
         welcome_text += "👑 Вы администратор.\n\n"
     
-    welcome_text += "Выберите действие:"
+    welcome_text += "Выберите действие ниже:"
     
     await message.answer(
         text=welcome_text,
