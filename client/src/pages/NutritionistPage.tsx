@@ -218,7 +218,7 @@ export default function NutritionistPage() {
                 <Text color="secondary">Отзывов пока нет.</Text>
               ) : (
                 previewReviews.map((review) => (
-                  <div key={review.id} className="rounded-xl bg-slate-950/20 border border-white/10 px-3 py-2">
+                  <div key={review.id} className="rounded-2xl bg-white/90 border border-slate-200/70 px-4 py-3 shadow-sm">
                     <Inline gap={2} align="center">
                       <Inline gap={1} align="center">
                         <Icons.Star size="sm" className="text-amber-400" />
@@ -252,7 +252,7 @@ export default function NutritionistPage() {
                 <Text color="secondary">Отзывов пока нет.</Text>
               ) : (
                 allReviews.map((review) => (
-                  <div key={review.id} className="rounded-xl bg-slate-950/30 border border-white/10 p-3">
+                  <div key={review.id} className="rounded-2xl bg-white/95 border border-slate-200/70 p-4 shadow-sm">
                     <Inline gap={2} align="center">
                       <Inline gap={1} align="center">
                         <Icons.Star size="sm" className="text-amber-400" />
