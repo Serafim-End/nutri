@@ -5,7 +5,7 @@ Handles nutritionist profile management (for Botpress integration).
 
 from datetime import datetime, date
 import uuid
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from pydantic import ValidationError
 
