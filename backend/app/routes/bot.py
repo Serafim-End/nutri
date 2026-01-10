@@ -20,6 +20,7 @@ from app.models import (
     AvailabilitySlot,
     GoogleCalendar,
     SupportTicket,
+    Review,
 )
 from app.schemas.nutritionist import SlotCreateRequest
 
@@ -353,12 +354,21 @@ def get_reviews(nutritionist_id: str):
     
     limit = request.args.get("limit", 5, type=int)
     offset = request.args.get("offset", 0, type=int)
-    
-    # TODO: Implement reviews model
-    # For now, return empty list
+
+    limit = min(20, max(1, limit))
+    offset = max(0, offset)
+
+    query = Review.query.filter_by(
+        nutritionist_id=nutritionist_id,
+        is_hidden=False,
+    ).order_by(Review.created_at.desc())
+
+    total = query.count()
+    reviews = query.offset(offset).limit(limit).all()
+
     return jsonify({
-        "reviews": [],
-        "total": 0,
+        "reviews": [r.to_dict(include_relations=True) for r in reviews],
+        "total": total,
     })
 
 

@@ -1280,6 +1280,7 @@ def list_reviews_admin():
     limit = request.args.get("limit", 20, type=int)
     is_hidden = request.args.get("is_hidden")
     nutritionist_id = request.args.get("nutritionist_id")
+    rating_lte = request.args.get("rating_lte", type=int)
 
     # Build query
     query = Review.query
@@ -1291,6 +1292,9 @@ def list_reviews_admin():
 
     if nutritionist_id:
         query = query.filter(Review.nutritionist_id == nutritionist_id)
+
+    if rating_lte is not None:
+        query = query.filter(Review.rating <= rating_lte)
 
     # Order by most recent first
     query = query.order_by(Review.created_at.desc())
@@ -1371,6 +1375,88 @@ def unhide_review(review_id: str):
     return jsonify({
         "review": review.to_dict(include_relations=True),
         "message": "Review unhidden successfully",
+    })
+
+
+@admin_bp.route("/reviews/<review_id>/show", methods=["POST"])
+@jwt_required()
+def show_review(review_id: str):
+    """
+    Show a review (alias for unhide, admin only).
+    """
+    return unhide_review(review_id)
+
+
+@admin_bp.route("/reviews/<review_id>/problematic", methods=["POST"])
+@jwt_required()
+def mark_review_problematic(review_id: str):
+    """
+    Mark or unmark review as problematic (admin only).
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    review = Review.query.get(review_id)
+    if not review:
+        return jsonify({"error": "Review not found"}), 404
+
+    data = request.get_json() or {}
+    problematic = data.get("problematic")
+    if problematic is None:
+        return jsonify({"error": "problematic is required"}), 400
+
+    review.is_problematic = bool(problematic)
+    db.session.commit()
+
+    logger.info(f"Admin set review problematic={review.is_problematic}: {review_id}")
+
+    return jsonify({
+        "review": review.to_dict(include_relations=True),
+        "message": "Review updated successfully",
+    })
+
+
+@admin_bp.route("/reviews/<review_id>", methods=["PUT"])
+@jwt_required()
+def update_review(review_id: str):
+    """
+    Update review rating/comment (admin only).
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    review = Review.query.get(review_id)
+    if not review:
+        return jsonify({"error": "Review not found"}), 404
+
+    data = request.get_json() or {}
+    rating = data.get("rating")
+    comment = data.get("comment")
+
+    if rating is not None:
+        try:
+            rating = int(rating)
+        except (TypeError, ValueError):
+            return jsonify({"error": "rating must be an integer 1-5"}), 400
+        if rating < 1 or rating > 5:
+            return jsonify({"error": "rating must be between 1 and 5"}), 400
+        review.rating = rating
+
+    if comment is not None:
+        comment = comment.strip() if isinstance(comment, str) else ""
+        if len(comment) > 2000:
+            return jsonify({"error": "comment is too long (max 2000 chars)"}), 400
+        review.comment = comment or None
+
+    db.session.commit()
+
+    logger.info(f"Admin updated review: {review_id}")
+
+    return jsonify({
+        "review": review.to_dict(include_relations=True),
+        "message": "Review updated successfully",
     })
 
 

@@ -6,6 +6,7 @@ import type {
   NutritionistSearchResult,
   Service,
   AvailabilitySlot,
+  Review,
   IntakeAnswers,
   BookingResponse,
   Booking,
@@ -218,6 +219,21 @@ export const publicApi = {
     const { data } = await api.get(`/public/nutritionists/${nutritionistId}/slots`, {
       params: serviceId ? { service_id: serviceId } : undefined,
     })
+    return data
+  },
+
+  getReviews: async (
+    nutritionistId: string,
+    params?: { page?: number; limit?: number }
+  ): Promise<{
+    reviews: Review[]
+    total: number
+    page: number
+    pages: number
+    average_rating: number
+    rating_count: number
+  }> => {
+    const { data } = await api.get(`/public/nutritionists/${nutritionistId}/reviews`, { params })
     return data
   },
 

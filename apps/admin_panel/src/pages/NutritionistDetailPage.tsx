@@ -322,6 +322,12 @@ export function NutritionistDetailPage() {
                   >
                     {nutritionist.verification_status.replace('_', ' ')}
                   </span>
+                  <button
+                    onClick={() => navigate(`/reviews?nutritionist_id=${nutritionist.nutritionist_id}`)}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800/50 text-slate-200 hover:bg-slate-800"
+                  >
+                    Reviews
+                  </button>
                 </div>
                 <p className="text-slate-400 text-sm">
                   {nutritionist.years_experience ? `${nutritionist.years_experience} years of experience` : ''}

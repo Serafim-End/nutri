@@ -45,6 +45,16 @@ export interface AvailabilitySlot {
   created_at: string
 }
 
+export interface Review {
+  id: string
+  nutritionist_id: string
+  rating: number
+  comment: string | null
+  text?: string | null
+  client_name?: string | null
+  created_at: string
+}
+
 export interface Booking {
   id: string
   client_id: string | null
@@ -167,5 +177,4 @@ export interface IntakeResponse {
   normalized_filters: SearchFilters
   message: string
 }
-
 

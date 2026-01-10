@@ -39,6 +39,7 @@ class Review(db.Model):
     rating = db.Column(db.Integer, nullable=False)  # 1-5 stars
     comment = db.Column(db.Text, nullable=True)
     is_hidden = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    is_problematic = db.Column(db.Boolean, nullable=False, default=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(
         db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
@@ -65,7 +66,9 @@ class Review(db.Model):
             "nutritionist_id": str(self.nutritionist_id),
             "rating": self.rating,
             "comment": self.comment,
+            "text": self.comment,
             "is_hidden": self.is_hidden,
+            "is_problematic": self.is_problematic,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
         }
@@ -76,10 +79,17 @@ class Review(db.Model):
                     "full_name": self.client.full_name,
                     "photo_url": self.client.photo_url,
                 }
+                data["client_name"] = self.client.full_name
+            else:
+                data["client_name"] = None
             if self.booking:
                 data["booking"] = {
                     "id": str(self.booking.id),
                     "status": self.booking.status,
                     "created_at": self.booking.created_at.isoformat(),
                 }
+            if self.nutritionist_profile and self.nutritionist_profile.profile:
+                data["nutritionist_name"] = self.nutritionist_profile.profile.full_name
+            else:
+                data["nutritionist_name"] = None
         return data

@@ -192,7 +192,12 @@ export const adminApi = {
   },
 
   // Reviews
-  getReviews: async (params?: { rating_lte?: number }) => {
+  getReviews: async (params?: {
+    rating_lte?: number
+    nutritionist_id?: string
+    page?: number
+    limit?: number
+  }) => {
     const response = await api.get('/admin/reviews', { params })
     return response.data
   },
@@ -204,6 +209,11 @@ export const adminApi = {
 
   showReview: async (id: string) => {
     const response = await api.post(`/admin/reviews/${id}/show`)
+    return response.data
+  },
+
+  updateReview: async (id: string, payload: { rating?: number; comment?: string | null }) => {
+    const response = await api.put(`/admin/reviews/${id}`, payload)
     return response.data
   },
 

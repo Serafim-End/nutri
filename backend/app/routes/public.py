@@ -14,6 +14,7 @@ from app.models import (
     DateException,
     GoogleCalendar,
     AvailabilitySlot,
+    Review,
 )
 from app.extensions import db
 from app.services.matching import MatchingService
@@ -173,6 +174,78 @@ def list_services(nutritionist_id: str):
 
     return jsonify({
         "services": [s.to_dict() for s in services],
+    })
+
+
+@public_bp.route("/nutritionists/<nutritionist_id>/reviews", methods=["GET"])
+def list_public_reviews(nutritionist_id: str):
+    """
+    Публичные отзывы нутрициолога
+    ---
+    tags:
+      - Public
+    produces:
+      - application/json
+    parameters:
+      - name: nutritionist_id
+        in: path
+        required: true
+        type: string
+        description: UUID нутрициолога
+      - name: page
+        in: query
+        type: integer
+        default: 1
+      - name: limit
+        in: query
+        type: integer
+        default: 10
+    responses:
+      200:
+        description: Список отзывов
+      404:
+        description: Нутрициолог не найден
+    """
+    nutritionist = NutritionistProfile.query.get(nutritionist_id)
+
+    if not nutritionist:
+        return jsonify({"error": "Nutritionist not found"}), 404
+
+    if nutritionist.verification_status != "approved" or not nutritionist.is_active:
+        return jsonify({"error": "Nutritionist not found"}), 404
+
+    page = request.args.get("page", 1, type=int)
+    limit = request.args.get("limit", 10, type=int)
+    page = max(1, page)
+    limit = min(20, max(1, limit))
+
+    query = Review.query.filter_by(
+        nutritionist_id=nutritionist_id,
+        is_hidden=False,
+    ).order_by(Review.created_at.desc())
+
+    total = query.count()
+    pages = (total + limit - 1) // limit
+    reviews = query.offset((page - 1) * limit).limit(limit).all()
+
+    visible_reviews = Review.query.filter_by(
+        nutritionist_id=nutritionist_id,
+        is_hidden=False,
+    ).all()
+    rating_count = len(visible_reviews)
+    average_rating = (
+        sum(r.rating for r in visible_reviews) / rating_count
+        if rating_count > 0
+        else 0.0
+    )
+
+    return jsonify({
+        "reviews": [r.to_dict(include_relations=True) for r in reviews],
+        "total": total,
+        "page": page,
+        "pages": pages,
+        "average_rating": round(average_rating, 2),
+        "rating_count": rating_count,
     })
 
 

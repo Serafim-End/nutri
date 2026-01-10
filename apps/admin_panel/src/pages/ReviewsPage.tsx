@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '@/lib/api'
 import { Review } from '@/types'
@@ -10,10 +11,21 @@ type RatingFilter = 'all' | 'low'
 export function ReviewsPage() {
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<RatingFilter>('all')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [nutritionistFilter, setNutritionistFilter] = useState(
+    searchParams.get('nutritionist_id') || ''
+  )
+  const [editingReview, setEditingReview] = useState<Review | null>(null)
+  const [editRating, setEditRating] = useState(5)
+  const [editText, setEditText] = useState('')
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['admin', 'reviews', filter],
-    queryFn: () => adminApi.getReviews(filter === 'low' ? { rating_lte: 3 } : undefined),
+    queryKey: ['admin', 'reviews', filter, nutritionistFilter],
+    queryFn: () =>
+      adminApi.getReviews({
+        rating_lte: filter === 'low' ? 3 : undefined,
+        nutritionist_id: nutritionistFilter || undefined,
+      }),
   })
 
   const reviews: Review[] = data?.reviews || []
@@ -47,10 +59,27 @@ export function ReviewsPage() {
     },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: (payload: { id: string; rating: number; comment: string | null }) =>
+      adminApi.updateReview(payload.id, { rating: payload.rating, comment: payload.comment }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'reviews'] })
+      setEditingReview(null)
+    },
+  })
+
   const filterButtons: { value: RatingFilter; label: string }[] = [
     { value: 'all', label: 'All Reviews' },
     { value: 'low', label: 'Rating ≤ 3' },
   ]
+
+  const applyNutritionistFilter = () => {
+    if (nutritionistFilter) {
+      setSearchParams({ nutritionist_id: nutritionistFilter })
+    } else {
+      setSearchParams({})
+    }
+  }
 
   const renderStars = (rating: number) => {
     return (
@@ -73,6 +102,21 @@ export function ReviewsPage() {
     )
   }
 
+  const openEditModal = (review: Review) => {
+    setEditingReview(review)
+    setEditRating(review.rating)
+    setEditText(review.text || '')
+  }
+
+  const handleSaveEdit = () => {
+    if (!editingReview) return
+    updateMutation.mutate({
+      id: editingReview.id,
+      rating: editRating,
+      comment: editText.trim() ? editText.trim() : null,
+    })
+  }
+
   return (
     <div className="animate-fade-in">
       {/* Header */}
@@ -84,21 +128,37 @@ export function ReviewsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-2 mb-6 p-1 bg-slate-925/50 border border-slate-800/50 rounded-xl w-fit">
-        {filterButtons.map((btn) => (
+      <div className="flex flex-wrap items-center gap-3 mb-6">
+        <div className="flex gap-2 p-1 bg-slate-925/50 border border-slate-800/50 rounded-xl w-fit">
+          {filterButtons.map((btn) => (
+            <button
+              key={btn.value}
+              onClick={() => setFilter(btn.value)}
+              className={clsx(
+                'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
+                filter === btn.value
+                  ? 'bg-slate-800 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white'
+              )}
+            >
+              {btn.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            value={nutritionistFilter}
+            onChange={(event) => setNutritionistFilter(event.target.value)}
+            placeholder="Nutritionist ID"
+            className="h-9 rounded-lg bg-slate-900/60 border border-slate-800 px-3 text-sm text-white placeholder:text-slate-600"
+          />
           <button
-            key={btn.value}
-            onClick={() => setFilter(btn.value)}
-            className={clsx(
-              'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200',
-              filter === btn.value
-                ? 'bg-slate-800 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            )}
+            onClick={applyNutritionistFilter}
+            className="px-3 py-2 rounded-lg text-sm font-medium text-slate-200 bg-slate-800/70 hover:bg-slate-700/80"
           >
-            {btn.label}
+            Apply
           </button>
-        ))}
+        </div>
       </div>
 
       {/* Table */}
@@ -199,6 +259,12 @@ export function ReviewsPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => openEditModal(review)}
+                        className="px-3 py-1.5 text-sm font-medium text-accent-400 hover:bg-accent-500/10 rounded-lg transition-colors"
+                      >
+                        Edit
+                      </button>
                       {review.is_hidden ? (
                         <button
                           onClick={() => showMutation.mutate(review.id)}
@@ -250,7 +316,63 @@ export function ReviewsPage() {
           </table>
         )}
       </div>
+      {editingReview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4">
+          <div className="w-full max-w-lg rounded-2xl bg-slate-925 border border-slate-800/50 p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-white mb-4">Edit review</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-slate-400 uppercase tracking-wider mb-2">
+                  Rating
+                </label>
+                <select
+                  value={editRating}
+                  onChange={(event) => setEditRating(Number(event.target.value))}
+                  className="w-full rounded-lg bg-slate-900/60 border border-slate-800 px-3 py-2 text-white"
+                >
+                  {[5, 4, 3, 2, 1].map((value) => (
+                    <option key={value} value={value}>
+                      {value} ★
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 uppercase tracking-wider mb-2">
+                  Comment
+                </label>
+                <textarea
+                  value={editText}
+                  onChange={(event) => setEditText(event.target.value)}
+                  rows={4}
+                  className="w-full rounded-lg bg-slate-900/60 border border-slate-800 px-3 py-2 text-white"
+                  placeholder="Optional comment"
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setEditingReview(null)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-slate-800/70"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={updateMutation.isPending}
+                className={clsx(
+                  'px-4 py-2 rounded-lg text-sm font-medium text-white',
+                  updateMutation.isPending
+                    ? 'bg-slate-700 cursor-not-allowed'
+                    : 'bg-accent-500 hover:bg-accent-400'
+                )}
+              >
+                {updateMutation.isPending ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-
