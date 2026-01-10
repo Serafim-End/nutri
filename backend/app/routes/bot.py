@@ -12,7 +12,7 @@ from flask import Blueprint, request, jsonify
 from pydantic import ValidationError
 
 from app.extensions import db
-from app.models import Profile, NutritionistProfile, Service, Booking, AvailabilitySlot
+from app.models import Profile, NutritionistProfile, Service, Booking, AvailabilitySlot, GoogleCalendar
 from app.schemas.nutritionist import SlotCreateRequest
 
 
@@ -247,11 +247,20 @@ def get_calendar_status(nutritionist_id: str):
     if not nutritionist:
         return jsonify({"error": "Nutritionist not found"}), 404
     
-    # TODO: Implement actual calendar integration
-    # For now, return not connected
+    calendar = GoogleCalendar.query.filter_by(nutritionist_id=nutritionist_id).first()
+    if not calendar or not calendar.is_connected:
+        return jsonify({
+            "connected": False,
+            "email": None,
+            "selected_calendar_id": None,
+            "selected_calendar_summary": None,
+        })
+
     return jsonify({
-        "connected": False,
-        "email": None,
+        "connected": True,
+        "email": calendar.selected_calendar_summary,
+        "selected_calendar_id": calendar.selected_calendar_id,
+        "selected_calendar_summary": calendar.selected_calendar_summary,
     })
 
 
@@ -272,12 +281,12 @@ def get_calendar_oauth_url(nutritionist_id: str):
     if not nutritionist:
         return jsonify({"error": "Nutritionist not found"}), 404
     
-    # TODO: Implement actual Google OAuth
-    # For now, return placeholder
-    return jsonify({
-        "url": None,
-        "message": "Calendar integration coming soon",
-    })
+    try:
+        from app.services.google_calendar import GoogleCalendarService
+        authorization_url = GoogleCalendarService.get_authorization_url(nutritionist_id)
+        return jsonify({"url": authorization_url})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
 
 
 @bot_bp.route("/nutritionists/<nutritionist_id>/reviews", methods=["GET"])

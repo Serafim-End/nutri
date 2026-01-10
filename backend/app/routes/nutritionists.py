@@ -939,6 +939,63 @@ def connect_google_calendar(nutritionist_id: str):
         return jsonify({"error": str(e)}), 400
 
 
+def _handle_google_calendar_callback(authorization_code: str, nutritionist_id: str):
+    from app.services.google_calendar import GoogleCalendarService
+    calendar = GoogleCalendarService.handle_oauth_callback(
+        authorization_code, nutritionist_id
+    )
+    if calendar:
+        return jsonify({"calendar": calendar.to_dict()})
+    return jsonify({"error": "Failed to connect calendar"}), 400
+
+
+@nutritionists_bp.route("/calendar/callback", methods=["GET"])
+@jwt_required(optional=True)
+def google_calendar_callback_global():
+    """
+    Handle Google Calendar OAuth callback (fixed redirect URI)
+    ---
+    tags:
+      - Nutritionists
+    description: |
+      Handles the OAuth callback from Google after user authorization.
+      This endpoint is called by Google with authorization code.
+    produces:
+      - application/json
+    parameters:
+      - name: code
+        in: query
+        required: true
+        type: string
+        description: OAuth authorization code
+      - name: state
+        in: query
+        required: true
+        type: string
+        description: Nutritionist ID (state)
+    responses:
+      200:
+        description: Calendar connected successfully
+      400:
+        description: Invalid authorization code or error
+      404:
+        description: Нутрициолог не найден
+    """
+    authorization_code = request.args.get("code")
+    state = request.args.get("state")
+
+    if not authorization_code:
+        return jsonify({"error": "Missing authorization code"}), 400
+    if not state:
+        return jsonify({"error": "Missing state parameter"}), 400
+
+    nutritionist = NutritionistProfile.query.get(state)
+    if not nutritionist:
+        return jsonify({"error": "Nutritionist not found"}), 404
+
+    return _handle_google_calendar_callback(authorization_code, state)
+
+
 @nutritionists_bp.route("/<nutritionist_id>/calendar/callback", methods=["GET"])
 @jwt_required(optional=True)
 def google_calendar_callback(nutritionist_id: str):
@@ -995,14 +1052,7 @@ def google_calendar_callback(nutritionist_id: str):
         return jsonify({"error": "Invalid state parameter"}), 400
 
     try:
-        from app.services.google_calendar import GoogleCalendarService
-        calendar = GoogleCalendarService.handle_oauth_callback(
-            authorization_code, nutritionist_id
-        )
-        if calendar:
-            return jsonify({"calendar": calendar.to_dict()})
-        else:
-            return jsonify({"error": "Failed to connect calendar"}), 400
+        return _handle_google_calendar_callback(authorization_code, nutritionist_id)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 

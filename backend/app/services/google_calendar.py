@@ -49,19 +49,15 @@ class GoogleCalendarService:
                 "Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET."
             )
 
-        # Build redirect URI with nutritionist_id if template provided
-        if nutritionist_id and redirect_uri_template and "{nutritionist_id}" in redirect_uri_template:
+        if not redirect_uri_template:
+            raise ValueError("GOOGLE_REDIRECT_URI is required for Google Calendar OAuth")
+
+        if "{nutritionist_id}" in redirect_uri_template:
+            if not nutritionist_id:
+                raise ValueError("GOOGLE_REDIRECT_URI requires nutritionist_id")
             redirect_uri = redirect_uri_template.format(nutritionist_id=nutritionist_id)
-        elif redirect_uri_template:
-            redirect_uri = redirect_uri_template
-        elif nutritionist_id:
-            # Default redirect URI pattern
-            base_url = current_app.config.get('SERVER_NAME', 'http://localhost:5000')
-            if not base_url.startswith('http'):
-                base_url = f'http://{base_url}'
-            redirect_uri = f"{base_url}/api/nutritionists/{nutritionist_id}/calendar/callback"
         else:
-            raise ValueError("Redirect URI cannot be determined without nutritionist_id or GOOGLE_REDIRECT_URI")
+            redirect_uri = redirect_uri_template
 
         flow = Flow.from_client_config(
             {
