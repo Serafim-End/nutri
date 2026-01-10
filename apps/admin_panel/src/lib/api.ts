@@ -73,6 +73,66 @@ export const adminApi = {
     return response.data
   },
 
+  updateNutritionistBio: async (id: string, bio: string | null) => {
+    const response = await api.put(`/admin/nutritionists/${id}/bio`, { bio })
+    return response.data
+  },
+
+  getNutritionistServices: async (id: string) => {
+    const response = await api.get(`/admin/nutritionists/${id}/services`)
+    return response.data
+  },
+
+  createNutritionistService: async (id: string, payload: {
+    title: string
+    description?: string | null
+    duration_minutes: number
+    price_rub: number
+    is_active?: boolean
+  }) => {
+    const response = await api.post(`/admin/nutritionists/${id}/services`, payload)
+    return response.data
+  },
+
+  updateNutritionistService: async (nutritionistId: string, serviceId: string, payload: {
+    title?: string
+    description?: string | null
+    duration_minutes?: number
+    price_rub?: number
+    is_active?: boolean
+  }) => {
+    const response = await api.put(
+      `/admin/nutritionists/${nutritionistId}/services/${serviceId}`,
+      payload
+    )
+    return response.data
+  },
+
+  deleteNutritionistService: async (nutritionistId: string, serviceId: string) => {
+    const response = await api.delete(
+      `/admin/nutritionists/${nutritionistId}/services/${serviceId}`
+    )
+    return response.data
+  },
+
+  getWorkingHoursTemplate: async (nutritionistId: string) => {
+    const response = await api.get(
+      `/admin/nutritionists/${nutritionistId}/working-hours-template`
+    )
+    return response.data
+  },
+
+  updateWorkingHoursTemplate: async (
+    nutritionistId: string,
+    weeklySchedule: Record<string, Array<{ start: string; end: string }>>
+  ) => {
+    const response = await api.put(
+      `/admin/nutritionists/${nutritionistId}/working-hours-template`,
+      { weekly_schedule: weeklySchedule }
+    )
+    return response.data
+  },
+
   approveNutritionist: async (id: string, note?: string) => {
     const response = await api.post(`/admin/nutritionists/${id}/approve`, { note })
     return response.data

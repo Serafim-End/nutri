@@ -100,6 +100,25 @@ export interface BookingService {
   price_rub: number
 }
 
+export interface AdminService {
+  id: string
+  nutritionist_id: string
+  title: string
+  description: string | null
+  duration_minutes: number
+  price_rub: number
+  is_active: boolean
+  created_at: string
+}
+
+export interface WorkingHoursTemplate {
+  id: string | null
+  nutritionist_id: string
+  weekly_schedule: Record<string, Array<{ start: string; end: string }>>
+  created_at: string | null
+  updated_at: string | null
+}
+
 export interface BookingClient {
   id: string
   full_name: string

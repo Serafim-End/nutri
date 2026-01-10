@@ -9,9 +9,11 @@ from datetime import datetime, date
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt, create_access_token
 from sqlalchemy import or_, and_
+from pydantic import ValidationError
 
 from app.extensions import db
-from app.models import NutritionistProfile, NutritionistDocument, Profile, Booking, AvailabilitySlot, Service, Payment, Review
+from app.models import NutritionistProfile, NutritionistDocument, Profile, Booking, AvailabilitySlot, Service, Payment, Review, WorkingHoursTemplate
+from app.schemas.nutritionist import ServiceCreateRequest, WorkingHoursTemplateUpdateRequest
 from app.services.notifications import NotificationService
 
 
@@ -880,6 +882,185 @@ def get_dashboard_stats():
         "total_bookings": total_bookings,
         "revenue_this_month": revenue_this_month,
     })
+
+
+@admin_bp.route("/nutritionists/<nutritionist_id>/bio", methods=["PUT"])
+@jwt_required()
+def update_nutritionist_bio(nutritionist_id: str):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    data = request.get_json() or {}
+    bio = data.get("bio")
+
+    nutritionist = NutritionistProfile.query.get(nutritionist_id)
+    if not nutritionist:
+        return jsonify({"error": "Nutritionist not found"}), 404
+
+    nutritionist.bio = bio
+    db.session.commit()
+
+    return jsonify({"nutritionist": nutritionist.to_dict(include_profile=True)})
+
+
+@admin_bp.route("/nutritionists/<nutritionist_id>/services", methods=["GET"])
+@jwt_required()
+def list_nutritionist_services(nutritionist_id: str):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    services = Service.query.filter_by(nutritionist_id=nutritionist_id).all()
+    return jsonify({"services": [s.to_dict() for s in services]})
+
+
+@admin_bp.route("/nutritionists/<nutritionist_id>/services", methods=["POST"])
+@jwt_required()
+def create_nutritionist_service(nutritionist_id: str):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    nutritionist = NutritionistProfile.query.get(nutritionist_id)
+    if not nutritionist:
+        return jsonify({"error": "Nutritionist not found"}), 404
+
+    try:
+        data = request.get_json() or {}
+        schema = ServiceCreateRequest(**data)
+    except ValidationError as e:
+        return jsonify({"error": "Validation error", "details": e.errors()}), 400
+
+    service = Service(
+        nutritionist_id=nutritionist_id,
+        title=schema.title,
+        description=schema.description,
+        duration_minutes=schema.duration_minutes,
+        price_rub=schema.price_rub,
+        is_active=schema.is_active,
+    )
+    db.session.add(service)
+    db.session.commit()
+
+    return jsonify({"service": service.to_dict()}), 201
+
+
+@admin_bp.route("/nutritionists/<nutritionist_id>/services/<service_id>", methods=["PUT"])
+@jwt_required()
+def update_nutritionist_service(nutritionist_id: str, service_id: str):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    service = Service.query.get(service_id)
+    if not service or str(service.nutritionist_id) != nutritionist_id:
+        return jsonify({"error": "Service not found"}), 404
+
+    data = request.get_json() or {}
+    title = data.get("title")
+    description = data.get("description")
+    duration_minutes = data.get("duration_minutes")
+    price_rub = data.get("price_rub")
+    is_active = data.get("is_active")
+
+    if title is not None:
+        service.title = title
+    if description is not None:
+        service.description = description
+    if duration_minutes is not None:
+        service.duration_minutes = int(duration_minutes)
+    if price_rub is not None:
+        service.price_rub = int(price_rub)
+    if is_active is not None:
+        service.is_active = bool(is_active)
+
+    db.session.commit()
+
+    return jsonify({"service": service.to_dict()})
+
+
+@admin_bp.route("/nutritionists/<nutritionist_id>/services/<service_id>", methods=["DELETE"])
+@jwt_required()
+def delete_nutritionist_service(nutritionist_id: str, service_id: str):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    service = Service.query.get(service_id)
+    if not service or str(service.nutritionist_id) != nutritionist_id:
+        return jsonify({"error": "Service not found"}), 404
+
+    db.session.delete(service)
+    db.session.commit()
+
+    return jsonify({"message": "Service deleted"})
+
+
+@admin_bp.route("/nutritionists/<nutritionist_id>/working-hours-template", methods=["GET"])
+@jwt_required()
+def admin_get_working_hours_template(nutritionist_id: str):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    template = WorkingHoursTemplate.query.filter_by(
+        nutritionist_id=nutritionist_id
+    ).first()
+
+    if not template:
+        return jsonify({
+            "template": {
+                "id": None,
+                "nutritionist_id": nutritionist_id,
+                "weekly_schedule": {},
+                "created_at": None,
+                "updated_at": None,
+            }
+        })
+
+    return jsonify({"template": template.to_dict()})
+
+
+@admin_bp.route("/nutritionists/<nutritionist_id>/working-hours-template", methods=["PUT"])
+@jwt_required()
+def admin_update_working_hours_template(nutritionist_id: str):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    try:
+        data = request.get_json() or {}
+        schema = WorkingHoursTemplateUpdateRequest(**data)
+    except ValidationError as e:
+        return jsonify({"error": "Validation error", "details": e.errors()}), 400
+
+    nutritionist = NutritionistProfile.query.get(nutritionist_id)
+    if not nutritionist:
+        return jsonify({"error": "Nutritionist not found"}), 404
+
+    weekly_schedule = {}
+    for day, time_ranges in schema.weekly_schedule.items():
+        weekly_schedule[str(day)] = [
+            {"start": tr.start, "end": tr.end} for tr in time_ranges
+        ]
+
+    template = WorkingHoursTemplate.query.filter_by(
+        nutritionist_id=nutritionist_id
+    ).first()
+
+    if not template:
+        template = WorkingHoursTemplate(
+            nutritionist_id=nutritionist_id,
+            weekly_schedule=weekly_schedule,
+        )
+        db.session.add(template)
+    else:
+        template.weekly_schedule = weekly_schedule
+
+    db.session.commit()
+
+    return jsonify({"template": template.to_dict()})
 
 
 @admin_bp.route("/users", methods=["GET"])

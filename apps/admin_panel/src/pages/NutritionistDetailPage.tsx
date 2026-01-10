@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '@/lib/api'
-import { Nutritionist, NutritionistDocument } from '@/types'
+import { Nutritionist, NutritionistDocument, AdminService, WorkingHoursTemplate } from '@/types'
 import { format } from 'date-fns'
 import clsx from 'clsx'
 
@@ -21,6 +21,37 @@ const docStatusColors: Record<string, string> = {
   rejected: 'bg-error-500/10 text-error-400 border-error-500/20',
 }
 
+const DAYS: Array<{ id: string; label: string }> = [
+  { id: '0', label: 'Пн' },
+  { id: '1', label: 'Вт' },
+  { id: '2', label: 'Ср' },
+  { id: '3', label: 'Чт' },
+  { id: '4', label: 'Пт' },
+  { id: '5', label: 'Сб' },
+  { id: '6', label: 'Вс' },
+]
+
+const formatRanges = (ranges: Array<{ start: string; end: string }>) => {
+  if (!ranges || ranges.length === 0) return ''
+  return ranges.map((r) => `${r.start}-${r.end}`).join(', ')
+}
+
+const parseRanges = (value: string) => {
+  if (!value.trim()) return []
+  return value
+    .split(',')
+    .map((chunk) => chunk.trim())
+    .filter(Boolean)
+    .map((chunk) => {
+      const normalized = chunk.replace('–', '-')
+      const [start, end] = normalized.split('-').map((part) => part.trim())
+      if (!start || !end) {
+        throw new Error(`Invalid range: ${chunk}`)
+      }
+      return { start, end }
+    })
+}
+
 export function NutritionistDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -29,6 +60,18 @@ export function NutritionistDetailPage() {
   const [activeAction, setActiveAction] = useState<ActionType>(null)
   const [actionNote, setActionNote] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [bioDraft, setBioDraft] = useState('')
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
+  const [serviceDraft, setServiceDraft] = useState<Partial<AdminService>>({})
+  const [newService, setNewService] = useState({
+    title: '',
+    description: '',
+    duration_minutes: 60,
+    price_rub: 0,
+    is_active: true,
+  })
+  const [scheduleInputs, setScheduleInputs] = useState<Record<string, string>>({})
+  const [scheduleError, setScheduleError] = useState<string | null>(null)
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin', 'nutritionist', id],
@@ -38,6 +81,98 @@ export function NutritionistDetailPage() {
 
   const nutritionist: Nutritionist | null = data?.nutritionist || null
   const documents: NutritionistDocument[] = data?.documents || []
+
+  const { data: servicesData } = useQuery({
+    queryKey: ['admin', 'nutritionist', id, 'services'],
+    queryFn: () => adminApi.getNutritionistServices(id!),
+    enabled: !!id,
+  })
+
+  const services: AdminService[] = servicesData?.services || []
+
+  const { data: workingHoursData } = useQuery({
+    queryKey: ['admin', 'nutritionist', id, 'working-hours'],
+    queryFn: () => adminApi.getWorkingHoursTemplate(id!),
+    enabled: !!id,
+  })
+
+  const workingHours: WorkingHoursTemplate | null = workingHoursData?.template || null
+
+  useEffect(() => {
+    if (nutritionist) {
+      setBioDraft(nutritionist.bio || '')
+    }
+  }, [nutritionist])
+
+  useEffect(() => {
+    if (workingHours?.weekly_schedule) {
+      const inputs: Record<string, string> = {}
+      DAYS.forEach((day) => {
+        const ranges = workingHours.weekly_schedule[day.id] || []
+        inputs[day.id] = formatRanges(ranges)
+      })
+      setScheduleInputs(inputs)
+    }
+  }, [workingHours])
+
+  const updateBioMutation = useMutation({
+    mutationFn: (bio: string | null) => adminApi.updateNutritionistBio(id!, bio),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id] })
+    },
+  })
+
+  const createServiceMutation = useMutation({
+    mutationFn: () =>
+      adminApi.createNutritionistService(id!, {
+        title: newService.title,
+        description: newService.description || null,
+        duration_minutes: newService.duration_minutes,
+        price_rub: newService.price_rub,
+        is_active: newService.is_active,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id, 'services'] })
+      setNewService({
+        title: '',
+        description: '',
+        duration_minutes: 60,
+        price_rub: 0,
+        is_active: true,
+      })
+    },
+  })
+
+  const updateServiceMutation = useMutation({
+    mutationFn: () =>
+      adminApi.updateNutritionistService(id!, editingServiceId!, {
+        title: serviceDraft.title,
+        description: serviceDraft.description || null,
+        duration_minutes: serviceDraft.duration_minutes,
+        price_rub: serviceDraft.price_rub,
+        is_active: serviceDraft.is_active,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id, 'services'] })
+      setEditingServiceId(null)
+      setServiceDraft({})
+    },
+  })
+
+  const deleteServiceMutation = useMutation({
+    mutationFn: (serviceId: string) => adminApi.deleteNutritionistService(id!, serviceId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id, 'services'] })
+    },
+  })
+
+  const updateScheduleMutation = useMutation({
+    mutationFn: (weeklySchedule: Record<string, Array<{ start: string; end: string }>>) =>
+      adminApi.updateWorkingHoursTemplate(id!, weeklySchedule),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id, 'working-hours'] })
+    },
+  })
 
   const approveMutation = useMutation({
     mutationFn: (note?: string) => adminApi.approveNutritionist(id!, note),
@@ -199,10 +334,22 @@ export function NutritionistDetailPage() {
 
           {/* Bio */}
           <div className="p-6 border-b border-slate-800/50">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Bio</h3>
-            <p className="text-slate-300 leading-relaxed">
-              {nutritionist.bio || <span className="text-slate-500 italic">No bio provided</span>}
-            </p>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Bio</h3>
+              <button
+                onClick={() => updateBioMutation.mutate(bioDraft || null)}
+                disabled={updateBioMutation.isPending}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800/50 text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+              >
+                Save
+              </button>
+            </div>
+            <textarea
+              value={bioDraft}
+              onChange={(e) => setBioDraft(e.target.value)}
+              placeholder="Add nutritionist bio..."
+              className="w-full min-h-[120px] px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent-500/50 resize-none"
+            />
           </div>
 
           {/* Specializations */}
@@ -240,6 +387,215 @@ export function NutritionistDetailPage() {
               ) : (
                 <span className="text-slate-500 italic">No languages listed</span>
               )}
+            </div>
+          </div>
+
+          {/* Services */}
+          <div className="p-6 border-b border-slate-800/50">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Services</h3>
+            <div className="space-y-4">
+              {services.length === 0 && (
+                <p className="text-slate-500 text-sm">No services yet.</p>
+              )}
+              {services.map((service) => {
+                const isEditing = editingServiceId === service.id
+                return (
+                  <div key={service.id} className="border border-slate-800/50 rounded-xl p-4 bg-slate-900/20">
+                    {isEditing ? (
+                      <div className="space-y-3">
+                        <input
+                          value={serviceDraft.title || ''}
+                          onChange={(e) => setServiceDraft({ ...serviceDraft, title: e.target.value })}
+                          placeholder="Service title"
+                          className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200"
+                        />
+                        <textarea
+                          value={serviceDraft.description || ''}
+                          onChange={(e) => setServiceDraft({ ...serviceDraft, description: e.target.value })}
+                          placeholder="Service description"
+                          className="w-full min-h-[80px] px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200 resize-none"
+                        />
+                        <div className="grid grid-cols-3 gap-3">
+                          <input
+                            type="number"
+                            value={serviceDraft.duration_minutes ?? 60}
+                            onChange={(e) =>
+                              setServiceDraft({ ...serviceDraft, duration_minutes: Number(e.target.value) })
+                            }
+                            placeholder="Duration"
+                            className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200"
+                          />
+                          <input
+                            type="number"
+                            value={serviceDraft.price_rub ?? 0}
+                            onChange={(e) =>
+                              setServiceDraft({ ...serviceDraft, price_rub: Number(e.target.value) })
+                            }
+                            placeholder="Price"
+                            className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200"
+                          />
+                          <select
+                            value={serviceDraft.is_active ? 'true' : 'false'}
+                            onChange={(e) =>
+                              setServiceDraft({ ...serviceDraft, is_active: e.target.value === 'true' })
+                            }
+                            className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200"
+                          >
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                          </select>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => updateServiceMutation.mutate()}
+                            className="px-4 py-2 rounded-lg text-sm font-medium bg-accent-500 text-white"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingServiceId(null)
+                              setServiceDraft({})
+                            }}
+                            className="px-4 py-2 rounded-lg text-sm font-medium bg-slate-800/60 text-slate-200"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-white">{service.title}</p>
+                            <p className="text-xs text-slate-400">
+                              {service.duration_minutes} мин · {service.price_rub} ₽ · {service.is_active ? 'Active' : 'Inactive'}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingServiceId(service.id)
+                                setServiceDraft(service)
+                              }}
+                              className="px-3 py-1.5 text-xs rounded-lg bg-slate-800/60 text-slate-200"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => deleteServiceMutation.mutate(service.id)}
+                              className="px-3 py-1.5 text-xs rounded-lg bg-error-500/20 text-error-400"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                        {service.description && (
+                          <p className="text-sm text-slate-300 mt-2">{service.description}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+              <div className="border border-dashed border-slate-700/70 rounded-xl p-4">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Add service</p>
+                <div className="space-y-3">
+                  <input
+                    value={newService.title}
+                    onChange={(e) => setNewService({ ...newService, title: e.target.value })}
+                    placeholder="Service title"
+                    className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200"
+                  />
+                  <textarea
+                    value={newService.description}
+                    onChange={(e) => setNewService({ ...newService, description: e.target.value })}
+                    placeholder="Service description"
+                    className="w-full min-h-[80px] px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200 resize-none"
+                  />
+                  <div className="grid grid-cols-3 gap-3">
+                    <input
+                      type="number"
+                      value={newService.duration_minutes}
+                      onChange={(e) =>
+                        setNewService({ ...newService, duration_minutes: Number(e.target.value) })
+                      }
+                      placeholder="Duration"
+                      className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200"
+                    />
+                    <input
+                      type="number"
+                      value={newService.price_rub}
+                      onChange={(e) =>
+                        setNewService({ ...newService, price_rub: Number(e.target.value) })
+                      }
+                      placeholder="Price"
+                      className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200"
+                    />
+                    <select
+                      value={newService.is_active ? 'true' : 'false'}
+                      onChange={(e) =>
+                        setNewService({ ...newService, is_active: e.target.value === 'true' })
+                      }
+                      className="w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200"
+                    >
+                      <option value="true">Active</option>
+                      <option value="false">Inactive</option>
+                    </select>
+                  </div>
+                  <button
+                    onClick={() => createServiceMutation.mutate()}
+                    className="px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white"
+                    disabled={!newService.title.trim()}
+                  >
+                    Add service
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Working Hours */}
+          <div className="p-6 border-b border-slate-800/50">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Schedule</h3>
+              <button
+                onClick={() => {
+                  try {
+                    const payload: Record<string, Array<{ start: string; end: string }>> = {}
+                    DAYS.forEach((day) => {
+                      payload[day.id] = parseRanges(scheduleInputs[day.id] || '')
+                    })
+                    setScheduleError(null)
+                    updateScheduleMutation.mutate(payload)
+                  } catch (err) {
+                    setScheduleError(err instanceof Error ? err.message : 'Invalid schedule format')
+                  }
+                }}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800/50 text-slate-200 hover:bg-slate-800"
+              >
+                Save
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mb-3">
+              Format: 09:00-12:00, 14:00-18:00
+            </p>
+            {scheduleError && (
+              <div className="mb-3 text-xs text-error-400">{scheduleError}</div>
+            )}
+            <div className="space-y-2">
+              {DAYS.map((day) => (
+                <div key={day.id} className="flex items-center gap-3">
+                  <span className="w-10 text-sm text-slate-400">{day.label}</span>
+                  <input
+                    value={scheduleInputs[day.id] || ''}
+                    onChange={(e) => setScheduleInputs({ ...scheduleInputs, [day.id]: e.target.value })}
+                    className="flex-1 px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200"
+                    placeholder="09:00-12:00, 14:00-18:00"
+                  />
+                </div>
+              ))}
             </div>
           </div>
 
@@ -508,4 +864,3 @@ export function NutritionistDetailPage() {
     </div>
   )
 }
-
