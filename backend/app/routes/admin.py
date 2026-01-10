@@ -12,7 +12,18 @@ from sqlalchemy import or_, and_
 from pydantic import ValidationError
 
 from app.extensions import db
-from app.models import NutritionistProfile, NutritionistDocument, Profile, Booking, AvailabilitySlot, Service, Payment, Review, WorkingHoursTemplate
+from app.models import (
+    NutritionistProfile,
+    NutritionistDocument,
+    Profile,
+    Booking,
+    AvailabilitySlot,
+    Service,
+    Payment,
+    Review,
+    WorkingHoursTemplate,
+    SupportTicket,
+)
 from app.schemas.nutritionist import ServiceCreateRequest, WorkingHoursTemplateUpdateRequest
 from app.services.notifications import NotificationService
 
@@ -1180,6 +1191,71 @@ def list_users():
 # ============================================================================
 # REVIEW MANAGEMENT
 # ============================================================================
+
+
+@admin_bp.route("/support/tickets", methods=["GET"])
+@jwt_required()
+def list_support_tickets():
+    """
+    List support tickets (admin only).
+    
+    Request:
+        GET /api/admin/support/tickets?status=open&page=1&limit=50
+        Authorization: Bearer <admin_token>
+    
+    Response:
+        200: { "tickets": [...], "total": 100, "page": 1, "pages": 2 }
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    status = request.args.get("status")
+    page = request.args.get("page", 1, type=int)
+    limit = request.args.get("limit", 50, type=int)
+
+    query = SupportTicket.query
+
+    if status:
+        if status not in ("open", "closed"):
+            return jsonify({"error": "Invalid status. Use open or closed."}), 400
+        query = query.filter(SupportTicket.status == status)
+
+    total = query.count()
+    tickets = (
+        query.order_by(SupportTicket.created_at.desc())
+        .offset((page - 1) * limit)
+        .limit(limit)
+        .all()
+    )
+
+    return jsonify({
+        "tickets": [ticket.to_dict() for ticket in tickets],
+        "total": total,
+        "page": page,
+        "pages": (total + limit - 1) // limit,
+    })
+
+
+@admin_bp.route("/support/tickets/<ticket_id>/close", methods=["POST"])
+@jwt_required()
+def close_support_ticket(ticket_id: str):
+    """
+    Close support ticket (admin only).
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    ticket = SupportTicket.query.get(ticket_id)
+    if not ticket:
+        return jsonify({"error": "Support ticket not found"}), 404
+
+    if ticket.status != "closed":
+        ticket.status = "closed"
+        db.session.commit()
+
+    return jsonify({"ticket": ticket.to_dict()})
 
 
 @admin_bp.route("/reviews", methods=["GET"])

@@ -12,7 +12,15 @@ from flask import Blueprint, request, jsonify
 from pydantic import ValidationError
 
 from app.extensions import db
-from app.models import Profile, NutritionistProfile, Service, Booking, AvailabilitySlot, GoogleCalendar
+from app.models import (
+    Profile,
+    NutritionistProfile,
+    Service,
+    Booking,
+    AvailabilitySlot,
+    GoogleCalendar,
+    SupportTicket,
+)
 from app.schemas.nutritionist import SlotCreateRequest
 
 
@@ -505,19 +513,33 @@ def create_support_message():
     
     telegram_user_id = data.get("telegram_user_id")
     message = data.get("message", "")
+    booking_id = data.get("booking_id")
     
     if not telegram_user_id or not message:
         return jsonify({"error": "telegram_user_id and message required"}), 400
     
-    # TODO: Implement support ticket system
-    # For now, just log the message
+    profile = Profile.query.filter_by(telegram_user_id=telegram_user_id).first()
+    role = "nutritionist" if profile and profile.nutritionist_profile else "client"
+
+    ticket = SupportTicket(
+        profile_id=profile.id if profile else None,
+        telegram_user_id=telegram_user_id,
+        author_name=profile.full_name if profile else None,
+        role=role,
+        text=message,
+        booking_id=booking_id,
+        status="open",
+    )
+    db.session.add(ticket)
+    db.session.commit()
+
     logger.info(
-        f"Support message from user {telegram_user_id}: {message[:200]}"
+        f"Support ticket created from user {telegram_user_id}: {ticket.id}"
     )
     
     return jsonify({
         "message": "Support request received",
-        "ticket_id": None,  # Would be real ticket ID
+        "ticket_id": str(ticket.id),
     }), 201
 
 

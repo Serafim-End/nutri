@@ -15,6 +15,7 @@ from app.models.working_hours_template import WorkingHoursTemplate
 from app.models.date_exception import DateException
 from app.models.google_calendar import GoogleCalendar
 from app.models.review import Review
+from app.models.support_ticket import SupportTicket
 
 __all__ = [
     "Profile",
@@ -30,6 +31,6 @@ __all__ = [
     "DateException",
     "GoogleCalendar",
     "Review",
+    "SupportTicket",
 ]
-
 
