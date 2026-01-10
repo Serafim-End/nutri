@@ -942,9 +942,16 @@ def connect_google_calendar(nutritionist_id: str):
 
 def _handle_google_calendar_callback(authorization_code: str, nutritionist_id: str):
     from app.services.google_calendar import GoogleCalendarService
-    calendar = GoogleCalendarService.handle_oauth_callback(
-        authorization_code, nutritionist_id
-    )
+    try:
+        calendar = GoogleCalendarService.handle_oauth_callback(
+            authorization_code, nutritionist_id
+        )
+    except Exception as exc:
+        current_app.logger.exception(
+            f"Calendar callback exception: nutritionist_id={nutritionist_id} error={exc}"
+        )
+        return jsonify({"error": "Calendar connection failed"}), 500
+
     if calendar:
         return jsonify({"calendar": calendar.to_dict()})
     return jsonify({"error": "Failed to connect calendar"}), 400
