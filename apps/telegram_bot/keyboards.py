@@ -94,6 +94,9 @@ CB_BOOKINGS_PREV = "bookings_prev"
 CB_WORKING_HOURS = "working_hours"
 CB_WORKING_HOURS_DAY_PREFIX = "wh_day:"
 CB_ADD_TIME_RANGE = "add_time_range"
+CB_DELETE_TIME_RANGE_PREFIX = "del_time_range:"
+CB_CLEAR_DAY_RANGES = "clear_day_ranges"
+CB_BACK_DAY = "wh_back_day"
 CB_CONFIRM_TIME_RANGE = "confirm_time_range"
 CB_SAVE_TEMPLATE = "save_template"
 CB_CANCEL_WORKING_HOURS = "cancel_working_hours"
@@ -906,25 +909,68 @@ def get_working_hours_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_day_time_ranges_keyboard(has_ranges: bool = False) -> InlineKeyboardMarkup:
+def get_day_time_ranges_keyboard(time_ranges: Optional[list[dict]] = None) -> InlineKeyboardMarkup:
     """Keyboard for managing time ranges for a day."""
     builder = InlineKeyboardBuilder()
-    
-    if has_ranges:
+
+    ranges = time_ranges or []
+
+    builder.row(
+        InlineKeyboardButton(
+            text="➕ Добавить диапазон",
+            callback_data=CB_ADD_TIME_RANGE,
+        )
+    )
+
+    for index, time_range in enumerate(ranges):
+        label = f"{time_range.get('start')}–{time_range.get('end')}"
         builder.row(
             InlineKeyboardButton(
-                text="➕ Добавить диапазон",
-                callback_data=CB_ADD_TIME_RANGE,
+                text=f"❌ {label}",
+                callback_data=f"{CB_DELETE_TIME_RANGE_PREFIX}{index}",
             )
         )
-    
+
+    if ranges:
+        builder.row(
+            InlineKeyboardButton(
+                text="🧹 Очистить день",
+                callback_data=CB_CLEAR_DAY_RANGES,
+            )
+        )
+
+    builder.row(
+        InlineKeyboardButton(
+            text="💾 Сохранить шаблон",
+            callback_data=CB_SAVE_TEMPLATE,
+        )
+    )
+
     builder.row(
         InlineKeyboardButton(
             text="◀️ Назад к дням",
             callback_data=CB_WORKING_HOURS,
         )
     )
-    
+
+    return builder.as_markup()
+
+
+def get_working_hours_input_keyboard() -> InlineKeyboardMarkup:
+    """Keyboard for working hours input steps."""
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(
+            text="◀️ Назад к дню",
+            callback_data=CB_BACK_DAY,
+        ),
+        InlineKeyboardButton(
+            text="❌ Отмена",
+            callback_data=CB_CANCEL_WORKING_HOURS,
+        ),
+    )
+
     return builder.as_markup()
 
 
@@ -938,8 +984,8 @@ def get_confirm_time_range_keyboard() -> InlineKeyboardMarkup:
             callback_data=CB_CONFIRM_TIME_RANGE,
         ),
         InlineKeyboardButton(
-            text="❌ Отмена",
-            callback_data=CB_CANCEL_WORKING_HOURS,
+            text="◀️ Назад к дню",
+            callback_data=CB_BACK_DAY,
         ),
     )
     

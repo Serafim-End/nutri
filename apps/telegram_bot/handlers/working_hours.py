@@ -18,9 +18,13 @@ from keyboards import (
     get_confirm_time_range_keyboard,
     get_confirm_template_keyboard,
     get_back_keyboard,
+    get_working_hours_input_keyboard,
     CB_WORKING_HOURS,
     CB_WORKING_HOURS_DAY_PREFIX,
     CB_ADD_TIME_RANGE,
+    CB_DELETE_TIME_RANGE_PREFIX,
+    CB_CLEAR_DAY_RANGES,
+    CB_BACK_DAY,
     CB_CONFIRM_TIME_RANGE,
     CB_SAVE_TEMPLATE,
     CB_CANCEL_WORKING_HOURS,
@@ -40,6 +44,9 @@ from bot_texts import (
     WORKING_HOURS_END_BEFORE_START,
     WORKING_HOURS_CONFIRM_RANGE,
     WORKING_HOURS_RANGE_ADDED,
+    WORKING_HOURS_RANGE_REMOVED,
+    WORKING_HOURS_DAY_CLEARED,
+    WORKING_HOURS_RANGE_OVERLAP,
     WORKING_HOURS_SAVE_TEMPLATE,
     WORKING_HOURS_TEMPLATE_SAVED,
     WORKING_HOURS_TEMPLATE_ERROR,
@@ -61,6 +68,38 @@ def format_time_ranges_list(ranges: list[dict]) -> str:
     if not ranges:
         return ""
     return "\n".join([f"  • {format_time_range(r['start'], r['end'])}" for r in ranges])
+
+
+def time_to_minutes(time_str: str) -> int:
+    """Convert HH:MM string to minutes."""
+    hours, minutes = time_str.split(":")
+    return int(hours) * 60 + int(minutes)
+
+
+def sort_time_ranges(ranges: list[dict]) -> list[dict]:
+    """Sort time ranges by start time."""
+    return sorted(ranges, key=lambda r: time_to_minutes(r["start"]))
+
+
+def build_day_view(day_num: int, schedule: dict, notice: str | None = None) -> tuple[str, list[dict]]:
+    """Build day view text and return day ranges."""
+    day_name = DAY_NAMES.get(day_num, f"День {day_num}")
+    day_key = str(day_num)
+    time_ranges = schedule.get(day_key, [])
+
+    text = WORKING_HOURS_TITLE + WORKING_HOURS_DAY_SELECTED.format(day_name=day_name)
+    if notice:
+        text += f"{notice}\n\n"
+
+    if time_ranges:
+        text += WORKING_HOURS_CURRENT_RANGES.format(
+            time_ranges=format_time_ranges_list(time_ranges)
+        )
+    else:
+        text += WORKING_HOURS_NO_RANGES
+
+    text += WORKING_HOURS_ADD_RANGE
+    return text, time_ranges
 
 
 @router.callback_query(F.data == CB_WORKING_HOURS)
@@ -90,7 +129,7 @@ async def show_working_hours(callback: CallbackQuery, state: FSMContext):
         
         # Ensure keys are strings (API returns string keys)
         schedule_normalized = {
-            str(k): v for k, v in weekly_schedule.items()
+            str(k): sort_time_ranges(v) for k, v in weekly_schedule.items()
         }
         
         # Store in state
@@ -117,31 +156,20 @@ async def select_day(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     
     day_num = int(callback.data.replace(CB_WORKING_HOURS_DAY_PREFIX, ""))
-    day_name = DAY_NAMES.get(day_num, f"День {day_num}")
-    
     data = await state.get_data()
     schedule = data.get("working_hours_schedule", {})
-    
-    # Get time ranges for this day
     day_key = str(day_num)
-    time_ranges = schedule.get(day_key, [])
-    
-    text = WORKING_HOURS_TITLE + WORKING_HOURS_DAY_SELECTED.format(day_name=day_name)
-    
-    if time_ranges:
-        text += WORKING_HOURS_CURRENT_RANGES.format(
-            time_ranges=format_time_ranges_list(time_ranges)
-        )
-    else:
-        text += WORKING_HOURS_NO_RANGES
-    
-    text += WORKING_HOURS_ADD_RANGE
+    if schedule.get(day_key):
+        schedule[day_key] = sort_time_ranges(schedule[day_key])
+        await state.update_data(working_hours_schedule=schedule)
+
+    text, time_ranges = build_day_view(day_num, schedule)
     
     await state.update_data(working_hours_current_day=day_num)
     
     await callback.message.edit_text(
         text=text,
-        reply_markup=get_day_time_ranges_keyboard(has_ranges=bool(time_ranges)),
+        reply_markup=get_day_time_ranges_keyboard(time_ranges=time_ranges),
         parse_mode="HTML",
     )
 
@@ -165,6 +193,7 @@ async def start_add_time_range(callback: CallbackQuery, state: FSMContext):
     
     await callback.message.edit_text(
         text=text,
+        reply_markup=get_working_hours_input_keyboard(),
         parse_mode="HTML",
     )
 
@@ -181,6 +210,7 @@ async def process_start_time(message: Message, state: FSMContext):
     if not match:
         await message.answer(
             WORKING_HOURS_INVALID_TIME,
+            reply_markup=get_working_hours_input_keyboard(),
             parse_mode="HTML",
         )
         return
@@ -203,6 +233,7 @@ async def process_start_time(message: Message, state: FSMContext):
     
     await message.answer(
         text=text,
+        reply_markup=get_working_hours_input_keyboard(),
         parse_mode="HTML",
     )
 
@@ -219,6 +250,7 @@ async def process_end_time(message: Message, state: FSMContext):
     if not match:
         await message.answer(
             WORKING_HOURS_INVALID_TIME,
+            reply_markup=get_working_hours_input_keyboard(),
             parse_mode="HTML",
         )
         return
@@ -240,6 +272,7 @@ async def process_end_time(message: Message, state: FSMContext):
     if end_minutes <= start_minutes:
         await message.answer(
             WORKING_HOURS_END_BEFORE_START,
+            reply_markup=get_working_hours_input_keyboard(),
             parse_mode="HTML",
         )
         return
@@ -279,33 +312,150 @@ async def confirm_time_range(callback: CallbackQuery, state: FSMContext):
     # Add time range to schedule
     if day_key not in schedule:
         schedule[day_key] = []
-    
+
+    new_start = time_to_minutes(start_time)
+    new_end = time_to_minutes(end_time)
+    for existing in schedule[day_key]:
+        existing_start = time_to_minutes(existing["start"])
+        existing_end = time_to_minutes(existing["end"])
+        if new_start < existing_end and new_end > existing_start:
+            text, time_ranges = build_day_view(
+                day_num,
+                schedule,
+                notice=WORKING_HOURS_RANGE_OVERLAP,
+            )
+            await state.set_state(None)
+            await callback.message.edit_text(
+                text=text,
+                reply_markup=get_day_time_ranges_keyboard(time_ranges=time_ranges),
+                parse_mode="HTML",
+            )
+            return
+
     schedule[day_key].append({
         "start": start_time,
         "end": end_time,
     })
+    schedule[day_key] = sort_time_ranges(schedule[day_key])
     
     await state.update_data(working_hours_schedule=schedule)
     await state.set_state(None)
     
-    day_name = DAY_NAMES.get(day_num, f"День {day_num}")
-    
-    text = (
-        WORKING_HOURS_TITLE +
-        WORKING_HOURS_DAY_SELECTED.format(day_name=day_name) +
-        WORKING_HOURS_RANGE_ADDED + "\n\n" +
-        WORKING_HOURS_CURRENT_RANGES.format(
-            time_ranges=format_time_ranges_list(schedule[day_key])
-        ) +
-        WORKING_HOURS_ADD_RANGE
+    text, time_ranges = build_day_view(
+        day_num,
+        schedule,
+        notice=WORKING_HOURS_RANGE_ADDED,
     )
-    
+
     await callback.message.edit_text(
         text=text,
-        reply_markup=get_day_time_ranges_keyboard(has_ranges=True),
+        reply_markup=get_day_time_ranges_keyboard(time_ranges=time_ranges),
         parse_mode="HTML",
     )
 
+
+@router.callback_query(F.data.startswith(CB_DELETE_TIME_RANGE_PREFIX))
+async def delete_time_range(callback: CallbackQuery, state: FSMContext):
+    """Remove a time range from the current day."""
+    await callback.answer()
+
+    data = await state.get_data()
+    day_num = data.get("working_hours_current_day")
+    schedule = data.get("working_hours_schedule", {})
+
+    if day_num is None:
+        await callback.message.edit_text(
+            text=WORKING_HOURS_TITLE + WORKING_HOURS_EMPTY,
+            reply_markup=get_working_hours_keyboard(),
+            parse_mode="HTML",
+        )
+        return
+
+    day_key = str(day_num)
+    time_ranges = schedule.get(day_key, [])
+
+    try:
+        index = int(callback.data.replace(CB_DELETE_TIME_RANGE_PREFIX, ""))
+    except ValueError:
+        index = -1
+
+    if 0 <= index < len(time_ranges):
+        time_ranges.pop(index)
+        if time_ranges:
+            schedule[day_key] = sort_time_ranges(time_ranges)
+        else:
+            schedule.pop(day_key, None)
+
+    await state.update_data(working_hours_schedule=schedule)
+
+    text, ranges = build_day_view(
+        day_num,
+        schedule,
+        notice=WORKING_HOURS_RANGE_REMOVED,
+    )
+    await callback.message.edit_text(
+        text=text,
+        reply_markup=get_day_time_ranges_keyboard(time_ranges=ranges),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data == CB_CLEAR_DAY_RANGES)
+async def clear_day_ranges(callback: CallbackQuery, state: FSMContext):
+    """Clear all ranges for the current day."""
+    await callback.answer()
+
+    data = await state.get_data()
+    day_num = data.get("working_hours_current_day")
+    schedule = data.get("working_hours_schedule", {})
+
+    if day_num is None:
+        await callback.message.edit_text(
+            text=WORKING_HOURS_TITLE + WORKING_HOURS_EMPTY,
+            reply_markup=get_working_hours_keyboard(),
+            parse_mode="HTML",
+        )
+        return
+
+    schedule.pop(str(day_num), None)
+    await state.update_data(working_hours_schedule=schedule)
+
+    text, ranges = build_day_view(
+        day_num,
+        schedule,
+        notice=WORKING_HOURS_DAY_CLEARED,
+    )
+    await callback.message.edit_text(
+        text=text,
+        reply_markup=get_day_time_ranges_keyboard(time_ranges=ranges),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(F.data == CB_BACK_DAY)
+async def back_to_day(callback: CallbackQuery, state: FSMContext):
+    """Return to current day view."""
+    await callback.answer()
+    await state.set_state(None)
+
+    data = await state.get_data()
+    day_num = data.get("working_hours_current_day")
+    schedule = data.get("working_hours_schedule", {})
+
+    if day_num is None:
+        await callback.message.edit_text(
+            text=WORKING_HOURS_TITLE + WORKING_HOURS_EMPTY,
+            reply_markup=get_working_hours_keyboard(),
+            parse_mode="HTML",
+        )
+        return
+
+    text, time_ranges = build_day_view(day_num, schedule)
+    await callback.message.edit_text(
+        text=text,
+        reply_markup=get_day_time_ranges_keyboard(time_ranges=time_ranges),
+        parse_mode="HTML",
+    )
 
 @router.callback_query(F.data == CB_SAVE_TEMPLATE)
 async def save_template(callback: CallbackQuery, state: FSMContext):

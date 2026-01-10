@@ -690,7 +690,11 @@ PROFILE_STATUS_MAP = {
 
 WORKING_HOURS_TITLE = "🕐 <b>Рабочие часы</b>\n\n"
 WORKING_HOURS_INSTRUCTION = (
-    "Настройте ваше еженедельное расписание.\n"
+    "Настройте ваше еженедельное расписание.\n\n"
+    "Как это сделать:\n"
+    "1) Выберите день недели.\n"
+    "2) Добавьте один или несколько диапазонов времени.\n"
+    "3) Нажмите «Сохранить шаблон».\n\n"
     "Выберите день недели для настройки:"
 )
 WORKING_HOURS_EMPTY = (
@@ -700,7 +704,10 @@ WORKING_HOURS_EMPTY = (
 WORKING_HOURS_DAY_SELECTED = "📅 <b>{day_name}</b>\n\n"
 WORKING_HOURS_CURRENT_RANGES = "Текущие часы:\n{time_ranges}\n\n"
 WORKING_HOURS_NO_RANGES = "Часы не установлены.\n\n"
-WORKING_HOURS_ADD_RANGE = "Добавить временной диапазон?"
+WORKING_HOURS_ADD_RANGE = (
+    "Добавить временной диапазон?\n"
+    "<i>Пример: 09:00–12:00 и 14:00–18:00</i>"
+)
 WORKING_HOURS_START_TIME = (
     "Введите время начала в формате <b>ЧЧ:ММ</b>\n"
     "(например: 09:00, 14:30)"
@@ -724,6 +731,12 @@ WORKING_HOURS_CONFIRM_RANGE = (
     "Добавить?"
 )
 WORKING_HOURS_RANGE_ADDED = "✅ Временной диапазон добавлен!"
+WORKING_HOURS_RANGE_REMOVED = "🗑️ Диапазон удалён."
+WORKING_HOURS_DAY_CLEARED = "🧹 День очищен."
+WORKING_HOURS_RANGE_OVERLAP = (
+    "⚠️ Диапазон пересекается с существующим.\n"
+    "Удалите старый диапазон или выберите другое время."
+)
 WORKING_HOURS_SAVE_TEMPLATE = "Сохранить шаблон рабочих часов?"
 WORKING_HOURS_TEMPLATE_SAVED = (
     "✅ <b>Шаблон рабочих часов сохранён!</b>\n\n"
