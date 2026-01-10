@@ -32,6 +32,8 @@ export interface AdminUserEntry {
   last_seen_at: string | null
   last_seen_source: 'mini_app' | 'bot_start' | 'nutritionist_intent' | null
   has_nutritionist_profile: boolean
+  is_client: boolean
+  user_statuses: Array<'client' | 'nutritionist' | 'nutritionist_intent'>
   created_at: string
   updated_at: string
 }
@@ -46,6 +48,9 @@ export interface AdminUsersResponse {
     mini_app_users: number
     bot_start_users: number
     nutritionist_intent_users: number
+    clients_only?: number
+    nutritionists_only?: number
+    nutritionists_and_clients?: number
   }
 }
 

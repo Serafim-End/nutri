@@ -850,10 +850,10 @@ def get_dashboard_stats():
     if auth_error:
         return auth_error
 
-    from sqlalchemy import func
+    from sqlalchemy import func, or_
 
-    # Count users (clients)
-    total_users = Profile.query.filter(Profile.role == "client").count()
+    # Count users (all profiles)
+    total_users = Profile.query.count()
 
     # Count nutritionists
     total_nutritionists = NutritionistProfile.query.count()
@@ -1116,18 +1116,56 @@ def list_users():
     for profile in profiles:
         source, last_seen_at = last_seen(profile)
         data = profile.to_dict()
+
+        is_client = bool(profile.last_mini_app_at or profile.last_bot_start_at)
+        has_intent = profile.last_nutritionist_intent_at is not None
+        has_profile = profile.nutritionist_profile is not None
+
+        statuses = []
+        if is_client:
+            statuses.append("client")
+        if has_profile:
+            statuses.append("nutritionist")
+        elif has_intent:
+            statuses.append("nutritionist_intent")
+
         data.update({
             "last_seen_at": last_seen_at.isoformat() if last_seen_at else None,
             "last_seen_source": source,
-            "has_nutritionist_profile": profile.nutritionist_profile is not None,
+            "has_nutritionist_profile": has_profile,
+            "is_client": is_client,
+            "user_statuses": statuses,
         })
         users.append(data)
+
+    client_activity = or_(
+        Profile.last_mini_app_at.isnot(None),
+        Profile.last_bot_start_at.isnot(None),
+    )
+
+    nutritionist_query = Profile.query.join(
+        NutritionistProfile,
+        Profile.id == NutritionistProfile.nutritionist_id,
+    )
+    non_nutritionist_query = Profile.query.outerjoin(
+        NutritionistProfile,
+        Profile.id == NutritionistProfile.nutritionist_id,
+    ).filter(NutritionistProfile.nutritionist_id.is_(None))
 
     stats = {
         "total_users": total,
         "mini_app_users": Profile.query.filter(Profile.last_mini_app_at.isnot(None)).count(),
         "bot_start_users": Profile.query.filter(Profile.last_bot_start_at.isnot(None)).count(),
         "nutritionist_intent_users": Profile.query.filter(Profile.last_nutritionist_intent_at.isnot(None)).count(),
+        "clients_only": non_nutritionist_query.filter(
+            Profile.last_nutritionist_intent_at.is_(None),
+            client_activity,
+        ).count(),
+        "nutritionists_only": nutritionist_query.filter(
+            Profile.last_mini_app_at.is_(None),
+            Profile.last_bot_start_at.is_(None),
+        ).count(),
+        "nutritionists_and_clients": nutritionist_query.filter(client_activity).count(),
     }
 
     return jsonify({

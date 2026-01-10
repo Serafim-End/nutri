@@ -9,6 +9,18 @@ const SOURCE_LABELS: Record<string, string> = {
   nutritionist_intent: 'Я нутрициолог',
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  client: 'Клиент',
+  nutritionist: 'Нутрициолог',
+  nutritionist_intent: 'Пробовал стать нутрициологом',
+}
+
+const STATUS_CLASSES: Record<string, string> = {
+  client: 'bg-accent-500/10 text-accent-300 border-accent-500/30',
+  nutritionist: 'bg-success-500/10 text-success-300 border-success-500/30',
+  nutritionist_intent: 'bg-warning-500/10 text-warning-300 border-warning-500/30',
+}
+
 const formatDate = (value?: string | null) => {
   if (!value) return '—'
   return format(new Date(value), 'dd.MM.yyyy HH:mm')
@@ -18,6 +30,10 @@ export function UsersPage() {
   const { data, isLoading, error } = useQuery<AdminUsersResponse>({
     queryKey: ['admin', 'users'],
     queryFn: () => adminApi.getUsers({ page: 1, limit: 50 }),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchInterval: 30000,
   })
 
   const users: AdminUserEntry[] = data?.users || []
@@ -85,6 +101,9 @@ export function UsersPage() {
                   Telegram
                 </th>
                 <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-4">
+                  Статусы
+                </th>
+                <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-4">
                   Последняя активность
                 </th>
                 <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-4">
@@ -128,6 +147,22 @@ export function UsersPage() {
                       {user.telegram_username ? `@${user.telegram_username}` : '—'}
                     </div>
                     <div className="text-xs text-slate-500">{user.telegram_user_id}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {user.user_statuses?.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {user.user_statuses.map((status) => (
+                          <span
+                            key={status}
+                            className={`text-xs px-2 py-1 rounded-full border ${STATUS_CLASSES[status] || 'border-slate-700 text-slate-300'}`}
+                          >
+                            {STATUS_LABELS[status] || status}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-sm text-slate-500">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm text-slate-200">
