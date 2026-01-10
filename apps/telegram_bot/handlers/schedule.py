@@ -113,6 +113,32 @@ def group_slots_by_date(slots: list[dict]) -> dict[str, list[dict]]:
     return grouped
 
 
+def time_to_minutes(time_str: str) -> int:
+    """Convert HH:MM to minutes."""
+    hours, minutes = time_str.split(":")
+    return int(hours) * 60 + int(minutes)
+
+
+def format_working_hours_summary(weekly_schedule: dict) -> str:
+    """Format weekly schedule into a short summary."""
+    if not weekly_schedule:
+        return ""
+
+    parts = []
+    for day_num in range(7):
+        ranges = weekly_schedule.get(str(day_num)) or weekly_schedule.get(day_num) or []
+        if not ranges:
+            continue
+        ranges_sorted = sorted(ranges, key=lambda r: time_to_minutes(r["start"]))
+        ranges_text = ", ".join([f"{r['start']}–{r['end']}" for r in ranges_sorted])
+        parts.append(f"{WEEKDAYS_RU[day_num]} {ranges_text}")
+
+    if not parts:
+        return ""
+
+    return f"🕐 Обычные часы: {'; '.join(parts)}"
+
+
 # ==========================================
 # Schedule View
 # ==========================================
@@ -137,10 +163,20 @@ async def show_schedule(callback: CallbackQuery, state: FSMContext):
     # Fetch slots
     api = get_api_client()
     response = await api.get_slots(nutritionist_id)
+
+    # Fetch working hours summary
+    summary_text = ""
+    working_hours_response = await api.get_working_hours_template(nutritionist_id)
+    if working_hours_response.success:
+        template = working_hours_response.data.get("template", {})
+        weekly_schedule = template.get("weekly_schedule", {})
+        summary_text = format_working_hours_summary(weekly_schedule)
     
     if not response.success:
-        text = (
-            "🕒 <b>Расписание</b>\n\n"
+        text = "🕒 <b>Расписание</b>\n\n"
+        if summary_text:
+            text += f"{summary_text}\n\n"
+        text += (
             "⚠️ Не удалось загрузить расписание.\n"
             "Попробуйте позже."
         )
@@ -154,8 +190,10 @@ async def show_schedule(callback: CallbackQuery, state: FSMContext):
     slots = response.data.get("slots", [])
     
     if not slots:
-        text = (
-            "🕒 <b>Расписание</b>\n\n"
+        text = "🕒 <b>Расписание</b>\n\n"
+        if summary_text:
+            text += f"{summary_text}\n\n"
+        text += (
             "У вас пока нет доступных слотов.\n\n"
             "Добавьте слоты, чтобы клиенты могли записаться на консультацию.\n\n"
             "<i>💡 Совет: добавьте несколько слотов на ближайшие дни, "
@@ -173,6 +211,8 @@ async def show_schedule(callback: CallbackQuery, state: FSMContext):
     
     # Build text
     text = "🕒 <b>Расписание</b> (ближайшие 14 дней)\n\n"
+    if summary_text:
+        text += f"{summary_text}\n\n"
     
     has_free_slots = False
     
