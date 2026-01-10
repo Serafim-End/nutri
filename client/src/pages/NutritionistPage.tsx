@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { publicApi } from '../lib/api'
 import ServiceCard from '../components/ServiceCard'
 import type { Service, Review } from '../types'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { formatFilterLabel } from '../lib/labels'
 import {
   PageContainer,
@@ -24,7 +24,10 @@ export default function NutritionistPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [selectedService, setSelectedService] = useState<Service | null>(null)
-  const [showReviews, setShowReviews] = useState(false)
+  const [showAllReviews, setShowAllReviews] = useState(false)
+  const [reviewsPage, setReviewsPage] = useState(1)
+  const [allReviews, setAllReviews] = useState<Review[]>([])
+  const [reviewsMeta, setReviewsMeta] = useState({ total: 0, pages: 0 })
 
   const { data: nutritionistData, isLoading: loadingNutritionist } = useQuery({
     queryKey: ['nutritionist', id],
@@ -38,10 +41,16 @@ export default function NutritionistPage() {
     enabled: !!id,
   })
 
-  const { data: reviewsData, isLoading: loadingReviews } = useQuery({
-    queryKey: ['reviews', id],
-    queryFn: () => publicApi.getReviews(id!, { limit: 3 }),
-    enabled: !!id && showReviews,
+  const { data: previewReviewsData } = useQuery({
+    queryKey: ['reviews-preview', id],
+    queryFn: () => publicApi.getReviews(id!, { limit: 2 }),
+    enabled: !!id,
+  })
+
+  const { data: fullReviewsData, isLoading: loadingReviews } = useQuery({
+    queryKey: ['reviews-full', id, reviewsPage],
+    queryFn: () => publicApi.getReviews(id!, { page: reviewsPage, limit: 6 }),
+    enabled: !!id && showAllReviews,
   })
 
   if (loadingNutritionist || loadingServices) {
@@ -61,7 +70,7 @@ export default function NutritionistPage() {
   const nutritionist = nutritionistData.nutritionist
   const profile = nutritionist.profile
   const services = servicesData?.services || []
-  const reviews: Review[] = reviewsData?.reviews || []
+  const previewReviews: Review[] = previewReviewsData?.reviews || []
   const reviewsSummary =
     nutritionist.reviews_count > 0
       ? `${nutritionist.reviews_count} отзывов`
@@ -69,6 +78,31 @@ export default function NutritionistPage() {
 
   const formatReviewDate = (value: string) =>
     new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
+
+  useEffect(() => {
+    if (!showAllReviews) return
+    if (!fullReviewsData) return
+    setReviewsMeta({
+      total: fullReviewsData.total,
+      pages: fullReviewsData.pages,
+    })
+    setAllReviews((prev) => {
+      const merged = reviewsPage === 1 ? [] : prev
+      const byId = new Map(merged.map((review) => [review.id, review]))
+      fullReviewsData.reviews.forEach((review) => {
+        byId.set(review.id, review)
+      })
+      return Array.from(byId.values())
+    })
+  }, [fullReviewsData, reviewsPage, showAllReviews])
+
+  useEffect(() => {
+    if (!showAllReviews) {
+      setAllReviews([])
+      setReviewsPage(1)
+      setReviewsMeta({ total: 0, pages: 0 })
+    }
+  }, [showAllReviews])
 
   const handleSelectService = (service: Service) => {
     setSelectedService(service)
@@ -171,21 +205,53 @@ export default function NutritionistPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowReviews((prev) => !prev)}
+                onClick={() => setShowAllReviews((prev) => !prev)}
               >
-                {showReviews ? 'Скрыть' : 'Показать'}
+                {showAllReviews ? 'Скрыть' : 'Показать все'}
               </Button>
             )}
           </Inline>
 
-          {showReviews && (
+          {!showAllReviews && nutritionist.reviews_count > 0 && (
+            <div className="mt-4 space-y-3">
+              {previewReviews.length === 0 ? (
+                <Text color="secondary">Отзывов пока нет.</Text>
+              ) : (
+                previewReviews.map((review) => (
+                  <div key={review.id} className="rounded-xl bg-slate-950/20 border border-white/10 px-3 py-2">
+                    <Inline gap={2} align="center">
+                      <Inline gap={1} align="center">
+                        <Icons.Star size="sm" className="text-amber-400" />
+                        <Text size="sm" weight="medium">{review.rating}</Text>
+                      </Inline>
+                      <Text size="xs" color="tertiary">•</Text>
+                      <Text size="xs" color="tertiary">
+                        {review.client_name || 'Клиент'}
+                      </Text>
+                      <Text size="xs" color="tertiary">•</Text>
+                      <Text size="xs" color="tertiary">
+                        {formatReviewDate(review.created_at)}
+                      </Text>
+                    </Inline>
+                    {review.comment && (
+                      <Text size="sm" color="secondary" className="mt-2 line-clamp-2">
+                        {review.comment}
+                      </Text>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {showAllReviews && (
             <div className="mt-4 space-y-4">
               {loadingReviews ? (
                 <Text color="secondary">Загрузка отзывов...</Text>
-              ) : reviews.length === 0 ? (
+              ) : allReviews.length === 0 ? (
                 <Text color="secondary">Отзывов пока нет.</Text>
               ) : (
-                reviews.map((review) => (
+                allReviews.map((review) => (
                   <div key={review.id} className="rounded-xl bg-slate-950/30 border border-white/10 p-3">
                     <Inline gap={2} align="center">
                       <Inline gap={1} align="center">
@@ -208,6 +274,16 @@ export default function NutritionistPage() {
                     )}
                   </div>
                 ))
+              )}
+              {reviewsMeta.pages > reviewsPage && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  fullWidth
+                  onClick={() => setReviewsPage((prev) => prev + 1)}
+                >
+                  Показать ещё
+                </Button>
               )}
             </div>
           )}
