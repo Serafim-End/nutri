@@ -53,6 +53,31 @@ export default function NutritionistPage() {
     enabled: !!id && showAllReviews,
   })
 
+  useEffect(() => {
+    if (!showAllReviews) return
+    if (!fullReviewsData) return
+    setReviewsMeta({
+      total: fullReviewsData.total,
+      pages: fullReviewsData.pages,
+    })
+    setAllReviews((prev) => {
+      const merged = reviewsPage === 1 ? [] : prev
+      const byId = new Map(merged.map((review) => [review.id, review]))
+      fullReviewsData.reviews.forEach((review) => {
+        byId.set(review.id, review)
+      })
+      return Array.from(byId.values())
+    })
+  }, [fullReviewsData, reviewsPage, showAllReviews])
+
+  useEffect(() => {
+    if (!showAllReviews) {
+      setAllReviews([])
+      setReviewsPage(1)
+      setReviewsMeta({ total: 0, pages: 0 })
+    }
+  }, [showAllReviews])
+
   if (loadingNutritionist || loadingServices) {
     return <PageLoader text="Загрузка профиля..." />
   }
@@ -78,31 +103,6 @@ export default function NutritionistPage() {
 
   const formatReviewDate = (value: string) =>
     new Date(value).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' })
-
-  useEffect(() => {
-    if (!showAllReviews) return
-    if (!fullReviewsData) return
-    setReviewsMeta({
-      total: fullReviewsData.total,
-      pages: fullReviewsData.pages,
-    })
-    setAllReviews((prev) => {
-      const merged = reviewsPage === 1 ? [] : prev
-      const byId = new Map(merged.map((review) => [review.id, review]))
-      fullReviewsData.reviews.forEach((review) => {
-        byId.set(review.id, review)
-      })
-      return Array.from(byId.values())
-    })
-  }, [fullReviewsData, reviewsPage, showAllReviews])
-
-  useEffect(() => {
-    if (!showAllReviews) {
-      setAllReviews([])
-      setReviewsPage(1)
-      setReviewsMeta({ total: 0, pages: 0 })
-    }
-  }, [showAllReviews])
 
   const handleSelectService = (service: Service) => {
     setSelectedService(service)
