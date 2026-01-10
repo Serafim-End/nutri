@@ -87,12 +87,11 @@ class GoogleCalendarService:
             Authorization URL
         """
         flow = cls.get_oauth_flow(nutritionist_id)
-        # Store nutritionist_id in state for callback verification
-        flow.state = nutritionist_id
         authorization_url, _ = flow.authorization_url(
             access_type="offline",
             include_granted_scopes="true",
             prompt="consent",  # Force consent to get refresh token
+            state=nutritionist_id,
         )
         return authorization_url
 

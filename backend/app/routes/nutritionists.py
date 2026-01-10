@@ -4,6 +4,7 @@ Handles nutritionist profile management (for Botpress integration).
 """
 
 from datetime import datetime, date
+import uuid
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from pydantic import ValidationError
@@ -949,6 +950,73 @@ def _handle_google_calendar_callback(authorization_code: str, nutritionist_id: s
     return jsonify({"error": "Failed to connect calendar"}), 400
 
 
+def _render_calendar_callback_page(
+    success: bool,
+    message: str,
+    webapp_url: str | None = None,
+):
+    status_title = "Google Calendar Connected" if success else "Google Calendar Error"
+    button_label = "Back to app" if success else "Back to app"
+    button_href = webapp_url or "https://t.me/your_bot/app"
+
+    html = f"""
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{status_title}</title>
+    <style>
+      body {{
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+        margin: 0;
+        padding: 40px 16px;
+      }}
+      .card {{
+        max-width: 520px;
+        margin: 0 auto;
+        background: #111827;
+        border: 1px solid #1f2937;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      }}
+      h1 {{
+        font-size: 20px;
+        margin: 0 0 12px 0;
+      }}
+      p {{
+        margin: 0 0 18px 0;
+        line-height: 1.5;
+      }}
+      a.button {{
+        display: inline-block;
+        background: #22c55e;
+        color: #0b1220;
+        text-decoration: none;
+        padding: 10px 16px;
+        border-radius: 10px;
+        font-weight: 600;
+      }}
+      .error a.button {{
+        background: #f59e0b;
+      }}
+    </style>
+  </head>
+  <body>
+    <div class="card {'error' if not success else ''}">
+      <h1>{status_title}</h1>
+      <p>{message}</p>
+      <a class="button" href="{button_href}">{button_label}</a>
+    </div>
+  </body>
+</html>
+"""
+    return current_app.response_class(html, mimetype="text/html")
+
+
 @nutritionists_bp.route("/calendar/callback", methods=["GET"])
 @jwt_required(optional=True)
 def google_calendar_callback_global():
@@ -984,16 +1052,60 @@ def google_calendar_callback_global():
     authorization_code = request.args.get("code")
     state = request.args.get("state")
 
+    webapp_url = current_app.config.get("WEBAPP_URL")
+
     if not authorization_code:
-        return jsonify({"error": "Missing authorization code"}), 400
+        current_app.logger.warning("Calendar callback missing code")
+        return _render_calendar_callback_page(
+            False,
+            "Authorization code is missing. Please try again.",
+            webapp_url,
+        ), 400
     if not state:
-        return jsonify({"error": "Missing state parameter"}), 400
+        current_app.logger.warning("Calendar callback missing state")
+        return _render_calendar_callback_page(
+            False,
+            "State parameter is missing. Please try again.",
+            webapp_url,
+        ), 400
+    try:
+        uuid.UUID(state)
+    except ValueError:
+        current_app.logger.warning(f"Calendar callback invalid state: {state}")
+        return _render_calendar_callback_page(
+            False,
+            "Invalid state parameter. Please try again.",
+            webapp_url,
+        ), 400
 
     nutritionist = NutritionistProfile.query.get(state)
     if not nutritionist:
-        return jsonify({"error": "Nutritionist not found"}), 404
+        current_app.logger.warning(f"Calendar callback nutritionist not found: {state}")
+        return _render_calendar_callback_page(
+            False,
+            "Nutritionist profile not found. Please contact support.",
+            webapp_url,
+        ), 404
 
-    return _handle_google_calendar_callback(authorization_code, state)
+    response = _handle_google_calendar_callback(authorization_code, state)
+    if isinstance(response, tuple):
+        body, status = response
+        if status >= 400:
+            current_app.logger.error(
+                f"Calendar callback failed: nutritionist_id={state} status={status}"
+            )
+            return _render_calendar_callback_page(
+                False,
+                "Failed to connect Google Calendar. Please try again.",
+                webapp_url,
+            ), status
+
+    current_app.logger.info(f"Calendar connected: nutritionist_id={state}")
+    return _render_calendar_callback_page(
+        True,
+        "Google Calendar connected successfully. You can return to the app.",
+        webapp_url,
+    )
 
 
 @nutritionists_bp.route("/<nutritionist_id>/calendar/callback", methods=["GET"])
@@ -1044,17 +1156,54 @@ def google_calendar_callback(nutritionist_id: str):
 
     authorization_code = request.args.get("code")
     state = request.args.get("state", nutritionist_id)
+    webapp_url = current_app.config.get("WEBAPP_URL")
 
     if not authorization_code:
-        return jsonify({"error": "Missing authorization code"}), 400
+        current_app.logger.warning("Calendar callback (legacy) missing code")
+        return _render_calendar_callback_page(
+            False,
+            "Authorization code is missing. Please try again.",
+            webapp_url,
+        ), 400
 
     if state != nutritionist_id:
-        return jsonify({"error": "Invalid state parameter"}), 400
+        current_app.logger.warning(
+            f"Calendar callback (legacy) invalid state: {state} != {nutritionist_id}"
+        )
+        return _render_calendar_callback_page(
+            False,
+            "Invalid state parameter. Please try again.",
+            webapp_url,
+        ), 400
 
     try:
-        return _handle_google_calendar_callback(authorization_code, nutritionist_id)
+        response = _handle_google_calendar_callback(authorization_code, nutritionist_id)
+        if isinstance(response, tuple):
+            body, status = response
+            if status >= 400:
+                current_app.logger.error(
+                    f"Calendar callback failed: nutritionist_id={nutritionist_id} status={status}"
+                )
+                return _render_calendar_callback_page(
+                    False,
+                    "Failed to connect Google Calendar. Please try again.",
+                    webapp_url,
+                ), status
+        current_app.logger.info(f"Calendar connected (legacy): nutritionist_id={nutritionist_id}")
+        return _render_calendar_callback_page(
+            True,
+            "Google Calendar connected successfully. You can return to the app.",
+            webapp_url,
+        )
     except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+        current_app.logger.error(
+            f"Calendar callback error: nutritionist_id={nutritionist_id} error={e}"
+        )
+        return _render_calendar_callback_page(
+            False,
+            "Google Calendar connection failed. Please try again.",
+            webapp_url,
+        ), 400
 
 
 @nutritionists_bp.route("/<nutritionist_id>/calendar/disconnect", methods=["POST"])
