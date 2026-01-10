@@ -115,7 +115,7 @@ export default function NutritionistPage() {
   }
 
   return (
-    <PageContainer background="primary">
+    <PageContainer background="gradient">
       {/* Верхняя секция с градиентом */}
       <div className="bg-gradient-to-b from-primary-500 to-primary-600 px-4 pt-8 pb-16 text-white">
         <Inline gap={4} align="center">
