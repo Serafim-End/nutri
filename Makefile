@@ -8,6 +8,9 @@
 .PHONY: help install dev build up down logs seed test lint clean migrate downgrade db-reset db-check
 .PHONY: prod-up prod-down prod-logs prod-migrate prod-seed prod-shell prod-status prod-restart
 
+# Dev environment file (can be overridden: make dev-up DEV_ENV_FILE=.env)
+DEV_ENV_FILE ?= .env.dev
+
 # Default target
 help:
 	@echo ""
@@ -35,6 +38,7 @@ help:
 	@echo "💻 Local Development:"
 	@echo "  make dev-install     - Install dependencies locally"
 	@echo "  make dev-up          - Start development containers"
+	@echo "  make dev-up-ngrok    - Update ngrok webhook URL and start dev containers"
 	@echo "  make dev-down        - Stop development containers"
 	@echo "  make dev-logs        - View development logs"
 	@echo ""
@@ -125,19 +129,24 @@ dev-install:
 
 # Start development environment
 dev-up:
-	DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose up --build
+	DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose --env-file $(DEV_ENV_FILE) up --build
+
+# Update ngrok webhook URL and start development environment
+dev-up-ngrok:
+	@./scripts/ngrok_set_env.sh $(DEV_ENV_FILE)
+	DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose --env-file $(DEV_ENV_FILE) up --build
 
 # Stop development environment
 dev-down:
-	docker compose down
+	docker compose --env-file $(DEV_ENV_FILE) down
 
 # View development logs
 dev-logs:
-	docker compose logs -f
+	docker compose --env-file $(DEV_ENV_FILE) logs -f
 
 # Build development images
 dev-build:
-	DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose build
+	DOCKER_BUILDKIT=1 COMPOSE_DOCKER_CLI_BUILD=1 docker compose --env-file $(DEV_ENV_FILE) build
 
 # =============================================================================
 # DATABASE COMMANDS
@@ -154,11 +163,11 @@ downgrade:
 # Create a new migration (development)
 migrate-new:
 	@echo "Creating new migration: $(msg)"
-	docker compose exec backend flask db migrate -m "$(msg)"
+	docker compose --env-file $(DEV_ENV_FILE) exec backend flask db migrate -m "$(msg)"
 
 # Seed database (development)
 dev-seed:
-	docker compose exec backend python seed.py
+	docker compose --env-file $(DEV_ENV_FILE) exec backend python seed.py
 
 # Check database connectivity
 db-check:
