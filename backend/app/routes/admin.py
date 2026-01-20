@@ -23,6 +23,7 @@ from app.models import (
     Review,
     WorkingHoursTemplate,
     SupportTicket,
+    UserSession,
 )
 from app.schemas.nutritionist import ServiceCreateRequest, WorkingHoursTemplateUpdateRequest
 from app.services.notifications import NotificationService
@@ -917,6 +918,36 @@ def update_nutritionist_bio(nutritionist_id: str):
     return jsonify({"nutritionist": nutritionist.to_dict(include_profile=True)})
 
 
+@admin_bp.route("/nutritionists/<nutritionist_id>/profile", methods=["PUT"])
+@jwt_required()
+def update_nutritionist_profile(nutritionist_id: str):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    data = request.get_json() or {}
+    full_name = data.get("full_name")
+    photo_url = data.get("photo_url")
+
+    nutritionist = NutritionistProfile.query.get(nutritionist_id)
+    if not nutritionist or not nutritionist.profile:
+        return jsonify({"error": "Nutritionist not found"}), 404
+
+    if full_name is not None:
+        if not isinstance(full_name, str) or not full_name.strip():
+            return jsonify({"error": "Invalid full_name"}), 400
+        nutritionist.profile.full_name = full_name.strip()
+
+    if photo_url is not None:
+        if not isinstance(photo_url, str):
+            return jsonify({"error": "Invalid photo_url"}), 400
+        nutritionist.profile.photo_url = photo_url.strip() or None
+
+    db.session.commit()
+
+    return jsonify({"nutritionist": nutritionist.to_dict(include_profile=True)})
+
+
 @admin_bp.route("/nutritionists/<nutritionist_id>/services", methods=["GET"])
 @jwt_required()
 def list_nutritionist_services(nutritionist_id: str):
@@ -1130,6 +1161,12 @@ def list_users():
         source, last_seen_at = last_seen(profile)
         data = profile.to_dict()
 
+        session_query = UserSession.query.filter_by(profile_id=profile.id).order_by(
+            UserSession.started_at.desc()
+        )
+        recent_sessions = session_query.limit(5).all()
+        last_session = recent_sessions[0].to_dict() if recent_sessions else None
+
         is_client = bool(profile.last_mini_app_at or profile.last_bot_start_at)
         has_intent = profile.last_nutritionist_intent_at is not None
         has_profile = profile.nutritionist_profile is not None
@@ -1148,6 +1185,9 @@ def list_users():
             "has_nutritionist_profile": has_profile,
             "is_client": is_client,
             "user_statuses": statuses,
+            "login_count": session_query.count(),
+            "login_sessions": [s.to_dict() for s in recent_sessions],
+            "last_session": last_session,
         })
         users.append(data)
 

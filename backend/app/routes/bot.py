@@ -23,6 +23,7 @@ from app.models import (
     Review,
 )
 from app.schemas.nutritionist import SlotCreateRequest
+from app.services.session_tracking import log_user_session
 
 
 logger = logging.getLogger(__name__)
@@ -127,6 +128,7 @@ def resolve_telegram_user():
         profile.first_bot_start_at = now
     profile.last_bot_start_at = now
     db.session.commit()
+    log_user_session(profile.id, "bot_start")
     
     # Check if nutritionist
     nutritionist = None

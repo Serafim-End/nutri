@@ -104,6 +104,9 @@ export function NutritionistsPage() {
                 <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-4">
                   Submitted
                 </th>
+                <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-4">
+                  Telegram
+                </th>
                 <th className="text-right text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-4">
                   Actions
                 </th>
@@ -172,6 +175,21 @@ export function NutritionistsPage() {
                   <td className="px-6 py-4 text-sm text-slate-500">
                     {n.submitted_at ? format(new Date(n.submitted_at), 'MMM d, yyyy') : '—'}
                   </td>
+                  <td className="px-6 py-4 text-sm text-slate-300">
+                    {n.profile?.telegram_username ? (
+                      <a
+                        href={`https://t.me/${n.profile.telegram_username}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-accent-400 hover:text-accent-300 transition-colors"
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        @{n.profile.telegram_username}
+                      </a>
+                    ) : (
+                      <span className="text-slate-500">—</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <button
                       onClick={(e) => {
@@ -192,4 +210,3 @@ export function NutritionistsPage() {
     </div>
   )
 }
-

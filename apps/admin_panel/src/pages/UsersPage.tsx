@@ -107,6 +107,12 @@ export function UsersPage() {
                   Последняя активность
                 </th>
                 <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-4">
+                  Входы
+                </th>
+                <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-4">
+                  Сессия
+                </th>
+                <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-4">
                   Mini App
                 </th>
                 <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wider px-6 py-4">
@@ -169,6 +175,41 @@ export function UsersPage() {
                       {user.last_seen_source ? SOURCE_LABELS[user.last_seen_source] : '—'}
                     </div>
                     <div className="text-xs text-slate-500">{formatDate(user.last_seen_at)}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-slate-200">{user.login_count ?? 0}</div>
+                    {user.login_sessions?.length ? (
+                      <div className="mt-2 space-y-1 text-xs text-slate-500">
+                        {user.login_sessions.slice(0, 3).map((session) => (
+                          <div key={session.id}>
+                            <span className="text-slate-400">
+                              {SOURCE_LABELS[session.source] || session.source}
+                            </span>{' '}
+                            <span>{formatDate(session.started_at)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-slate-500 mt-1">—</div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    {user.last_session ? (
+                      <div className="text-xs text-slate-400 space-y-1">
+                        <div>
+                          {SOURCE_LABELS[user.last_session.source] || user.last_session.source},{' '}
+                          {formatDate(user.last_session.started_at)}
+                        </div>
+                        <div className={user.last_session.booking_made ? 'text-success-300' : 'text-slate-500'}>
+                          Бронь: {user.last_session.booking_made ? 'да' : 'нет'}
+                        </div>
+                        <div className={user.last_session.payment_made ? 'text-success-300' : 'text-slate-500'}>
+                          Оплата: {user.last_session.payment_made ? 'да' : 'нет'}
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-slate-500">—</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-200">{formatDate(user.last_mini_app_at)}</td>
                   <td className="px-6 py-4 text-sm text-slate-200">{formatDate(user.last_bot_start_at)}</td>

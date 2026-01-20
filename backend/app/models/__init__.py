@@ -16,6 +16,7 @@ from app.models.date_exception import DateException
 from app.models.google_calendar import GoogleCalendar
 from app.models.review import Review
 from app.models.support_ticket import SupportTicket
+from app.models.user_session import UserSession
 
 __all__ = [
     "Profile",
@@ -32,5 +33,5 @@ __all__ = [
     "GoogleCalendar",
     "Review",
     "SupportTicket",
+    "UserSession",
 ]
-

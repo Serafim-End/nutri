@@ -34,8 +34,19 @@ export interface AdminUserEntry {
   has_nutritionist_profile: boolean
   is_client: boolean
   user_statuses: Array<'client' | 'nutritionist' | 'nutritionist_intent'>
+  login_count: number
+  login_sessions: AdminUserSession[]
+  last_session: AdminUserSession | null
   created_at: string
   updated_at: string
+}
+
+export interface AdminUserSession {
+  id: string
+  source: 'mini_app' | 'bot_start' | 'nutritionist_intent'
+  started_at: string
+  booking_made: boolean
+  payment_made: boolean
 }
 
 export interface AdminUsersResponse {
@@ -71,6 +82,7 @@ export interface Nutritionist {
   created_at: string
   profile?: {
     telegram_user_id: number
+    telegram_username?: string | null
     photo_url: string | null
   }
 }

@@ -14,6 +14,7 @@ from flask import current_app
 
 from app.extensions import db
 from app.models import Profile
+from app.services.session_tracking import log_user_session
 
 
 class TelegramAuthService:
@@ -146,6 +147,8 @@ class TelegramAuthService:
                     profile.first_mini_app_at = now
                 profile.last_mini_app_at = now
             db.session.commit()
+            if mark_mini_app_visit:
+                log_user_session(profile.id, "mini_app")
         else:
             # Create new profile
             profile = Profile(
@@ -159,5 +162,7 @@ class TelegramAuthService:
             )
             db.session.add(profile)
             db.session.commit()
+            if mark_mini_app_visit:
+                log_user_session(profile.id, "mini_app")
 
         return profile

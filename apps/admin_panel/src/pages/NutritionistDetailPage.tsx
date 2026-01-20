@@ -60,6 +60,8 @@ export function NutritionistDetailPage() {
   const [activeAction, setActiveAction] = useState<ActionType>(null)
   const [actionNote, setActionNote] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [nameDraft, setNameDraft] = useState('')
+  const [photoUrlDraft, setPhotoUrlDraft] = useState('')
   const [bioDraft, setBioDraft] = useState('')
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
   const [serviceDraft, setServiceDraft] = useState<Partial<AdminService>>({})
@@ -100,6 +102,8 @@ export function NutritionistDetailPage() {
 
   useEffect(() => {
     if (nutritionist) {
+      setNameDraft(nutritionist.full_name || '')
+      setPhotoUrlDraft(nutritionist.profile?.photo_url || '')
       setBioDraft(nutritionist.bio || '')
     }
   }, [nutritionist])
@@ -119,6 +123,15 @@ export function NutritionistDetailPage() {
     mutationFn: (bio: string | null) => adminApi.updateNutritionistBio(id!, bio),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id] })
+    },
+  })
+
+  const updateProfileMutation = useMutation({
+    mutationFn: (payload: { full_name: string; photo_url: string | null }) =>
+      adminApi.updateNutritionistProfile(id!, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionists'] })
     },
   })
 
@@ -252,6 +265,8 @@ export function NutritionistDetailPage() {
 
   const canModerate = nutritionist?.verification_status === 'pending' || nutritionist?.verification_status === 'needs_update'
   const canDisable = nutritionist?.verification_status === 'approved' && nutritionist?.is_active
+  const trimmedName = nameDraft.trim()
+  const trimmedPhotoUrl = photoUrlDraft.trim()
 
   if (isLoading) {
     return (
@@ -334,7 +349,56 @@ export function NutritionistDetailPage() {
                   {nutritionist.years_experience && nutritionist.currency && nutritionist.hourly_rate ? ' • ' : ''}
                   {nutritionist.currency && nutritionist.hourly_rate ? `${nutritionist.currency} ${nutritionist.hourly_rate}/hr` : ''}
                 </p>
+                {nutritionist.profile?.telegram_username && (
+                  <a
+                    href={`https://t.me/${nutritionist.profile.telegram_username}`}
+                    className="inline-flex items-center gap-1 text-xs text-accent-400 hover:text-accent-300 mt-2"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    @{nutritionist.profile.telegram_username}
+                  </a>
+                )}
               </div>
+            </div>
+          </div>
+
+          {/* Profile */}
+          <div className="p-6 border-b border-slate-800/50">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Profile</h3>
+              <button
+                onClick={() =>
+                  updateProfileMutation.mutate({
+                    full_name: trimmedName,
+                    photo_url: trimmedPhotoUrl || null,
+                  })
+                }
+                disabled={!trimmedName || updateProfileMutation.isPending}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800/50 text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+              >
+                Save
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <label className="block text-sm text-slate-300">
+                Name
+                <input
+                  value={nameDraft}
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  placeholder="Nutritionist name"
+                  className="mt-1 w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent-500/50"
+                />
+              </label>
+              <label className="block text-sm text-slate-300">
+                Photo URL
+                <input
+                  value={photoUrlDraft}
+                  onChange={(e) => setPhotoUrlDraft(e.target.value)}
+                  placeholder="https://..."
+                  className="mt-1 w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent-500/50"
+                />
+              </label>
             </div>
           </div>
 

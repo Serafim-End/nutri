@@ -32,6 +32,7 @@ from app.schemas.nutritionist import (
     DateExceptionUpdateRequest,
     TimeRange,
 )
+from app.services.session_tracking import log_user_session
 
 
 nutritionists_bp = Blueprint("nutritionists", __name__)
@@ -153,6 +154,8 @@ def upsert_nutritionist():
             nutritionist.submitted_at = datetime.utcnow()
 
     db.session.commit()
+    if schema.nutritionist_intent:
+        log_user_session(profile.id, "nutritionist_intent")
 
     return jsonify({
         "nutritionist": nutritionist.to_dict(include_profile=True),

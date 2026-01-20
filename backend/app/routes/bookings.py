@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from app.schemas.booking import BookingCreateRequest
 from app.schemas.review import ReviewCreateRequest
 from app.services.booking_hold import BookingHoldService
+from app.services.session_tracking import mark_booking_made
 from app.services.payments import PaymentService
 from app.models import Booking, Review
 from app.extensions import db
@@ -93,6 +94,7 @@ def create_booking():
         payment_data = None
 
     logger.info(f"Booking created: id={booking.id}, client={current_user_id}")
+    mark_booking_made(current_user_id)
 
     return jsonify({
         "booking": booking.to_dict(include_relations=True),

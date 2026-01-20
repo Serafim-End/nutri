@@ -22,6 +22,7 @@ from app.models import Payment, Booking, AvailabilitySlot
 from app.payments import get_provider, PaymentResult
 from app.payments.base import PaymentStatus, PaymentIntent
 from app.services.notifications import NotificationService
+from app.services.session_tracking import mark_payment_made
 from app.services.booking_calendar_sync import BookingCalendarSync
 
 logger = logging.getLogger(__name__)
@@ -235,6 +236,7 @@ class PaymentService:
                     slot.hold_expires_at = None
                 
                 db.session.commit()
+                mark_payment_made(str(booking.client_id))
                 
                 logger.info(
                     f"Payment finalized: "

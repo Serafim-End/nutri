@@ -78,6 +78,14 @@ export const adminApi = {
     return response.data
   },
 
+  updateNutritionistProfile: async (
+    id: string,
+    payload: { full_name?: string; photo_url?: string | null }
+  ) => {
+    const response = await api.put(`/admin/nutritionists/${id}/profile`, payload)
+    return response.data
+  },
+
   getNutritionistServices: async (id: string) => {
     const response = await api.get(`/admin/nutritionists/${id}/services`)
     return response.data
