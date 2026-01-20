@@ -198,9 +198,8 @@ def list_pending_nutritionists():
       - name: status
         in: query
         type: string
-        enum: [draft, pending, approved, rejected, needs_update]
-        default: pending
-        description: Фильтр по статусу верификации
+        enum: [all, draft, pending, approved, rejected, needs_update]
+        description: Фильтр по статусу верификации. Без параметра или all — все нутрициологи.
     responses:
       200:
         description: Список нутрициологов
@@ -218,11 +217,14 @@ def list_pending_nutritionists():
     if auth_error:
         return auth_error
 
-    status = request.args.get("status", "pending")
+    status = request.args.get("status") or "all"
+    if status == "all":
+        status = None
 
-    nutritionists = NutritionistProfile.query.filter_by(
-        verification_status=status
-    ).order_by(NutritionistProfile.submitted_at.desc()).all()
+    q = NutritionistProfile.query
+    if status is not None:
+        q = q.filter_by(verification_status=status)
+    nutritionists = q.order_by(NutritionistProfile.submitted_at.desc()).all()
 
     return jsonify({
         "nutritionists": [n.to_dict(include_profile=True) for n in nutritionists],
