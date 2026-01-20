@@ -7,6 +7,7 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { NutritionistsPage } from '@/pages/NutritionistsPage'
 import { NutritionistDetailPage } from '@/pages/NutritionistDetailPage'
 import { UsersPage } from '@/pages/UsersPage'
+import { UserDetailPage } from '@/pages/UserDetailPage'
 import { BookingsPage } from '@/pages/BookingsPage'
 import { PaymentsPage } from '@/pages/PaymentsPage'
 import { ReviewsPage } from '@/pages/ReviewsPage'
@@ -48,6 +49,7 @@ function App() {
         <Route path="nutritionists" element={<NutritionistsPage />} />
         <Route path="nutritionists/:id" element={<NutritionistDetailPage />} />
         <Route path="users" element={<UsersPage />} />
+        <Route path="users/:id" element={<UserDetailPage />} />
         <Route path="bookings" element={<BookingsPage />} />
         <Route path="payments" element={<PaymentsPage />} />
         <Route path="reviews" element={<ReviewsPage />} />
@@ -62,4 +64,3 @@ function App() {
 }
 
 export default App
-

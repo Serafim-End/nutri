@@ -49,6 +49,25 @@ export interface AdminUserSession {
   payment_made: boolean
 }
 
+export interface AdminUserDetailResponse {
+  user: AdminUserEntry
+  sessions: AdminUserSession[]
+  bookings: Booking[]
+  payments: AdminPaymentRecord[]
+}
+
+export interface AdminPaymentRecord {
+  id: string
+  booking_id: string
+  provider: string
+  provider_payment_id: string | null
+  amount_rub: number
+  currency: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
 export interface AdminUsersResponse {
   users: AdminUserEntry[]
   total: number

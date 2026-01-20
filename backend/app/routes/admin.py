@@ -1230,6 +1230,91 @@ def list_users():
     })
 
 
+@admin_bp.route("/users/<user_id>", methods=["GET"])
+@jwt_required()
+def get_user_admin(user_id: str):
+    """
+    Детальная информация о пользователе
+    ---
+    tags:
+      - Admin
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        type: string
+    responses:
+      200:
+        description: Детали пользователя
+      404:
+        description: Пользователь не найден
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    profile = Profile.query.get(user_id)
+    if not profile:
+        return jsonify({"error": "User not found"}), 404
+
+    sessions = UserSession.query.filter_by(profile_id=profile.id).order_by(
+        UserSession.started_at.desc()
+    ).all()
+
+    bookings = Booking.query.filter_by(client_id=profile.id).order_by(
+        Booking.created_at.desc()
+    ).all()
+
+    booking_list = []
+    payments = []
+    for booking in bookings:
+        booking_data = booking.to_dict()
+
+        if booking.client:
+            booking_data["client"] = {
+                "id": str(booking.client.id),
+                "full_name": booking.client.full_name,
+                "photo_url": booking.client.photo_url,
+                "telegram_user_id": booking.client.telegram_user_id,
+            }
+
+        if booking.nutritionist_profile:
+            booking_data["nutritionist"] = {
+                "id": str(booking.nutritionist_profile.nutritionist_id),
+                "full_name": (
+                    booking.nutritionist_profile.profile.full_name
+                    if booking.nutritionist_profile.profile
+                    else "Unknown"
+                ),
+            }
+
+        if booking.slot:
+            booking_data["slot"] = booking.slot.to_dict()
+
+        if booking.service:
+            booking_data["service"] = {
+                "id": str(booking.service.id),
+                "title": booking.service.title,
+                "duration_minutes": booking.service.duration_minutes,
+            }
+
+        if booking.payment:
+            payment_data = booking.payment.to_dict()
+            booking_data["payment"] = payment_data
+            payments.append(payment_data)
+
+        booking_list.append(booking_data)
+
+    return jsonify({
+        "user": profile.to_dict(),
+        "sessions": [s.to_dict() for s in sessions],
+        "bookings": booking_list,
+        "payments": payments,
+    })
+
+
 # ============================================================================
 # REVIEW MANAGEMENT
 # ============================================================================

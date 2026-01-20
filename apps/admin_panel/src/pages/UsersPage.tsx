@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { adminApi } from '@/lib/api'
 import type { AdminUserEntry, AdminUsersResponse } from '@/types'
+import { useNavigate } from 'react-router-dom'
 
 const SOURCE_LABELS: Record<string, string> = {
   mini_app: 'Мини‑приложение',
@@ -27,6 +28,7 @@ const formatDate = (value?: string | null) => {
 }
 
 export function UsersPage() {
+  const navigate = useNavigate()
   const { data, isLoading, error } = useQuery<AdminUsersResponse>({
     queryKey: ['admin', 'users'],
     queryFn: () => adminApi.getUsers({ page: 1, limit: 50 }),
@@ -128,7 +130,11 @@ export function UsersPage() {
             </thead>
             <tbody className="divide-y divide-slate-800/50">
               {users.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-900/30 transition-colors">
+                <tr
+                  key={user.id}
+                  className="hover:bg-slate-900/30 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/users/${user.id}`)}
+                >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       {user.photo_url ? (
