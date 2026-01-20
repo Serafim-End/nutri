@@ -22,7 +22,7 @@ MAIN_MENU_ROLE_NUTRITIONIST = "🩺 Вы зарегистрированы как
 MAIN_MENU_SELECT_ACTION = "Выберите действие:"
 
 # Button labels
-BTN_OPEN_WEBAPP = "🍎 Открыть мини-приложение"
+BTN_OPEN_WEBAPP = "🍎 Для клиентов"
 BTN_FOR_NUTRITIONISTS = "👩‍⚕️ Для нутрициологов"
 BTN_BACK = "◀️ Назад"
 
@@ -110,17 +110,15 @@ PROFILE_STEP4_INSTRUCTION = (
 PROFILE_STEP4_SELECTED_COUNT = "Выбрано: {count}"
 PROFILE_STEP4_REQUIRE_ONE = "⚠️ Выберите хотя бы одну специализацию"
 
-# Specialization labels
-SPEC_WEIGHT_MANAGEMENT = "Управление весом"
-SPEC_SPORTS_NUTRITION = "Спортивное питание"
+# Specialization labels (same as client goals)
+SPEC_WEIGHT_LOSS = "Снижение веса"
+SPEC_MUSCLE_GAIN = "Набор массы"
+SPEC_BETTER_NUTRITION = "Здоровое питание"
 SPEC_GUT_HEALTH = "Здоровье ЖКТ"
-SPEC_DIABETES = "Диабет"
-SPEC_HORMONAL_HEALTH = "Гормональное здоровье"
-SPEC_PEDIATRIC = "Детское питание"
-SPEC_PREGNANCY = "Питание при беременности"
-SPEC_EATING_DISORDERS = "Расстройства пищевого поведения"
-SPEC_AUTOIMMUNE = "Аутоиммунные заболевания"
-SPEC_PLANT_BASED = "Растительное питание"
+SPEC_SPORTS_NUTRITION = "Спортивное питание"
+SPEC_PREGNANCY = "Питание при беременности/кормлении"
+SPEC_PEDIATRIC_NUTRITION = "Детское питание (работа с родителями)"
+SPEC_OTHER = "Другое"
 
 # Step 5: Tags
 PROFILE_STEP5_TITLE = "🏷️ <b>Шаг 5 из 6: Теги (опционально)</b>\n\n"
@@ -649,16 +647,14 @@ WEEKDAYS_RU = {
 # ==========================================
 
 SPECIALIZATIONS = [
-    {"id": "weight_management", "label": SPEC_WEIGHT_MANAGEMENT},
-    {"id": "sports_nutrition", "label": SPEC_SPORTS_NUTRITION},
+    {"id": "weight_loss", "label": SPEC_WEIGHT_LOSS},
+    {"id": "muscle_gain", "label": SPEC_MUSCLE_GAIN},
+    {"id": "better_nutrition", "label": SPEC_BETTER_NUTRITION},
     {"id": "gut_health", "label": SPEC_GUT_HEALTH},
-    {"id": "diabetes", "label": SPEC_DIABETES},
-    {"id": "hormonal_health", "label": SPEC_HORMONAL_HEALTH},
-    {"id": "pediatric", "label": SPEC_PEDIATRIC},
+    {"id": "sports_nutrition", "label": SPEC_SPORTS_NUTRITION},
     {"id": "pregnancy", "label": SPEC_PREGNANCY},
-    {"id": "eating_disorders", "label": SPEC_EATING_DISORDERS},
-    {"id": "autoimmune", "label": SPEC_AUTOIMMUNE},
-    {"id": "plant_based", "label": SPEC_PLANT_BASED},
+    {"id": "pediatric_nutrition", "label": SPEC_PEDIATRIC_NUTRITION},
+    {"id": "other", "label": SPEC_OTHER},
 ]
 
 # ==========================================

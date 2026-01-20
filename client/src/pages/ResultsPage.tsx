@@ -41,9 +41,9 @@ const GOAL_LABELS: Record<string, string> = {
   better_nutrition: 'Здоровое питание',
   gut_health: 'Здоровье ЖКТ',
   sports_nutrition: 'Спортивное питание',
-  diabetes: 'Диабет',
-  mental_wellness: 'Ментальное здоровье',
-  pregnancy: 'Беременность',
+  pregnancy: 'Питание при беременности/кормлении',
+  pediatric_nutrition: 'Детское питание (работа с родителями)',
+  other: 'Другое',
 }
 
 const HELP_MODE_LABELS: Record<string, string> = {

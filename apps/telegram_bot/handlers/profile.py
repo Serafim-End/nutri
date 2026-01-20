@@ -35,18 +35,16 @@ from keyboards import (
 logger = logging.getLogger(__name__)
 router = Router(name="profile")
 
-# Static specializations (should match backend filter options)
+# Static specializations (same as client goals)
 SPECIALIZATIONS = [
-    {"id": "weight_management", "label": "Управление весом"},
-    {"id": "sports_nutrition", "label": "Спортивное питание"},
+    {"id": "weight_loss", "label": "Снижение веса"},
+    {"id": "muscle_gain", "label": "Набор массы"},
+    {"id": "better_nutrition", "label": "Здоровое питание"},
     {"id": "gut_health", "label": "Здоровье ЖКТ"},
-    {"id": "diabetes", "label": "Диабет"},
-    {"id": "hormonal_health", "label": "Гормональное здоровье"},
-    {"id": "pediatric", "label": "Детское питание"},
-    {"id": "pregnancy", "label": "Питание при беременности"},
-    {"id": "eating_disorders", "label": "Расстройства пищевого поведения"},
-    {"id": "autoimmune", "label": "Аутоиммунные заболевания"},
-    {"id": "plant_based", "label": "Растительное питание"},
+    {"id": "sports_nutrition", "label": "Спортивное питание"},
+    {"id": "pregnancy", "label": "Питание при беременности/кормлении"},
+    {"id": "pediatric_nutrition", "label": "Детское питание (работа с родителями)"},
+    {"id": "other", "label": "Другое"},
 ]
 
 # Static tags

@@ -223,7 +223,7 @@ class TestRulesConfirmation:
             profile_draft={
                 "full_name": "Тест Нутрициолог",
                 "bio": "Описание",
-                "specializations": ["weight_management"],
+                "specializations": ["weight_loss"],
                 "tags": [],
             }
         )
@@ -241,7 +241,7 @@ class TestRulesConfirmation:
         
         assert "Проверка" in text or "Шаг 6" in text
         assert "Тест Нутрициолог" in text
-        assert "weight_management" in text.lower() or "Управление весом" in text
+        assert "weight_loss" in text.lower() or "Снижение веса" in text
 
 
 class TestCancelProfile:

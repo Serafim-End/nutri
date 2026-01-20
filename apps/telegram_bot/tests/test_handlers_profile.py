@@ -205,7 +205,7 @@ class TestSpecializationSelection:
     ):
         """Test that toggling adds specialization to list."""
         # Arrange
-        spec_id = SPECIALIZATIONS[0]["id"]  # e.g., "weight_management"
+        spec_id = SPECIALIZATIONS[0]["id"]  # e.g., "weight_loss"
         message = create_message(test_user, test_chat, text="Previous")
         callback = create_callback_query(test_user, message, f"{CB_SPEC_PREFIX}{spec_id}")
         callback.answer = AsyncMock()
@@ -295,7 +295,7 @@ class TestProfileSubmission:
             profile_draft={
                 "full_name": "Тест Нутрициолог",
                 "bio": "Описание",
-                "specializations": ["weight_management"],
+                "specializations": ["weight_loss"],
                 "tags": [],
             },
         )
@@ -310,7 +310,7 @@ class TestProfileSubmission:
         
         assert call_args.kwargs["submit_for_verification"] == True
         assert call_args.kwargs["full_name"] == "Тест Нутрициолог"
-        assert "weight_management" in call_args.kwargs["specializations"]
+        assert "weight_loss" in call_args.kwargs["specializations"]
     
     async def test_submission_clears_state(
         self,
@@ -331,7 +331,7 @@ class TestProfileSubmission:
             telegram_user_id=test_user.id,
             profile_draft={
                 "full_name": "Тест",
-                "specializations": ["weight_management"],
+                "specializations": ["weight_loss"],
             },
         )
         
@@ -365,7 +365,7 @@ class TestProfileSubmission:
             telegram_user_id=test_user.id,
             profile_draft={
                 "full_name": "Тест",
-                "specializations": ["weight_management"],
+                "specializations": ["weight_loss"],
             },
         )
         
@@ -379,4 +379,3 @@ class TestProfileSubmission:
         
         assert "модерац" in text.lower()
         assert "24" in text or "48" in text  # Review time mentioned
-

@@ -24,9 +24,9 @@ const GOALS = [
   { id: 'better_nutrition', label: 'Здоровое питание', emoji: '🥗' },
   { id: 'gut_health', label: 'Здоровье ЖКТ', emoji: '🌿' },
   { id: 'sports_nutrition', label: 'Спортивное питание', emoji: '🏃' },
-  { id: 'diabetes', label: 'Контроль диабета', emoji: '📊' },
-  { id: 'mental_wellness', label: 'Ментальное здоровье', emoji: '🧠' },
-  { id: 'pregnancy', label: 'Питание при беременности', emoji: '🤰' },
+  { id: 'pregnancy', label: 'Питание при беременности/кормлении', emoji: '🤰' },
+  { id: 'pediatric_nutrition', label: 'Детское питание (работа с родителями)', emoji: '🧒' },
+  { id: 'other', label: 'Другое', emoji: '❓' },
 ]
 
 const DIETARY_RESTRICTIONS = [

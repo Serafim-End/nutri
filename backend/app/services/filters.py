@@ -14,9 +14,9 @@ FILTER_OPTIONS = {
         {"id": "better_nutrition", "label": "Здоровое питание"},
         {"id": "gut_health", "label": "Здоровье ЖКТ"},
         {"id": "sports_nutrition", "label": "Спортивное питание"},
-        {"id": "diabetes", "label": "Контроль диабета"},
-        {"id": "mental_wellness", "label": "Ментальное здоровье"},
-        {"id": "pregnancy", "label": "Питание при беременности"},
+        {"id": "pregnancy", "label": "Питание при беременности/кормлении"},
+        {"id": "pediatric_nutrition", "label": "Детское питание (работа с родителями)"},
+        {"id": "other", "label": "Другое"},
     ],
     "topics": [
         {"id": "nutrition_basics", "label": "Основы питания"},

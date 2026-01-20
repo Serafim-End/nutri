@@ -12,6 +12,7 @@ from aiogram.types import (
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from config import get_config
+from bot_texts import BTN_OPEN_WEBAPP
 
 
 # ==========================================
@@ -133,7 +134,7 @@ def get_main_menu_keyboard() -> InlineKeyboardMarkup:
     if webapp_url and webapp_url.startswith("https://") and webapp_url != "https://t.me/your_bot/app":
         builder.row(
             InlineKeyboardButton(
-                text="🍎 Открыть мини-приложение",
+                text=BTN_OPEN_WEBAPP,
                 web_app=WebAppInfo(url=webapp_url),
             )
         )

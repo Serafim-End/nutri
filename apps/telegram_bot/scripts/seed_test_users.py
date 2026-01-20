@@ -134,9 +134,9 @@ async def seed_test_nutritionist(conn: asyncpg.Connection, telegram_id: int) -> 
             updated_at = $6
     """, 
         profile_id,
-        "Опытный нутрициолог с 10-летним стажем. Специализируюсь на спортивном питании и управлении весом.",
+        "Опытный нутрициолог с 10-летним стажем. Специализируюсь на спортивном питании и снижении веса.",
         "approved",  # Pre-approve for testing
-        ["weight_management", "sports_nutrition"],
+        ["weight_loss", "sports_nutrition"],
         ["online_only"],
         datetime.utcnow()
     )
@@ -218,4 +218,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
