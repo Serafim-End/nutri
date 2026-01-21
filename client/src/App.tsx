@@ -8,7 +8,7 @@ import IntakePage from './pages/IntakePage'
 import ResultsPage from './pages/ResultsPage'
 import NutritionistPage from './pages/NutritionistPage'
 import BookingPage from './pages/BookingPage'
-import PaymentSuccessPage from './pages/PaymentSuccessPage'
+import PaymentReturnPage from './pages/PaymentReturnPage'
 import MyBookingsPage from './pages/MyBookingsPage'
 import LoadingScreen from './components/LoadingScreen'
 import { colors } from './design-system/tokens'
@@ -107,7 +107,9 @@ function App() {
             <Route path="results" element={<ResultsPage />} />
             <Route path="nutritionist/:id" element={<NutritionistPage />} />
             <Route path="book/:nutritionistId/:serviceId" element={<BookingPage />} />
-            <Route path="payment-success" element={<PaymentSuccessPage />} />
+            <Route path="payment-success" element={<PaymentReturnPage mode="success" />} />
+            <Route path="payment/success" element={<PaymentReturnPage mode="success" />} />
+            <Route path="payment/fail" element={<PaymentReturnPage mode="fail" />} />
             <Route path="my-bookings" element={<MyBookingsPage />} />
             <Route path="bookings" element={<Navigate to="/my-bookings" replace />} />
           </Route>

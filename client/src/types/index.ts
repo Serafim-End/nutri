@@ -93,7 +93,7 @@ export interface IntakeAnswers {
 
 export interface PaymentIntent {
   payment_id: string
-  provider: 'mock' | 'telegram' | 'yookassa' | 'cloudpayments'
+  provider: 'mock' | 'telegram' | 'yookassa' | 'cloudpayments' | 'prodamus'
   amount_rub: number
   currency: string
   payment_url: string
@@ -177,4 +177,3 @@ export interface IntakeResponse {
   normalized_filters: SearchFilters
   message: string
 }
-

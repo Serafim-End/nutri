@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
 import { ru } from 'date-fns/locale'
-import { clientApi, bookingApi } from '../lib/api'
+import { clientApi, bookingApi, paymentApi } from '../lib/api'
 import { useCountdown } from '../hooks/useCountdown'
 import type { Booking } from '../types'
 import {
@@ -48,11 +48,25 @@ function BookingCard({ booking }: { booking: Booking }) {
   const queryClient = useQueryClient()
 
   // Мутации для действий
-  const markPaidMutation = useMutation({
-    mutationFn: () => bookingApi.markPaid(booking.id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-bookings'] })
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+  const payMutation = useMutation({
+    mutationFn: async () => {
+      const intent = await paymentApi.createPaymentIntent(booking.id)
+      if (intent.provider === 'mock') {
+        const result = await paymentApi.simulatePayment(booking.id)
+        return { booking: result.booking }
+      }
+      if (window.Telegram?.WebApp?.openLink) {
+        window.Telegram.WebApp.openLink(intent.payment_url)
+      } else {
+        window.location.href = intent.payment_url
+      }
+      return null
+    },
+    onSuccess: (data) => {
+      if (data?.booking) {
+        queryClient.invalidateQueries({ queryKey: ['my-bookings'] })
+        window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+      }
     },
   })
 
@@ -129,8 +143,8 @@ function BookingCard({ booking }: { booking: Booking }) {
       {isPending && (
         <Inline gap={3} className="mt-4 pt-4 border-t border-border-light">
           <Button
-            onClick={() => markPaidMutation.mutate()}
-            loading={markPaidMutation.isPending}
+            onClick={() => payMutation.mutate()}
+            loading={payMutation.isPending}
             size="sm"
             className="flex-1"
           >

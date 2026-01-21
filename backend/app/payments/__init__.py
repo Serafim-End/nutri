@@ -13,11 +13,13 @@ See README.md section "How to plug a real payment provider" for details.
 
 from app.payments.base import PaymentProvider, PaymentResult
 from app.payments.mock import MockPaymentProvider
+from app.payments.prodamus import ProdamusPaymentProvider
 
 __all__ = [
     "PaymentProvider",
     "PaymentResult",
     "MockPaymentProvider",
+    "ProdamusPaymentProvider",
     "get_provider",
 ]
 
@@ -25,6 +27,7 @@ __all__ = [
 # Registry of available payment providers
 _PROVIDERS: dict[str, type[PaymentProvider]] = {
     "mock": MockPaymentProvider,
+    "prodamus": ProdamusPaymentProvider,
 }
 
 
@@ -82,4 +85,3 @@ def register_provider(name: str, provider_class: type[PaymentProvider]) -> None:
         >>> register_provider("telegram", TelegramPaymentProvider)
     """
     _PROVIDERS[name.lower()] = provider_class
-

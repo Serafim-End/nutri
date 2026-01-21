@@ -20,6 +20,64 @@ logger = logging.getLogger(__name__)
 payments_bp = Blueprint("payments", __name__)
 
 
+def _parse_bracket_form(form: dict) -> dict:
+    def split_key(key: str) -> list[str]:
+        parts: list[str] = []
+        buf = ""
+        i = 0
+        while i < len(key):
+            if key[i] == "[":
+                if buf:
+                    parts.append(buf)
+                    buf = ""
+                j = key.find("]", i)
+                if j == -1:
+                    break
+                parts.append(key[i + 1:j])
+                i = j + 1
+            else:
+                buf += key[i]
+                i += 1
+        if buf:
+            parts.append(buf)
+        return parts
+
+    def ensure_list_size(lst: list, idx: int) -> None:
+        while len(lst) <= idx:
+            lst.append({})
+
+    def assign(target: dict | list, parts: list[str], value: str) -> None:
+        key = parts[0]
+        last = len(parts) == 1
+        if isinstance(target, list):
+            idx = int(key)
+            ensure_list_size(target, idx)
+            if last:
+                target[idx] = value
+                return
+            if not isinstance(target[idx], (dict, list)):
+                target[idx] = {}
+            assign(target[idx], parts[1:], value)
+            return
+
+        if last:
+            target[key] = value
+            return
+
+        next_key = parts[1]
+        if next_key.isdigit():
+            target.setdefault(key, [])
+        else:
+            target.setdefault(key, {})
+        assign(target[key], parts[1:], value)
+
+    result: dict = {}
+    for raw_key, raw_value in form.items():
+        parts = split_key(raw_key)
+        assign(result, parts, raw_value)
+    return result
+
+
 @payments_bp.route("/create", methods=["POST"])
 @jwt_required()
 def create_payment_intent():
@@ -114,7 +172,7 @@ def payment_webhook(provider: str):
         in: path
         required: true
         type: string
-        enum: [telegram, yookassa, mock]
+        enum: [prodamus, telegram, yookassa, mock]
         description: Название платёжного провайдера
       - in: body
         name: body
@@ -138,7 +196,9 @@ def payment_webhook(provider: str):
       404:
         description: Бронирование не найдено
     """
-    payload = request.get_json() or {}
+    payload = request.get_json(silent=True)
+    if payload is None:
+        payload = _parse_bracket_form(request.form.to_dict(flat=True))
     headers = dict(request.headers)
     
     payment, error = PaymentService.process_provider_webhook(

@@ -139,10 +139,31 @@ class Config:
     BOOKING_HOLD_MINUTES = int(os.environ.get("BOOKING_HOLD_MINUTES", "10"))
 
     # Payment Configuration
-    # Available providers: mock, telegram, yookassa, cloudpayments
+    # Available providers: mock, prodamus, telegram, yookassa, cloudpayments
     # Default: mock (for development)
     PAYMENT_PROVIDER = os.environ.get("PAYMENT_PROVIDER", "mock")
     PAYMENT_WEBHOOK_SECRET = os.environ.get("PAYMENT_WEBHOOK_SECRET", "webhook-secret")
+
+    # Prodamus Payform (when PAYMENT_PROVIDER=prodamus)
+    PAYFORM_FORM_URL = os.environ.get(
+        "PAYFORM_FORM_URL",
+        "https://vitakotsarenko.payform.ru/",
+    )
+    PAYFORM_SECRET = os.environ.get("PAYFORM_SECRET", "")
+    PAYFORM_SYS = os.environ.get("PAYFORM_SYS", "")
+    PAYFORM_SUCCESS_URL = os.environ.get(
+        "PAYFORM_SUCCESS_URL",
+        "https://tma.nutrutioncoach.com/payment/success",
+    )
+    PAYFORM_RETURN_URL = os.environ.get(
+        "PAYFORM_RETURN_URL",
+        "https://tma.nutrutioncoach.com/payment/fail",
+    )
+    PAYFORM_NOTIFICATION_URL = os.environ.get(
+        "PAYFORM_NOTIFICATION_URL",
+        "https://api.nutrutioncoach.com/api/payments/webhook/prodamus",
+    )
+    PAYFORM_LINK_EXPIRE_MINUTES = int(os.environ.get("PAYFORM_LINK_EXPIRE_MINUTES", "15"))
     
     # Provider-specific configuration (used when provider is implemented)
     # TELEGRAM_PAYMENTS_TOKEN - Telegram Bot Payments token (same as TELEGRAM_BOT_TOKEN)

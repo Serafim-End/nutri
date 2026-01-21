@@ -231,14 +231,10 @@ export default function BookingPage() {
   // Мутация оплаты
   const simulatePaymentMutation = useMutation({
     mutationFn: async (): Promise<{ booking: Booking }> => {
-      if (paymentInfo?.provider === 'mock') {
-        const result = await paymentApi.simulatePayment(currentBooking!.id)
-        if (!result.booking) {
-          throw new Error('Оплата прошла, но данные бронирования не получены')
-        }
-        return { booking: result.booking }
+      const result = await paymentApi.simulatePayment(currentBooking!.id)
+      if (!result.booking) {
+        throw new Error('Оплата прошла, но данные бронирования не получены')
       }
-      const result = await bookingApi.markPaid(currentBooking!.id)
       return { booking: result.booking }
     },
     onSuccess: (data) => {
@@ -253,6 +249,27 @@ export default function BookingPage() {
         setBookingState('expired')
       }
       setError(errorMessage)
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error')
+    },
+  })
+
+  const createPaymentLinkMutation = useMutation({
+    mutationFn: async () => {
+      if (paymentInfo) {
+        return paymentInfo
+      }
+      return paymentApi.createPaymentIntent(currentBooking!.id)
+    },
+    onSuccess: (intent) => {
+      setPaymentInfo(intent)
+      if (window.Telegram?.WebApp?.openLink) {
+        window.Telegram.WebApp.openLink(intent.payment_url)
+      } else {
+        window.location.href = intent.payment_url
+      }
+    },
+    onError: (err: Error & { response?: { data?: { error?: string } } }) => {
+      setError(err.response?.data?.error || 'Не удалось получить ссылку на оплату')
       window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error')
     },
   })
@@ -297,7 +314,11 @@ export default function BookingPage() {
   }
 
   const handlePayment = () => {
-    simulatePaymentMutation.mutate()
+    if (paymentInfo?.provider === 'mock') {
+      simulatePaymentMutation.mutate()
+      return
+    }
+    createPaymentLinkMutation.mutate()
   }
 
   const handleCancel = () => {
@@ -411,7 +432,7 @@ export default function BookingPage() {
           <Stack gap={3}>
             <Button
               onClick={handlePayment}
-              loading={simulatePaymentMutation.isPending}
+              loading={simulatePaymentMutation.isPending || createPaymentLinkMutation.isPending}
               fullWidth
               size="lg"
             >
