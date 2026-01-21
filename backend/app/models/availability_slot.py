@@ -3,7 +3,8 @@ Availability Slot Model - Time slots for bookings
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Optional
 from sqlalchemy.dialects.postgresql import UUID
 from app.extensions import db
 
@@ -49,18 +50,21 @@ class AvailabilitySlot(db.Model):
 
     def to_dict(self):
         """Serialize slot to dictionary."""
+        def isoformat_utc(value: Optional[datetime]) -> Optional[str]:
+            if value is None:
+                return None
+            if value.tzinfo is None:
+                value = value.replace(tzinfo=timezone.utc)
+            return value.isoformat()
+
         return {
             "id": str(self.id),
             "nutritionist_id": str(self.nutritionist_id),
-            "start_at": self.start_at.isoformat(),
-            "end_at": self.end_at.isoformat(),
+            "start_at": isoformat_utc(self.start_at),
+            "end_at": isoformat_utc(self.end_at),
             "status": self.status,
             "source": self.source,
-            "hold_expires_at": (
-                self.hold_expires_at.isoformat() if self.hold_expires_at else None
-            ),
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat(),
+            "hold_expires_at": isoformat_utc(self.hold_expires_at),
+            "created_at": isoformat_utc(self.created_at),
+            "updated_at": isoformat_utc(self.updated_at),
         }
-
-
