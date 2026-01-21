@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
@@ -32,11 +32,14 @@ type BookingState = 'select_slot' | 'pending_payment' | 'paid' | 'cancelled' | '
 // Отображение таймера обратного отсчёта
 function CountdownTimer({ expiresAt, onExpire }: { expiresAt: string; onExpire: () => void }) {
   const countdown = useCountdown(expiresAt)
+  const hasValidExpiresAt = !!expiresAt && !Number.isNaN(new Date(expiresAt).getTime())
 
-  if (countdown.isExpired) {
-    onExpire()
-    return null
-  }
+  useEffect(() => {
+    if (!hasValidExpiresAt) return
+    if (countdown.isExpired) {
+      onExpire()
+    }
+  }, [countdown.isExpired, hasValidExpiresAt, onExpire])
 
   const isUrgent = countdown.totalSeconds <= 60
 

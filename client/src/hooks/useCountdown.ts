@@ -23,7 +23,13 @@ interface CountdownResult {
  * @returns CountdownResult with remaining time and status
  */
 export function useCountdown(targetTimestamp: string | null | undefined): CountdownResult {
-  const [totalSeconds, setTotalSeconds] = useState<number>(0)
+  const [totalSeconds, setTotalSeconds] = useState<number>(() => {
+    if (!targetTimestamp) return 0
+    const date = new Date(targetTimestamp)
+    if (isNaN(date.getTime())) return 0
+    const diff = Math.floor((date.getTime() - Date.now()) / 1000)
+    return Math.max(0, diff)
+  })
 
   // Parse target timestamp and calculate initial remaining seconds
   const targetDate = useMemo(() => {
@@ -97,4 +103,3 @@ export function formatDuration(seconds: number): string {
   }
   return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
 }
-
