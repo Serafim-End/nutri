@@ -88,7 +88,7 @@ def _extract_payment_link(payload: Any) -> str | None:
     if isinstance(payload, str):
         return payload.strip()
     if isinstance(payload, dict):
-        for key in ("link", "url", "payment_url", "pay_url"):
+        for key in ("payment_link", "link", "url", "payment_url", "pay_url"):
             value = payload.get(key)
             if isinstance(value, str) and value.startswith("http"):
                 return value
