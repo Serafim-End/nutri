@@ -65,6 +65,15 @@ def _format_expire_msk(minutes: int) -> str:
     return expires_at.strftime("%d.%m.%Y %H:%M")
 
 
+def _build_webapp_return_url(
+    webapp_url: str,
+    booking_id: str,
+    status: str,
+) -> str:
+    start_param = f"payment_{status}_{booking_id}"
+    return _add_query_param(webapp_url, "startapp", start_param)
+
+
 def _flatten_form_data(data: dict) -> list[tuple[str, str]]:
     items: list[tuple[str, str]] = []
 
@@ -114,6 +123,7 @@ class ProdamusPaymentProvider(PaymentProvider):
         success_url = config.get("PAYFORM_SUCCESS_URL") or ""
         return_url = config.get("PAYFORM_RETURN_URL") or ""
         notification_url = config.get("PAYFORM_NOTIFICATION_URL") or ""
+        webapp_url = config.get("WEBAPP_URL") or ""
         expire_minutes = int(config.get("PAYFORM_LINK_EXPIRE_MINUTES", 15))
 
         if not form_url or not secret or not sys_code:
@@ -122,8 +132,12 @@ class ProdamusPaymentProvider(PaymentProvider):
         booking_id = str(booking.id)
         service_name = booking.service.title if booking.service else "Услуга"
 
-        success_url = _add_query_param(success_url, "order_id", booking_id)
-        return_url = _add_query_param(return_url, "order_id", booking_id)
+        if webapp_url:
+            success_url = _build_webapp_return_url(webapp_url, booking_id, "success")
+            return_url = _build_webapp_return_url(webapp_url, booking_id, "fail")
+        else:
+            success_url = _add_query_param(success_url, "order_id", booking_id)
+            return_url = _add_query_param(return_url, "order_id", booking_id)
 
         data: dict[str, Any] = {
             "order_id": booking_id,
