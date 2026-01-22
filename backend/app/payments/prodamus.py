@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import json
 import logging
+import uuid
 from datetime import datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode, urlparse, parse_qsl
@@ -126,6 +127,7 @@ class ProdamusPaymentProvider(PaymentProvider):
 
         data: dict[str, Any] = {
             "order_id": booking_id,
+            "order_num": booking_id,
             "products": [
                 {
                     "name": service_name,
@@ -186,7 +188,7 @@ class ProdamusPaymentProvider(PaymentProvider):
 
     def handle_webhook(self, payload: dict, headers: dict) -> PaymentResult:
         payment_status = str(payload.get("payment_status", "")).lower()
-        booking_id = payload.get("order_id") or payload.get("order_num")
+        booking_id = self._extract_booking_id(payload)
 
         if not booking_id:
             raise ValueError("order_id is required in webhook payload")
@@ -215,6 +217,22 @@ class ProdamusPaymentProvider(PaymentProvider):
             status=status,
             raw_payload=payload,
         )
+
+    @staticmethod
+    def _extract_booking_id(payload: dict) -> str | None:
+        for key in ("order_num", "order_id", "booking_id"):
+            value = payload.get(key)
+            if isinstance(value, str) and ProdamusPaymentProvider._is_uuid(value):
+                return value
+        return None
+
+    @staticmethod
+    def _is_uuid(value: str) -> bool:
+        try:
+            uuid.UUID(value)
+            return True
+        except ValueError:
+            return False
 
     def verify_signature(self, payload: dict, headers: dict) -> bool:
         secret = current_app.config.get("PAYFORM_SECRET") or ""
