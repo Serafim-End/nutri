@@ -243,7 +243,7 @@ export interface Payment {
   nutritionist_name: string
   amount: number
   currency: string
-  status: 'pending' | 'completed' | 'failed' | 'refunded'
+  status: 'pending' | 'completed' | 'failed' | 'refunded' | 'expired'
   provider: string
   created_at: string
 }

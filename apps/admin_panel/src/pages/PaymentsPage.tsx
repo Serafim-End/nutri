@@ -5,13 +5,14 @@ import { Payment } from '@/types'
 import { format } from 'date-fns'
 import clsx from 'clsx'
 
-type StatusFilter = 'all' | 'pending' | 'completed' | 'failed' | 'refunded'
+type StatusFilter = 'all' | 'pending' | 'completed' | 'failed' | 'refunded' | 'expired'
 
 const statusColors: Record<string, string> = {
   pending: 'bg-warning-500/10 text-warning-400 border-warning-500/20',
   completed: 'bg-success-500/10 text-success-400 border-success-500/20',
   failed: 'bg-error-500/10 text-error-400 border-error-500/20',
   refunded: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+  expired: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
 }
 
 export function PaymentsPage() {
@@ -37,6 +38,7 @@ export function PaymentsPage() {
     { value: 'completed', label: 'Completed' },
     { value: 'failed', label: 'Failed' },
     { value: 'refunded', label: 'Refunded' },
+    { value: 'expired', label: 'Expired' },
   ]
 
   const handleExportCsv = async () => {
@@ -258,4 +260,3 @@ export function PaymentsPage() {
     </div>
   )
 }
-

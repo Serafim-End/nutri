@@ -4,11 +4,14 @@ Handles administrative functions like nutritionist verification and booking mana
 """
 
 import os
+import csv
 import logging
 from datetime import datetime, date
+from io import StringIO
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt, create_access_token
 from sqlalchemy import or_, and_
+from sqlalchemy.orm import joinedload
 from pydantic import ValidationError
 
 from app.extensions import db
@@ -1313,6 +1316,163 @@ def get_user_admin(user_id: str):
         "bookings": booking_list,
         "payments": payments,
     })
+
+
+# ============================================================================
+# PAYMENT MANAGEMENT
+# ============================================================================
+
+
+def _map_payment_status(payment: Payment) -> str:
+    status_map = {
+        "created": "pending",
+        "succeeded": "completed",
+        "failed": "failed",
+        "refunded": "refunded",
+        "expired": "expired",
+    }
+    return status_map.get(payment.status, payment.status)
+
+
+def _payments_query(status: str | None, date_from: str | None, date_to: str | None):
+    query = Payment.query.options(
+        joinedload(Payment.booking)
+        .joinedload(Booking.nutritionist_profile)
+        .joinedload(NutritionistProfile.profile)
+    )
+
+    status_map = {
+        "pending": "created",
+        "completed": "succeeded",
+        "failed": "failed",
+        "refunded": "refunded",
+        "expired": "expired",
+    }
+
+    if status:
+        db_status = status_map.get(status, status)
+        query = query.filter(Payment.status == db_status)
+
+    if date_from:
+        try:
+            from_date = datetime.fromisoformat(date_from)
+            query = query.filter(Payment.created_at >= from_date)
+        except ValueError:
+            pass
+
+    if date_to:
+        try:
+            to_date = datetime.fromisoformat(date_to)
+            to_date = datetime.combine(to_date.date(), datetime.max.time())
+            query = query.filter(Payment.created_at <= to_date)
+        except ValueError:
+            pass
+
+    return query.order_by(Payment.created_at.desc())
+
+
+@admin_bp.route("/payments", methods=["GET"])
+@jwt_required()
+def list_payments():
+    """
+    List all payments with optional filters.
+
+    Request:
+        GET /api/admin/payments?status=pending&from=2024-01-01&to=2024-12-31
+        Authorization: Bearer <admin_token>
+
+    Response:
+        200: { "payments": [...] }
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    status = request.args.get("status")
+    date_from = request.args.get("from")
+    date_to = request.args.get("to")
+
+    payments = _payments_query(status, date_from, date_to).all()
+    payment_list = []
+
+    for payment in payments:
+        booking = payment.booking
+        nutritionist_name = "Unknown"
+        if booking and booking.nutritionist_profile and booking.nutritionist_profile.profile:
+            nutritionist_name = booking.nutritionist_profile.profile.full_name
+
+        payment_list.append({
+            "id": str(payment.id),
+            "booking_id": str(payment.booking_id),
+            "nutritionist_name": nutritionist_name,
+            "amount": payment.amount_rub,
+            "currency": payment.currency,
+            "status": _map_payment_status(payment),
+            "provider": payment.provider,
+            "created_at": payment.created_at.isoformat(),
+        })
+
+    return jsonify({
+        "payments": payment_list,
+    })
+
+
+@admin_bp.route("/payments/export", methods=["GET"])
+@jwt_required()
+def export_payments_csv():
+    """
+    Export payments as CSV.
+
+    Request:
+        GET /api/admin/payments/export?from=2024-01-01&to=2024-12-31
+        Authorization: Bearer <admin_token>
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    date_from = request.args.get("from")
+    date_to = request.args.get("to")
+    payments = _payments_query(None, date_from, date_to).all()
+
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "payment_id",
+        "booking_id",
+        "nutritionist_name",
+        "amount",
+        "currency",
+        "status",
+        "provider",
+        "created_at",
+    ])
+
+    for payment in payments:
+        booking = payment.booking
+        nutritionist_name = "Unknown"
+        if booking and booking.nutritionist_profile and booking.nutritionist_profile.profile:
+            nutritionist_name = booking.nutritionist_profile.profile.full_name
+
+        writer.writerow([
+            str(payment.id),
+            str(payment.booking_id),
+            nutritionist_name,
+            payment.amount_rub,
+            payment.currency,
+            _map_payment_status(payment),
+            payment.provider,
+            payment.created_at.isoformat(),
+        ])
+
+    csv_data = output.getvalue()
+    return current_app.response_class(
+        csv_data,
+        mimetype="text/csv",
+        headers={
+            "Content-Disposition": "attachment; filename=payments-export.csv"
+        },
+    )
 
 
 # ============================================================================

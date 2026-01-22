@@ -12,7 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from app.extensions import db
-from app.models import AvailabilitySlot, Booking, Service
+from app.models import AvailabilitySlot, Booking, Payment, Service
 from app.services.notifications import NotificationService
 from app.services.booking_calendar_sync import BookingCalendarSync
 
@@ -195,6 +195,9 @@ class BookingHoldService:
                         logger.info(
                             f"Booking cancelled due to hold expiry: id={booking.id}"
                         )
+                        payment = Payment.query.filter_by(booking_id=booking.id).first()
+                        if payment and payment.status == "created":
+                            payment.status = "expired"
                         try:
                             NotificationService.booking_cancelled(booking, "Payment timeout")
                         except Exception as e:

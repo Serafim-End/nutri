@@ -2,10 +2,11 @@
 Payment Model - Payment records for bookings
 
 Supports the unified payment lifecycle:
-    created -> succeeded | failed -> refunded
+    created -> succeeded | failed | expired -> refunded
 
 Provider field allows multiple payment integrations:
     - mock: Development/testing provider
+    - prodamus: Prodamus Payform
     - telegram: Telegram Payments (Stars)
     - yookassa: YooKassa payment gateway
     - cloudpayments: CloudPayments gateway
@@ -28,7 +29,7 @@ class Payment(db.Model):
         4. On success: booking -> paid, slot -> booked
         5. On refund: status='refunded'
     
-    Supports multiple providers (mock, telegram, yookassa, cloudpayments).
+    Supports multiple providers (mock, prodamus, telegram, yookassa, cloudpayments).
     """
 
     __tablename__ = "payments"
@@ -45,7 +46,7 @@ class Payment(db.Model):
     # Provider information
     provider = db.Column(
         db.String(50), nullable=False
-    )  # mock/telegram/yookassa/cloudpayments
+    )  # mock/prodamus/telegram/yookassa/cloudpayments
     provider_payment_id = db.Column(db.Text, nullable=True)  # External payment ID
     
     # Payment details
@@ -55,7 +56,7 @@ class Payment(db.Model):
     # Status tracking
     status = db.Column(
         db.String(20), nullable=False, default="created"
-    )  # created/succeeded/failed/refunded
+    )  # created/succeeded/failed/refunded/expired
     
     # Audit data
     raw_payload = db.Column(JSONB, nullable=True)  # Webhook payload for debugging
@@ -92,5 +93,4 @@ class Payment(db.Model):
     def is_pending(self) -> bool:
         """Check if payment is pending (created, not yet processed)."""
         return self.status == "created"
-
 
