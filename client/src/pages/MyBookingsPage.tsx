@@ -234,13 +234,20 @@ export default function MyBookingsPage() {
   }
 
   const bookings = data?.bookings || []
+  const now = Date.now()
+  const isHoldActive = (holdExpiresAt?: string | null) => {
+    if (!holdExpiresAt) return true
+    const holdTime = Date.parse(holdExpiresAt)
+    if (Number.isNaN(holdTime)) return true
+    return holdTime > now
+  }
 
   // Разделение бронирований по статусу
-  const pendingBookings = bookings.filter((b: Booking) => b.status === 'pending_payment')
-  const upcomingBookings = bookings.filter((b: Booking) => b.status === 'paid')
-  const pastBookings = bookings.filter((b: Booking) => 
-    ['completed', 'cancelled', 'refunded', 'no_show'].includes(b.status)
+  const pendingBookings = bookings.filter(
+    (b: Booking) => b.status === 'pending_payment' && isHoldActive(b.slot?.hold_expires_at)
   )
+  const upcomingBookings = bookings.filter((b: Booking) => b.status === 'paid')
+  const visibleBookings = [...pendingBookings, ...upcomingBookings]
 
   return (
     <PageContainer background="gradient" withBottomNav>
@@ -248,12 +255,12 @@ export default function MyBookingsPage() {
       <Section spacing="md">
         <Heading level="h1" size="xl">Мои бронирования</Heading>
         <Text color="secondary" className="mt-1">
-          Всего: {bookings.length}
+          Всего: {visibleBookings.length}
         </Text>
       </Section>
 
       <Section spacing="none" className="pb-8">
-        {bookings.length === 0 ? (
+        {visibleBookings.length === 0 ? (
           <NoBookingsState onAction={() => navigate('/results')} />
         ) : (
           <Stack gap={6}>
@@ -292,21 +299,6 @@ export default function MyBookingsPage() {
               </section>
             )}
 
-            {/* Секция прошедших */}
-            {pastBookings.length > 0 && (
-              <section>
-                <Text size="sm" weight="semibold" color="tertiary" className="uppercase tracking-wide mb-3">
-                  Прошедшие ({pastBookings.length})
-                </Text>
-                <Stack gap={3}>
-                  {pastBookings.map((booking: Booking, index: number) => (
-                    <div key={booking.id} style={{ animationDelay: `${index * 50}ms` }}>
-                      <BookingCard booking={booking} />
-                    </div>
-                  ))}
-                </Stack>
-              </section>
-            )}
           </Stack>
         )}
       </Section>
