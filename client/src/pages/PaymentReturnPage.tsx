@@ -29,6 +29,7 @@ export default function PaymentReturnPage({ mode }: { mode: Mode }) {
   const [booking, setBooking] = useState<Booking | null>(null)
   const [payment, setPayment] = useState<Payment | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const bookingId = useMemo(() => {
     return searchParams.get('order_id') || searchParams.get('booking_id')
@@ -96,6 +97,40 @@ export default function PaymentReturnPage({ mode }: { mode: Mode }) {
     }
   }
 
+  const handleRefresh = async () => {
+    if (!bookingId) return
+    setIsRefreshing(true)
+    setError(null)
+    try {
+      const [bookingData, paymentData] = await Promise.all([
+        bookingApi.getBooking(bookingId),
+        paymentApi.getPaymentStatus(bookingId).catch(() => null),
+      ])
+
+      if (bookingData?.booking) {
+        setBooking(bookingData.booking)
+      }
+
+      if (paymentData?.payment) {
+        const currentPayment = paymentData.payment
+        setPayment(currentPayment)
+        if (currentPayment.status === 'succeeded') {
+          setStatus('success')
+        } else if (['failed', 'refunded'].includes(currentPayment.status)) {
+          setStatus('failed')
+        } else {
+          setStatus('pending')
+        }
+      } else {
+        setStatus('pending')
+      }
+    } catch {
+      setError('Не удалось обновить статус')
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
   const handleViewBookings = () => {
     navigate('/my-bookings')
   }
@@ -111,6 +146,9 @@ export default function PaymentReturnPage({ mode }: { mode: Mode }) {
     : status === 'pending'
       ? 'Мы ещё проверяем платёж. Это может занять до минуты.'
       : 'Если оплата не прошла, попробуйте снова.'
+
+  const canRetry = status === 'failed' || mode === 'fail'
+  const canRefresh = status !== 'success'
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary-500 to-primary-600 flex flex-col items-center justify-center px-4 text-white">
@@ -171,16 +209,19 @@ export default function PaymentReturnPage({ mode }: { mode: Mode }) {
       )}
 
       <Stack gap={3} className="w-full max-w-sm mt-8 animate-slide-up">
-        {status === 'success' ? (
+        {canRefresh && (
           <Button
-            onClick={handleViewBookings}
+            onClick={handleRefresh}
+            loading={isRefreshing}
             variant="secondary"
             fullWidth
             className="bg-white text-primary-600 hover:bg-white/90"
           >
-            Мои бронирования
+            Обновить статус
           </Button>
-        ) : (
+        )}
+
+        {canRetry && (
           <Button
             onClick={handleRetry}
             variant="secondary"

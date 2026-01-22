@@ -200,6 +200,13 @@ def payment_webhook(provider: str):
     if payload is None:
         payload = _parse_bracket_form(request.form.to_dict(flat=True))
     headers = dict(request.headers)
+    order_id = payload.get("order_id") or payload.get("order_num")
+    logger.info(
+        "Payment webhook received: provider=%s order_id=%s keys=%s",
+        provider,
+        order_id,
+        list(payload.keys()),
+    )
     
     payment, error = PaymentService.process_provider_webhook(
         provider_name=provider,
