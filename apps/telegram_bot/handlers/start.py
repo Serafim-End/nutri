@@ -8,6 +8,7 @@ from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
+from aiogram.exceptions import TelegramBadRequest
 
 from api_client import get_api_client
 from keyboards import get_main_menu_keyboard
@@ -74,7 +75,20 @@ async def cmd_start(message: Message, state: FSMContext):
     
     welcome_text += "Выберите действие ниже:"
     
-    await message.answer(
-        text=welcome_text,
-        reply_markup=get_main_menu_keyboard(),
-    )
+    try:
+        await message.answer(
+            text=welcome_text,
+            reply_markup=get_main_menu_keyboard(),
+        )
+    except TelegramBadRequest as e:
+        if "BUTTON_URL_INVALID" in str(e):
+            logger.warning(
+                "WebApp URL rejected by Telegram (BUTTON_URL_INVALID). "
+                "Check WEBAPP_URL and BotFather Mini App domain settings. Sending without WebApp button."
+            )
+            await message.answer(
+                text=welcome_text,
+                reply_markup=get_main_menu_keyboard(include_webapp=False),
+            )
+        else:
+            raise

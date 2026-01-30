@@ -7,6 +7,7 @@ import logging
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
+from aiogram.exceptions import TelegramBadRequest
 
 from api_client import get_api_client
 from keyboards import (
@@ -194,10 +195,23 @@ async def handle_back_main(callback: CallbackQuery, state: FSMContext):
     
     welcome_text += "Выберите действие:"
     
-    await callback.message.edit_text(
-        text=welcome_text,
-        reply_markup=get_main_menu_keyboard(),
-    )
+    try:
+        await callback.message.edit_text(
+            text=welcome_text,
+            reply_markup=get_main_menu_keyboard(),
+        )
+    except TelegramBadRequest as e:
+        if "BUTTON_URL_INVALID" in str(e):
+            logger.warning(
+                "WebApp URL rejected by Telegram (BUTTON_URL_INVALID). "
+                "Sending main menu without WebApp button."
+            )
+            await callback.message.edit_text(
+                text=welcome_text,
+                reply_markup=get_main_menu_keyboard(include_webapp=False),
+            )
+        else:
+            raise
 
 
 @router.callback_query(F.data == CB_BACK_NUTRITIONIST)

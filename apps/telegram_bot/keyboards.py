@@ -122,16 +122,23 @@ CB_CONFIRM_EXCEPTION = "confirm_exception"
 # Keyboard Builders
 # ==========================================
 
-def get_main_menu_keyboard() -> InlineKeyboardMarkup:
-    """Main menu with WebApp button and nutritionist entry."""
+def get_main_menu_keyboard(include_webapp: bool = True) -> InlineKeyboardMarkup:
+    """Main menu with WebApp button and nutritionist entry.
+    Set include_webapp=False to omit WebApp button (e.g. when URL is rejected by Telegram)."""
     config = get_config()
     
     builder = InlineKeyboardBuilder()
     
     # WebApp button (opens Mini App)
-    # Only show if URL is valid (starts with https://)
-    webapp_url = config.webapp_url
-    if webapp_url and webapp_url.startswith("https://") and webapp_url != "https://t.me/your_bot/app":
+    # Only show if URL is valid (starts with https://) and not placeholder
+    webapp_url = (config.webapp_url or "").strip()
+    show_webapp = (
+        include_webapp
+        and webapp_url
+        and webapp_url.startswith("https://")
+        and webapp_url != "https://t.me/your_bot/app"
+    )
+    if show_webapp:
         builder.row(
             InlineKeyboardButton(
                 text=BTN_OPEN_WEBAPP,

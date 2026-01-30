@@ -72,7 +72,7 @@ class BotConfig:
         if not database_url:
             raise ValueError("DATABASE_URL environment variable is required")
         
-        webapp_url = os.environ.get("WEBAPP_URL", "https://t.me/your_bot/app")
+        webapp_url = (os.environ.get("WEBAPP_URL", "https://t.me/your_bot/app") or "").strip()
         log_level = os.environ.get("LOG_LEVEL", "INFO")
         
         return cls(
