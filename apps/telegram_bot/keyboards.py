@@ -12,7 +12,7 @@ from aiogram.types import (
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from config import get_config
-from bot_texts import BTN_OPEN_WEBAPP
+from bot_texts import BTN_OPEN_WEBAPP, BTN_FOR_NUTRITIONISTS
 
 
 # ==========================================
@@ -124,20 +124,20 @@ CB_CONFIRM_EXCEPTION = "confirm_exception"
 
 def get_main_menu_keyboard(include_webapp: bool = True) -> InlineKeyboardMarkup:
     """Main menu with WebApp button and nutritionist entry.
-    Set include_webapp=False to omit WebApp button (e.g. when URL is rejected by Telegram)."""
+    Set include_webapp=False to use regular URL button fallback (e.g. when WebApp URL is rejected by Telegram)."""
     config = get_config()
     
     builder = InlineKeyboardBuilder()
     
-    # WebApp button (opens Mini App)
-    # Only show if URL is valid (starts with https://) and not placeholder
+    # "Для клиентов" button (opens Mini App or URL)
     webapp_url = (config.webapp_url or "").strip()
-    show_webapp = (
-        include_webapp
-        and webapp_url
+    webapp_url_valid = (
+        webapp_url
         and webapp_url.startswith("https://")
         and webapp_url != "https://t.me/your_bot/app"
     )
+    show_webapp = include_webapp and webapp_url_valid
+    
     if show_webapp:
         builder.row(
             InlineKeyboardButton(
@@ -145,11 +145,19 @@ def get_main_menu_keyboard(include_webapp: bool = True) -> InlineKeyboardMarkup:
                 web_app=WebAppInfo(url=webapp_url),
             )
         )
+    elif webapp_url_valid:
+        # Fallback: regular URL button (may work when WebApp fails)
+        builder.row(
+            InlineKeyboardButton(
+                text=BTN_OPEN_WEBAPP,
+                url=webapp_url,
+            )
+        )
     
     # For nutritionists button
     builder.row(
         InlineKeyboardButton(
-            text="👩‍⚕️ Для нутрициологов",
+            text=BTN_FOR_NUTRITIONISTS,
             callback_data=CB_FOR_NUTRITIONISTS,
         )
     )
