@@ -139,7 +139,7 @@ export function NutritionistDetailPage() {
 
   const uploadPhotoMutation = useMutation({
     mutationFn: (file: File) => adminApi.uploadNutritionistPhoto(id!, file),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id] })
       queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionists'] })
     },
