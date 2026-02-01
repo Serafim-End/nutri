@@ -390,7 +390,7 @@ export function NutritionistDetailPage() {
                     setShowPhotoUploader((prev) => !prev)
                     setUploadError(null)
                   }}
-                  className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800"
+                  className="mt-5 inline-flex items-center gap-2 rounded-lg bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800"
                 >
                   Change photo for clients
                 </button>
