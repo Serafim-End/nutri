@@ -29,6 +29,7 @@ class NutritionistProfile(db.Model):
     rating = db.Column(db.Numeric(3, 2), default=0.00)
     reviews_count = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=False)
+    is_blocked = db.Column(db.Boolean, default=False)
     submitted_at = db.Column(db.DateTime, nullable=True)
     verified_at = db.Column(db.DateTime, nullable=True)
 
@@ -70,6 +71,7 @@ class NutritionistProfile(db.Model):
             "rating": float(self.rating) if self.rating else 0.0,
             "reviews_count": self.reviews_count,
             "is_active": self.is_active,
+            "is_blocked": self.is_blocked,
             "submitted_at": self.submitted_at.isoformat() if self.submitted_at else None,
             "verified_at": self.verified_at.isoformat() if self.verified_at else None,
         }
@@ -79,5 +81,4 @@ class NutritionistProfile(db.Model):
             data["created_at"] = self.profile.created_at.isoformat()
             data["profile"] = self.profile.to_dict()
         return data
-
 

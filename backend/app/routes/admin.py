@@ -328,6 +328,7 @@ def approve_nutritionist(nutritionist_id: str):
     nutritionist.verification_status = "approved"
     nutritionist.verified_at = datetime.utcnow()
     nutritionist.is_active = True
+    nutritionist.is_blocked = False
 
     db.session.commit()
 
@@ -947,6 +948,28 @@ def update_nutritionist_profile(nutritionist_id: str):
             return jsonify({"error": "Invalid photo_url"}), 400
         nutritionist.profile.photo_url = photo_url.strip() or None
 
+    db.session.commit()
+
+    return jsonify({"nutritionist": nutritionist.to_dict(include_profile=True)})
+
+
+@admin_bp.route("/nutritionists/<nutritionist_id>/block", methods=["POST"])
+@jwt_required()
+def set_nutritionist_blocked(nutritionist_id: str):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    nutritionist = NutritionistProfile.query.get(nutritionist_id)
+    if not nutritionist:
+        return jsonify({"error": "Nutritionist not found"}), 404
+
+    data = request.get_json() or {}
+    blocked = data.get("blocked")
+    if blocked is None:
+        return jsonify({"error": "blocked is required"}), 400
+
+    nutritionist.is_blocked = bool(blocked)
     db.session.commit()
 
     return jsonify({"nutritionist": nutritionist.to_dict(include_profile=True)})

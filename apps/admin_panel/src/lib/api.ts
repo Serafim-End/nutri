@@ -77,6 +77,10 @@ export const adminApi = {
     const response = await api.get(`/admin/nutritionists/${id}`)
     return response.data
   },
+  setNutritionistBlocked: async (id: string, blocked: boolean) => {
+    const response = await api.post(`/admin/nutritionists/${id}/block`, { blocked })
+    return response.data
+  },
 
   updateNutritionistBio: async (id: string, bio: string | null) => {
     const response = await api.put(`/admin/nutritionists/${id}/bio`, { bio })

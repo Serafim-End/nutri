@@ -66,6 +66,7 @@ export function NutritionistDetailPage() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const [isDragActive, setIsDragActive] = useState(false)
+  const [isUpdatingBlock, setIsUpdatingBlock] = useState(false)
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
   const [serviceDraft, setServiceDraft] = useState<Partial<AdminService>>({})
   const [newService, setNewService] = useState({
@@ -135,6 +136,15 @@ export function NutritionistDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id] })
       queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionists'] })
     },
+  })
+
+  const blockMutation = useMutation({
+    mutationFn: (blocked: boolean) => adminApi.setNutritionistBlocked(id!, blocked),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionists'] })
+    },
+    onSettled: () => setIsUpdatingBlock(false),
   })
 
   const uploadPhotoMutation = useMutation({
@@ -363,6 +373,11 @@ export function NutritionistDetailPage() {
                   >
                     {nutritionist.verification_status.replace('_', ' ')}
                   </span>
+                  {nutritionist.is_blocked && (
+                    <span className="px-2.5 py-1 text-xs font-medium rounded-lg border border-error-500/30 bg-error-500/10 text-error-300">
+                      blocked
+                    </span>
+                  )}
                   <button
                     onClick={() => navigate(`/reviews?nutritionist_id=${nutritionist.nutritionist_id}`)}
                     className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800/50 text-slate-200 hover:bg-slate-800"
@@ -396,6 +411,21 @@ export function NutritionistDetailPage() {
                     className="inline-flex items-center gap-2 rounded-lg bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800"
                   >
                     Change photo for clients
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (isUpdatingBlock) return
+                      setIsUpdatingBlock(true)
+                      blockMutation.mutate(!nutritionist.is_blocked)
+                    }}
+                    className={clsx(
+                      'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                      nutritionist.is_blocked
+                        ? 'bg-success-500/15 text-success-300 hover:bg-success-500/25'
+                        : 'bg-error-500/15 text-error-300 hover:bg-error-500/25'
+                    )}
+                  >
+                    {nutritionist.is_blocked ? 'Unblock' : 'Block'}
                   </button>
                 </div>
               </div>

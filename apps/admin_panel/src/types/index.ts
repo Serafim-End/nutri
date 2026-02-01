@@ -96,6 +96,7 @@ export interface Nutritionist {
   years_experience?: number // Optional - not currently stored in backend
   verification_status: 'pending' | 'approved' | 'rejected' | 'needs_update'
   is_active: boolean
+  is_blocked: boolean
   submitted_at: string | null
   verified_at: string | null
   created_at: string

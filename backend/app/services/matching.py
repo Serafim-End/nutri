@@ -78,6 +78,7 @@ class MatchingService:
         query = NutritionistProfile.query.filter(
             NutritionistProfile.verification_status == "approved",
             NutritionistProfile.is_active == True,  # noqa: E712
+            NutritionistProfile.is_blocked == False,  # noqa: E712
         )
 
         # Join with profile for ordering
@@ -186,6 +187,7 @@ class MatchingService:
         query = NutritionistProfile.query.filter(
             NutritionistProfile.verification_status == "approved",
             NutritionistProfile.is_active == True,  # noqa: E712
+            NutritionistProfile.is_blocked == False,  # noqa: E712
         )
 
         if specialization:
@@ -249,6 +251,7 @@ class MatchingService:
         query = NutritionistProfile.query.filter(
             NutritionistProfile.verification_status == "approved",
             NutritionistProfile.is_active == True,  # noqa: E712
+            NutritionistProfile.is_blocked == False,  # noqa: E712
         )
         
         # Join with profile for data
