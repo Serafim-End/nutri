@@ -7,6 +7,7 @@ date exceptions, and Google Calendar busy intervals.
 from datetime import datetime, date, time, timedelta, timezone
 from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass
+from app.utils.timezone import normalize_to_utc
 
 
 @dataclass
@@ -17,10 +18,8 @@ class TimeRange:
 
     def __post_init__(self):
         """Ensure timezone-aware datetimes."""
-        if self.start.tzinfo is None:
-            self.start = self.start.replace(tzinfo=timezone.utc)
-        if self.end.tzinfo is None:
-            self.end = self.end.replace(tzinfo=timezone.utc)
+        self.start = normalize_to_utc(self.start)
+        self.end = normalize_to_utc(self.end)
 
     def overlaps(self, other: 'TimeRange') -> bool:
         """Check if this time range overlaps with another."""
@@ -67,8 +66,8 @@ def expand_weekly_schedule(
                 end_time = datetime.strptime(end_time_str, "%H:%M").time()
                 
                 # Combine date and time, make timezone-aware
-                start_dt = datetime.combine(current_date, start_time).replace(tzinfo=timezone.utc)
-                end_dt = datetime.combine(current_date, end_time).replace(tzinfo=timezone.utc)
+                start_dt = normalize_to_utc(datetime.combine(current_date, start_time))
+                end_dt = normalize_to_utc(datetime.combine(current_date, end_time))
                 
                 # Handle case where end time is next day (e.g., 22:00-02:00)
                 if end_time < start_time:
@@ -131,8 +130,8 @@ def apply_date_exceptions(
                         start_time = datetime.strptime(start_time_str, "%H:%M").time()
                         end_time = datetime.strptime(end_time_str, "%H:%M").time()
                         
-                        start_dt = datetime.combine(tr_date, start_time).replace(tzinfo=timezone.utc)
-                        end_dt = datetime.combine(tr_date, end_time).replace(tzinfo=timezone.utc)
+                        start_dt = normalize_to_utc(datetime.combine(tr_date, start_time))
+                        end_dt = normalize_to_utc(datetime.combine(tr_date, end_time))
                         
                         if end_time < start_time:
                             end_dt += timedelta(days=1)
@@ -267,10 +266,8 @@ def parse_google_calendar_busy(
             end_dt = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
             
             # Ensure timezone-aware
-            if start_dt.tzinfo is None:
-                start_dt = start_dt.replace(tzinfo=timezone.utc)
-            if end_dt.tzinfo is None:
-                end_dt = end_dt.replace(tzinfo=timezone.utc)
+            start_dt = normalize_to_utc(start_dt)
+            end_dt = normalize_to_utc(end_dt)
             
             busy_intervals.append(TimeRange(start=start_dt, end=end_dt))
         except (ValueError, AttributeError):

@@ -15,6 +15,7 @@ from app.extensions import db
 from app.models import AvailabilitySlot, Booking, Payment, Service
 from app.services.notifications import NotificationService
 from app.services.booking_calendar_sync import BookingCalendarSync
+from app.utils.timezone import normalize_to_utc
 
 
 logger = logging.getLogger(__name__)
@@ -108,8 +109,7 @@ class BookingHoldService:
 
             # Check if slot is in the future
             slot_start = slot.start_at
-            if slot_start.tzinfo is None:
-                slot_start = slot_start.replace(tzinfo=timezone.utc)
+            slot_start = normalize_to_utc(slot_start)
             if slot_start <= now:
                 return None, "Cannot book a slot in the past"
 

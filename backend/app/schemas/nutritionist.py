@@ -5,6 +5,7 @@ Nutritionist Schemas
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, date
+from app.utils.timezone import normalize_to_utc
 
 
 class NutritionistUpsertRequest(BaseModel):
@@ -69,9 +70,7 @@ class SlotCreateRequest(BaseModel):
     def start_in_future(cls, v):
         """Ensure slot starts in the future."""
         now = datetime.now(timezone.utc)
-        # Make v timezone-aware if it isn't
-        if v.tzinfo is None:
-            v = v.replace(tzinfo=timezone.utc)
+        v = normalize_to_utc(v)
         if v <= now:
             raise ValueError('Слот должен быть в будущем')
         return v

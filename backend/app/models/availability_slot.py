@@ -3,10 +3,11 @@ Availability Slot Model - Time slots for bookings
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 from sqlalchemy.dialects.postgresql import UUID
 from app.extensions import db
+from app.utils.timezone import normalize_to_utc
 
 
 class AvailabilitySlot(db.Model):
@@ -53,8 +54,7 @@ class AvailabilitySlot(db.Model):
         def isoformat_utc(value: Optional[datetime]) -> Optional[str]:
             if value is None:
                 return None
-            if value.tzinfo is None:
-                value = value.replace(tzinfo=timezone.utc)
+            value = normalize_to_utc(value)
             return value.isoformat()
 
         return {
