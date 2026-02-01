@@ -120,11 +120,7 @@ def get_nutritionist(nutritionist_id: str):
         return jsonify({"error": "Nutritionist not found"}), 404
 
     # Only show approved and active nutritionists publicly
-    if (
-        nutritionist.verification_status != "approved"
-        or not nutritionist.is_active
-        or nutritionist.is_blocked
-    ):
+    if nutritionist.verification_status != "approved" or not nutritionist.is_active:
         return jsonify({"error": "Nutritionist not found"}), 404
 
     return jsonify({
@@ -168,11 +164,7 @@ def list_services(nutritionist_id: str):
         return jsonify({"error": "Nutritionist not found"}), 404
 
     # Only show approved and active nutritionists publicly
-    if (
-        nutritionist.verification_status != "approved"
-        or not nutritionist.is_active
-        or nutritionist.is_blocked
-    ):
+    if nutritionist.verification_status != "approved" or not nutritionist.is_active:
         return jsonify({"error": "Nutritionist not found"}), 404
 
     services = Service.query.filter(
@@ -219,11 +211,7 @@ def list_public_reviews(nutritionist_id: str):
     if not nutritionist:
         return jsonify({"error": "Nutritionist not found"}), 404
 
-    if (
-        nutritionist.verification_status != "approved"
-        or not nutritionist.is_active
-        or nutritionist.is_blocked
-    ):
+    if nutritionist.verification_status != "approved" or not nutritionist.is_active:
         return jsonify({"error": "Nutritionist not found"}), 404
 
     page = request.args.get("page", 1, type=int)
@@ -308,11 +296,7 @@ def list_slots(nutritionist_id: str):
         return jsonify({"error": "Nutritionist not found"}), 404
 
     # Only show approved and active nutritionists publicly
-    if (
-        nutritionist.verification_status != "approved"
-        or not nutritionist.is_active
-        or nutritionist.is_blocked
-    ):
+    if nutritionist.verification_status != "approved" or not nutritionist.is_active:
         return jsonify({"error": "Nutritionist not found"}), 404
 
     # If service_id provided, verify it belongs to this nutritionist

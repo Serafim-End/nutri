@@ -328,7 +328,6 @@ def approve_nutritionist(nutritionist_id: str):
     nutritionist.verification_status = "approved"
     nutritionist.verified_at = datetime.utcnow()
     nutritionist.is_active = True
-    nutritionist.is_blocked = False
 
     db.session.commit()
 
@@ -953,9 +952,19 @@ def update_nutritionist_profile(nutritionist_id: str):
     return jsonify({"nutritionist": nutritionist.to_dict(include_profile=True)})
 
 
-@admin_bp.route("/nutritionists/<nutritionist_id>/block", methods=["POST"])
+@admin_bp.route("/nutritionists/<nutritionist_id>/activate", methods=["POST"])
 @jwt_required()
-def set_nutritionist_blocked(nutritionist_id: str):
+def activate_nutritionist(nutritionist_id: str):
+    """
+    Activate an approved nutritionist.
+
+    Request:
+        POST /api/admin/nutritionists/<id>/activate
+        Authorization: Bearer <admin_token>
+
+    Response:
+        200: { "nutritionist": {...}, "message": "Nutritionist activated" }
+    """
     auth_error = require_admin()
     if auth_error:
         return auth_error
@@ -964,15 +973,20 @@ def set_nutritionist_blocked(nutritionist_id: str):
     if not nutritionist:
         return jsonify({"error": "Nutritionist not found"}), 404
 
-    data = request.get_json() or {}
-    blocked = data.get("blocked")
-    if blocked is None:
-        return jsonify({"error": "blocked is required"}), 400
+    if nutritionist.verification_status != "approved":
+        return jsonify({
+            "error": f"Cannot activate nutritionist with status: {nutritionist.verification_status}"
+        }), 400
 
-    nutritionist.is_blocked = bool(blocked)
+    nutritionist.is_active = True
     db.session.commit()
 
-    return jsonify({"nutritionist": nutritionist.to_dict(include_profile=True)})
+    logger.info(f"Nutritionist {nutritionist_id} activated by admin")
+
+    return jsonify({
+        "nutritionist": nutritionist.to_dict(include_profile=True),
+        "message": "Nutritionist activated successfully",
+    })
 
 
 @admin_bp.route("/nutritionists/<nutritionist_id>/photo", methods=["POST"])

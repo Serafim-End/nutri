@@ -6,7 +6,7 @@ import { Nutritionist, NutritionistDocument, AdminService, WorkingHoursTemplate 
 import { format } from 'date-fns'
 import clsx from 'clsx'
 
-type ActionType = 'approve' | 'reject' | 'needs_update' | 'disable' | null
+type ActionType = 'approve' | 'reject' | 'needs_update' | 'disable' | 'activate' | null
 
 const statusColors: Record<string, string> = {
   pending: 'bg-warning-500/10 text-warning-400 border-warning-500/20',
@@ -66,7 +66,6 @@ export function NutritionistDetailPage() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
   const [isDragActive, setIsDragActive] = useState(false)
-  const [isUpdatingBlock, setIsUpdatingBlock] = useState(false)
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
   const [serviceDraft, setServiceDraft] = useState<Partial<AdminService>>({})
   const [newService, setNewService] = useState({
@@ -138,13 +137,13 @@ export function NutritionistDetailPage() {
     },
   })
 
-  const blockMutation = useMutation({
-    mutationFn: (blocked: boolean) => adminApi.setNutritionistBlocked(id!, blocked),
+  const activateMutation = useMutation({
+    mutationFn: () => adminApi.activateNutritionist(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id] })
       queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionists'] })
+      setActiveAction(null)
     },
-    onSettled: () => setIsUpdatingBlock(false),
   })
 
   const uploadPhotoMutation = useMutation({
@@ -284,6 +283,9 @@ export function NutritionistDetailPage() {
         case 'disable':
           await disableMutation.mutateAsync()
           break
+        case 'activate':
+          await activateMutation.mutateAsync()
+          break
       }
     } finally {
       setIsSubmitting(false)
@@ -302,6 +304,7 @@ export function NutritionistDetailPage() {
 
   const canModerate = nutritionist?.verification_status === 'pending' || nutritionist?.verification_status === 'needs_update'
   const canDisable = nutritionist?.verification_status === 'approved' && nutritionist?.is_active
+  const canActivate = nutritionist?.verification_status === 'approved' && !nutritionist?.is_active
   const trimmedName = nameDraft.trim()
 
   if (isLoading) {
@@ -373,11 +376,6 @@ export function NutritionistDetailPage() {
                   >
                     {nutritionist.verification_status.replace('_', ' ')}
                   </span>
-                  {nutritionist.is_blocked && (
-                    <span className="px-2.5 py-1 text-xs font-medium rounded-lg border border-error-500/30 bg-error-500/10 text-error-300">
-                      blocked
-                    </span>
-                  )}
                   <button
                     onClick={() => navigate(`/reviews?nutritionist_id=${nutritionist.nutritionist_id}`)}
                     className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800/50 text-slate-200 hover:bg-slate-800"
@@ -411,21 +409,6 @@ export function NutritionistDetailPage() {
                     className="inline-flex items-center gap-2 rounded-lg bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800"
                   >
                     Change photo for clients
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (isUpdatingBlock) return
-                      setIsUpdatingBlock(true)
-                      blockMutation.mutate(!nutritionist.is_blocked)
-                    }}
-                    className={clsx(
-                      'inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
-                      nutritionist.is_blocked
-                        ? 'bg-success-500/15 text-success-300 hover:bg-success-500/25'
-                        : 'bg-error-500/15 text-error-300 hover:bg-error-500/25'
-                    )}
-                  >
-                    {nutritionist.is_blocked ? 'Unblock' : 'Block'}
                   </button>
                 </div>
               </div>
@@ -878,7 +861,26 @@ export function NutritionistDetailPage() {
                 </button>
               )}
 
-              {!canModerate && !canDisable && (
+              {canActivate && (
+                <button
+                  onClick={() => setActiveAction('activate')}
+                  className={clsx(
+                    'w-full px-4 py-3 rounded-xl text-sm font-medium transition-all',
+                    activeAction === 'activate'
+                      ? 'bg-success-500 text-white'
+                      : 'bg-success-500/10 text-success-400 hover:bg-success-500/20 border border-success-500/20'
+                  )}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Activate
+                  </span>
+                </button>
+              )}
+
+              {!canModerate && !canDisable && !canActivate && (
                 <p className="text-center text-slate-500 py-4 text-sm">
                   No actions available for this status
                 </p>
@@ -927,6 +929,11 @@ export function NutritionistDetailPage() {
                     This will deactivate the nutritionist's profile. They will no longer appear in search results.
                   </p>
                 )}
+                {activeAction === 'activate' && (
+                  <p className="text-sm text-success-400 mb-4">
+                    This will activate the nutritionist's profile and make them visible to clients.
+                  </p>
+                )}
 
                 <div className="flex gap-2">
                   <button
@@ -950,7 +957,8 @@ export function NutritionistDetailPage() {
                       activeAction === 'approve' && 'bg-success-500 text-white hover:bg-success-600',
                       activeAction === 'reject' && 'bg-error-500 text-white hover:bg-error-600',
                       activeAction === 'needs_update' && 'bg-accent-500 text-white hover:bg-accent-600',
-                      activeAction === 'disable' && 'bg-warning-500 text-slate-900 hover:bg-warning-400'
+                      activeAction === 'disable' && 'bg-warning-500 text-slate-900 hover:bg-warning-400',
+                      activeAction === 'activate' && 'bg-success-500 text-white hover:bg-success-600'
                     )}
                   >
                     {isSubmitting ? (
