@@ -61,7 +61,7 @@ export function NutritionistDetailPage() {
   const [actionNote, setActionNote] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [nameDraft, setNameDraft] = useState('')
-  const [photoUrlDraft, setPhotoUrlDraft] = useState('')
+  const [showPhotoUploader, setShowPhotoUploader] = useState(false)
   const [bioDraft, setBioDraft] = useState('')
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
@@ -106,7 +106,6 @@ export function NutritionistDetailPage() {
   useEffect(() => {
     if (nutritionist) {
       setNameDraft(nutritionist.full_name || '')
-      setPhotoUrlDraft(nutritionist.profile?.photo_url || '')
       setBioDraft(nutritionist.bio || '')
     }
   }, [nutritionist])
@@ -130,7 +129,7 @@ export function NutritionistDetailPage() {
   })
 
   const updateProfileMutation = useMutation({
-    mutationFn: (payload: { full_name: string; photo_url: string | null }) =>
+    mutationFn: (payload: { full_name: string }) =>
       adminApi.updateNutritionistProfile(id!, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id] })
@@ -141,10 +140,6 @@ export function NutritionistDetailPage() {
   const uploadPhotoMutation = useMutation({
     mutationFn: (file: File) => adminApi.uploadNutritionistPhoto(id!, file),
     onSuccess: (data) => {
-      const newUrl = data?.photo_url
-      if (newUrl) {
-        setPhotoUrlDraft(newUrl)
-      }
       queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id] })
       queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionists'] })
     },
@@ -298,7 +293,6 @@ export function NutritionistDetailPage() {
   const canModerate = nutritionist?.verification_status === 'pending' || nutritionist?.verification_status === 'needs_update'
   const canDisable = nutritionist?.verification_status === 'approved' && nutritionist?.is_active
   const trimmedName = nameDraft.trim()
-  const trimmedPhotoUrl = photoUrlDraft.trim()
 
   if (isLoading) {
     return (
@@ -391,6 +385,15 @@ export function NutritionistDetailPage() {
                     @{nutritionist.profile.telegram_username}
                   </a>
                 )}
+                <button
+                  onClick={() => {
+                    setShowPhotoUploader((prev) => !prev)
+                    setUploadError(null)
+                  }}
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800"
+                >
+                  Change photo for clients
+                </button>
               </div>
             </div>
           </div>
@@ -399,82 +402,74 @@ export function NutritionistDetailPage() {
           <div className="p-6 border-b border-slate-800/50">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Profile</h3>
-              <button
-                onClick={() =>
-                  updateProfileMutation.mutate({
-                    full_name: trimmedName,
-                    photo_url: trimmedPhotoUrl || null,
-                  })
-                }
-                disabled={!trimmedName || updateProfileMutation.isPending}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800/50 text-slate-200 hover:bg-slate-800 disabled:opacity-50"
-              >
-                Save
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="block text-sm text-slate-300">
-                Name
-                <input
-                  value={nameDraft}
-                  onChange={(e) => setNameDraft(e.target.value)}
-                  placeholder="Nutritionist name"
-                  className="mt-1 w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent-500/50"
-                />
-              </label>
-              <label className="block text-sm text-slate-300">
-                Photo URL
-                <input
-                  value={photoUrlDraft}
-                  onChange={(e) => setPhotoUrlDraft(e.target.value)}
-                  placeholder="https://..."
-                  className="mt-1 w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent-500/50"
-                />
-              </label>
-            </div>
-            <div className="mt-4">
-              <div
-                className={clsx(
-                  'flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-4 text-sm transition-colors',
-                  isDragActive
-                    ? 'border-accent-400 bg-accent-500/10 text-accent-200'
-                    : 'border-slate-700/50 bg-slate-900/30 text-slate-400'
-                )}
-                onDragOver={(event) => {
-                  event.preventDefault()
-                  setIsDragActive(true)
-                }}
-                onDragLeave={() => setIsDragActive(false)}
-                onDrop={(event) => {
-                  event.preventDefault()
-                  const file = event.dataTransfer.files?.[0]
-                  if (file) handlePhotoFile(file)
-                }}
-              >
-                <span className="text-xs uppercase tracking-wide text-slate-500">
-                  Drag & Drop Photo
-                </span>
-                <span>or</span>
-                <label className="cursor-pointer rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700">
-                  Upload image
+                <button
+                  onClick={() =>
+                    updateProfileMutation.mutate({
+                      full_name: trimmedName,
+                    })
+                  }
+                  disabled={!trimmedName || updateProfileMutation.isPending}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800/50 text-slate-200 hover:bg-slate-800 disabled:opacity-50"
+                >
+                  Save
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block text-sm text-slate-300">
+                  Name
                   <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0]
-                      if (file) handlePhotoFile(file)
-                    }}
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    placeholder="Nutritionist name"
+                    className="mt-1 w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent-500/50"
                   />
                 </label>
-                {isUploadingPhoto && (
-                  <span className="text-xs text-slate-500">Uploading...</span>
-                )}
-                {uploadError && (
-                  <span className="text-xs text-error-400">{uploadError}</span>
-                )}
-              </div>
             </div>
+            {showPhotoUploader && (
+              <div className="mt-4">
+                <div
+                  className={clsx(
+                    'flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-4 text-sm transition-colors',
+                    isDragActive
+                      ? 'border-accent-400 bg-accent-500/10 text-accent-200'
+                      : 'border-slate-700/50 bg-slate-900/30 text-slate-400'
+                  )}
+                  onDragOver={(event) => {
+                    event.preventDefault()
+                    setIsDragActive(true)
+                  }}
+                  onDragLeave={() => setIsDragActive(false)}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    const file = event.dataTransfer.files?.[0]
+                    if (file) handlePhotoFile(file)
+                  }}
+                >
+                  <span className="text-xs uppercase tracking-wide text-slate-500">
+                    Drag & Drop Photo
+                  </span>
+                  <span>or</span>
+                  <label className="cursor-pointer rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700">
+                    Upload image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        if (file) handlePhotoFile(file)
+                      }}
+                    />
+                  </label>
+                  {isUploadingPhoto && (
+                    <span className="text-xs text-slate-500">Uploading...</span>
+                  )}
+                  {uploadError && (
+                    <span className="text-xs text-error-400">{uploadError}</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Bio */}
