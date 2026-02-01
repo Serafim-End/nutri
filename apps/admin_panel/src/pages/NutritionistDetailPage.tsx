@@ -351,7 +351,7 @@ export function NutritionistDetailPage() {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 mb-2">
+                <div className="flex flex-wrap items-center gap-3">
                   <h1 className="font-display text-2xl font-bold text-white truncate">
                     {nutritionist.full_name}
                   </h1>
@@ -370,30 +370,34 @@ export function NutritionistDetailPage() {
                     Reviews
                   </button>
                 </div>
-                <p className="text-slate-400 text-sm">
-                  {nutritionist.years_experience ? `${nutritionist.years_experience} years of experience` : ''}
-                  {nutritionist.years_experience && nutritionist.currency && nutritionist.hourly_rate ? ' • ' : ''}
-                  {nutritionist.currency && nutritionist.hourly_rate ? `${nutritionist.currency} ${nutritionist.hourly_rate}/hr` : ''}
-                </p>
-                {nutritionist.profile?.telegram_username && (
-                  <a
-                    href={`https://t.me/${nutritionist.profile.telegram_username}`}
-                    className="inline-flex items-center gap-1 text-xs text-accent-400 hover:text-accent-300 mt-2"
-                    target="_blank"
-                    rel="noreferrer"
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-400">
+                  <span>
+                    {nutritionist.years_experience ? `${nutritionist.years_experience} years of experience` : ''}
+                    {nutritionist.years_experience && nutritionist.currency && nutritionist.hourly_rate ? ' • ' : ''}
+                    {nutritionist.currency && nutritionist.hourly_rate ? `${nutritionist.currency} ${nutritionist.hourly_rate}/hr` : ''}
+                  </span>
+                  {nutritionist.profile?.telegram_username && (
+                    <a
+                      href={`https://t.me/${nutritionist.profile.telegram_username}`}
+                      className="inline-flex items-center gap-1 text-xs text-accent-400 hover:text-accent-300"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      @{nutritionist.profile.telegram_username}
+                    </a>
+                  )}
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  <button
+                    onClick={() => {
+                      setShowPhotoUploader((prev) => !prev)
+                      setUploadError(null)
+                    }}
+                    className="inline-flex items-center gap-2 rounded-lg bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800"
                   >
-                    @{nutritionist.profile.telegram_username}
-                  </a>
-                )}
-                <button
-                  onClick={() => {
-                    setShowPhotoUploader((prev) => !prev)
-                    setUploadError(null)
-                  }}
-                  className="mt-5 inline-flex items-center gap-2 rounded-lg bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800"
-                >
-                  Change photo for clients
-                </button>
+                    Change photo for clients
+                  </button>
+                </div>
               </div>
             </div>
           </div>
