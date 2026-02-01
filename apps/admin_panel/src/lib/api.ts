@@ -90,6 +90,14 @@ export const adminApi = {
     const response = await api.put(`/admin/nutritionists/${id}/profile`, payload)
     return response.data
   },
+  uploadNutritionistPhoto: async (id: string, file: File) => {
+    const formData = new FormData()
+    formData.append('photo', file)
+    const response = await api.post(`/admin/nutritionists/${id}/photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  },
 
   getNutritionistServices: async (id: string) => {
     const response = await api.get(`/admin/nutritionists/${id}/services`)

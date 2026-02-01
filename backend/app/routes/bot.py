@@ -24,6 +24,7 @@ from app.models import (
 )
 from app.schemas.nutritionist import SlotCreateRequest
 from app.services.session_tracking import log_user_session
+from app.services.media_storage import save_image
 
 
 logger = logging.getLogger(__name__)
@@ -482,16 +483,7 @@ def upload_photo(nutritionist_id: str):
     
     photo = request.files["photo"]
     
-    # TODO: Implement actual file storage (S3, local, etc.)
-    # For now, return placeholder URL
-    
-    # In production, you would:
-    # 1. Validate file type and size
-    # 2. Upload to storage (S3, GCS, etc.)
-    # 3. Return the public URL
-    
-    # Placeholder implementation
-    photo_url = f"https://storage.example.com/photos/{nutritionist_id}/{photo.filename}"
+    photo_url, _ = save_image(photo, f"nutritionists/{nutritionist_id}")
     
     # Update profile
     if nutritionist.profile:
@@ -500,7 +492,7 @@ def upload_photo(nutritionist_id: str):
     
     return jsonify({
         "photo_url": photo_url,
-        "message": "Photo uploaded (placeholder)",
+        "message": "Photo uploaded",
     })
 
 

@@ -63,6 +63,9 @@ export function NutritionistDetailPage() {
   const [nameDraft, setNameDraft] = useState('')
   const [photoUrlDraft, setPhotoUrlDraft] = useState('')
   const [bioDraft, setBioDraft] = useState('')
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false)
+  const [isDragActive, setIsDragActive] = useState(false)
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
   const [serviceDraft, setServiceDraft] = useState<Partial<AdminService>>({})
   const [newService, setNewService] = useState({
@@ -134,6 +137,35 @@ export function NutritionistDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionists'] })
     },
   })
+
+  const uploadPhotoMutation = useMutation({
+    mutationFn: (file: File) => adminApi.uploadNutritionistPhoto(id!, file),
+    onSuccess: (data) => {
+      const newUrl = data?.photo_url
+      if (newUrl) {
+        setPhotoUrlDraft(newUrl)
+      }
+      queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionists'] })
+    },
+    onError: () => {
+      setUploadError('Failed to upload photo')
+    },
+    onSettled: () => {
+      setIsUploadingPhoto(false)
+      setIsDragActive(false)
+    },
+  })
+
+  const handlePhotoFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Only image files are supported')
+      return
+    }
+    setUploadError(null)
+    setIsUploadingPhoto(true)
+    uploadPhotoMutation.mutate(file)
+  }
 
   const createServiceMutation = useMutation({
     mutationFn: () =>
@@ -399,6 +431,49 @@ export function NutritionistDetailPage() {
                   className="mt-1 w-full px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-accent-500/50"
                 />
               </label>
+            </div>
+            <div className="mt-4">
+              <div
+                className={clsx(
+                  'flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-4 text-sm transition-colors',
+                  isDragActive
+                    ? 'border-accent-400 bg-accent-500/10 text-accent-200'
+                    : 'border-slate-700/50 bg-slate-900/30 text-slate-400'
+                )}
+                onDragOver={(event) => {
+                  event.preventDefault()
+                  setIsDragActive(true)
+                }}
+                onDragLeave={() => setIsDragActive(false)}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  const file = event.dataTransfer.files?.[0]
+                  if (file) handlePhotoFile(file)
+                }}
+              >
+                <span className="text-xs uppercase tracking-wide text-slate-500">
+                  Drag & Drop Photo
+                </span>
+                <span>or</span>
+                <label className="cursor-pointer rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700">
+                  Upload image
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0]
+                      if (file) handlePhotoFile(file)
+                    }}
+                  />
+                </label>
+                {isUploadingPhoto && (
+                  <span className="text-xs text-slate-500">Uploading...</span>
+                )}
+                {uploadError && (
+                  <span className="text-xs text-error-400">{uploadError}</span>
+                )}
+              </div>
             </div>
           </div>
 

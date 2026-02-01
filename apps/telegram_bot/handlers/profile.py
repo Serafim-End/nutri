@@ -112,6 +112,14 @@ async def start_profile_flow(callback: CallbackQuery, state: FSMContext):
     # Initialize profile data in state
     data = await state.get_data()
     nutritionist = data.get("nutritionist", {})
+    nutritionist_id = nutritionist.get("nutritionist_id")
+
+    if nutritionist_id:
+        api = get_api_client()
+        response = await api.get_nutritionist_dashboard(nutritionist_id)
+        if response.success and response.data:
+            nutritionist = response.data.get("nutritionist", nutritionist)
+            await state.update_data(nutritionist=nutritionist)
     
     # Pre-fill with existing data if updating
     profile_data = {

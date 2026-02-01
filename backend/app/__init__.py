@@ -4,7 +4,8 @@ Telegram-based Nutritionists Marketplace API
 """
 
 import logging
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
+import os
 from flask_cors import CORS
 from flasgger import Swagger
 from sqlalchemy import text
@@ -95,6 +96,14 @@ def create_app(config_class=Config):
               $ref: '#/definitions/HealthResponse'
         """
         return {"status": "healthy", "service": "nutrimatch-api"}
+
+    @app.route("/media/<path:filename>")
+    def media(filename: str):
+        media_root = app.config.get("MEDIA_ROOT", "/app/media")
+        safe_path = os.path.normpath(filename)
+        if safe_path.startswith(".."):
+            return jsonify({"error": "Invalid path"}), 400
+        return send_from_directory(media_root, safe_path)
 
     # Database health check endpoint
     @app.route("/health/db")

@@ -183,6 +183,11 @@ class Config:
         "http://localhost:5000/api/nutritionists/{nutritionist_id}/calendar/callback"
     )
 
+    # Media storage (local filesystem)
+    MEDIA_ROOT = os.environ.get("MEDIA_ROOT", "/app/media")
+    MEDIA_URL = os.environ.get("MEDIA_URL", "/media")
+    MEDIA_BASE_URL = os.environ.get("MEDIA_BASE_URL", "")
+
 
 class DevelopmentConfig(Config):
     """Development configuration."""

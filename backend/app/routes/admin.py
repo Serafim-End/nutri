@@ -30,6 +30,7 @@ from app.models import (
 )
 from app.schemas.nutritionist import ServiceCreateRequest, WorkingHoursTemplateUpdateRequest
 from app.services.notifications import NotificationService
+from app.services.media_storage import save_image
 
 
 logger = logging.getLogger(__name__)
@@ -949,6 +950,28 @@ def update_nutritionist_profile(nutritionist_id: str):
     db.session.commit()
 
     return jsonify({"nutritionist": nutritionist.to_dict(include_profile=True)})
+
+
+@admin_bp.route("/nutritionists/<nutritionist_id>/photo", methods=["POST"])
+@jwt_required()
+def upload_nutritionist_photo(nutritionist_id: str):
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    nutritionist = NutritionistProfile.query.get(nutritionist_id)
+    if not nutritionist or not nutritionist.profile:
+        return jsonify({"error": "Nutritionist not found"}), 404
+
+    if "photo" not in request.files:
+        return jsonify({"error": "No photo provided"}), 400
+
+    photo = request.files["photo"]
+    photo_url, _ = save_image(photo, f"nutritionists/{nutritionist_id}")
+    nutritionist.profile.photo_url = photo_url
+    db.session.commit()
+
+    return jsonify({"photo_url": photo_url, "nutritionist": nutritionist.to_dict(include_profile=True)})
 
 
 @admin_bp.route("/nutritionists/<nutritionist_id>/services", methods=["GET"])
