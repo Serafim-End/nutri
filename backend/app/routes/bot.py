@@ -483,7 +483,11 @@ def upload_photo(nutritionist_id: str):
     
     photo = request.files["photo"]
     
-    photo_url, _ = save_image(photo, f"nutritionists/{nutritionist_id}")
+    try:
+        photo_url, _ = save_image(photo, f"nutritionists/{nutritionist_id}")
+    except ValueError as exc:
+        logger.error("Bot photo upload failed: %s", exc)
+        return jsonify({"error": str(exc)}), 500
     
     # Update profile
     if nutritionist.profile:

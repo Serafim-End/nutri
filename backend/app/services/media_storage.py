@@ -22,7 +22,10 @@ def save_image(file_storage, folder: str) -> Tuple[str, str]:
     media_url = current_app.config.get("MEDIA_URL", "/media").rstrip("/")
     base_url = current_app.config.get("MEDIA_BASE_URL") or request.host_url.rstrip("/")
 
-    os.makedirs(os.path.join(media_root, folder), exist_ok=True)
+    try:
+        os.makedirs(os.path.join(media_root, folder), exist_ok=True)
+    except OSError as exc:
+        raise ValueError(f"Failed to prepare media directory: {exc}") from exc
 
     original_name = secure_filename(file_storage.filename or "upload")
     _, ext = os.path.splitext(original_name)
@@ -31,7 +34,10 @@ def save_image(file_storage, folder: str) -> Tuple[str, str]:
     relative_path = f"{folder}/{filename}"
     full_path = os.path.join(media_root, relative_path)
 
-    file_storage.save(full_path)
+    try:
+        file_storage.save(full_path)
+    except OSError as exc:
+        raise ValueError(f"Failed to save image: {exc}") from exc
 
     absolute_url = f"{base_url}{media_url}/{relative_path}"
     return absolute_url, relative_path

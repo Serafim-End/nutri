@@ -31,6 +31,12 @@ def create_app(config_class=Config):
     # Available at / (Swagger UI) and /apispec.json (OpenAPI spec)
     Swagger(app, config=SWAGGER_CONFIG, template=SWAGGER_TEMPLATE)
 
+    media_root = app.config.get("MEDIA_ROOT", "/app/media")
+    try:
+        os.makedirs(media_root, exist_ok=True)
+    except OSError as exc:
+        logger.error("Failed to create media directory %s: %s", media_root, exc)
+
     # Configure CORS for Telegram Mini App
     CORS(
         app,

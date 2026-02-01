@@ -967,7 +967,11 @@ def upload_nutritionist_photo(nutritionist_id: str):
         return jsonify({"error": "No photo provided"}), 400
 
     photo = request.files["photo"]
-    photo_url, _ = save_image(photo, f"nutritionists/{nutritionist_id}")
+    try:
+        photo_url, _ = save_image(photo, f"nutritionists/{nutritionist_id}")
+    except ValueError as exc:
+        logger.error("Admin photo upload failed: %s", exc)
+        return jsonify({"error": str(exc)}), 500
     nutritionist.profile.photo_url = photo_url
     db.session.commit()
 
