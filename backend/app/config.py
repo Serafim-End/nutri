@@ -137,7 +137,7 @@ class Config:
     # Booking Configuration
     SLOT_HOLD_MINUTES = int(os.environ.get("SLOT_HOLD_MINUTES", "10"))
     BOOKING_HOLD_MINUTES = int(os.environ.get("BOOKING_HOLD_MINUTES", "10"))
-    DEFAULT_TIMEZONE = os.environ.get("DEFAULT_TIMEZONE", "UTC")
+    DEFAULT_TIMEZONE = os.environ.get("DEFAULT_TIMEZONE", "Europe/Moscow")
 
     # Payment Configuration
     # Available providers: mock, prodamus, telegram, yookassa, cloudpayments

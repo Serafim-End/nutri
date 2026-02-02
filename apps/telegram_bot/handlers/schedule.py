@@ -12,6 +12,8 @@ from aiogram.fsm.context import FSMContext
 
 from api_client import get_api_client
 from states import SlotStates
+from bot_texts import MOSCOW_TIME_NOTE
+from timezone_utils import MOSCOW_TZ, now_moscow, to_moscow
 from keyboards import (
     get_schedule_keyboard,
     get_slot_date_keyboard,
@@ -76,7 +78,7 @@ def format_time_range(start_at: datetime, end_at: datetime) -> str:
 def get_next_14_days() -> list[dict]:
     """Get list of next 14 days for date selection."""
     dates = []
-    today = datetime.now(timezone.utc).date()
+    today = now_moscow().date()
     
     for i in range(14):
         date = today + timedelta(days=i)
@@ -95,15 +97,18 @@ def group_slots_by_date(slots: list[dict]) -> dict[str, list[dict]]:
     
     for slot in slots:
         start_at = datetime.fromisoformat(slot["start_at"].replace('Z', '+00:00'))
-        date_key = start_at.date().isoformat()
+        end_at = datetime.fromisoformat(slot["end_at"].replace('Z', '+00:00'))
+        start_local = to_moscow(start_at)
+        end_local = to_moscow(end_at)
+        date_key = start_local.date().isoformat()
         
         if date_key not in grouped:
             grouped[date_key] = []
         
         grouped[date_key].append({
             **slot,
-            "start_dt": start_at,
-            "end_dt": datetime.fromisoformat(slot["end_at"].replace('Z', '+00:00')),
+            "start_dt": start_local,
+            "end_dt": end_local,
         })
     
     # Sort slots within each date
@@ -244,6 +249,8 @@ async def show_schedule(callback: CallbackQuery, state: FSMContext):
     calendar_response = await api.get_calendar_status(nutritionist_id)
     if calendar_response.success and calendar_response.data.get("connected"):
         text += "📅 <i>Google Calendar подключён</i>\n"
+
+    text += MOSCOW_TIME_NOTE
     
     await callback.message.edit_text(
         text=text,
@@ -304,6 +311,7 @@ async def select_slot_date(callback: CallbackQuery, state: FSMContext):
         f"Введите время начала в формате <b>ЧЧ:ММ</b>\n"
         f"(например: 10:00, 14:30)"
     )
+    text += MOSCOW_TIME_NOTE
     
     await callback.message.edit_text(
         text=text,
@@ -323,7 +331,8 @@ async def process_start_time(message: Message, state: FSMContext):
     if not match:
         await message.answer(
             "⚠️ Неверный формат времени.\n\n"
-            "Введите время в формате <b>ЧЧ:ММ</b> (например: 10:00, 14:30)",
+            "Введите время в формате <b>ЧЧ:ММ</b> (например: 10:00, 14:30)"
+            + MOSCOW_TIME_NOTE,
             parse_mode="HTML",
         )
         return
@@ -335,16 +344,18 @@ async def process_start_time(message: Message, state: FSMContext):
     
     # Check if time is in the future
     date_dt = datetime.fromisoformat(date_str)
-    slot_start = datetime.combine(
+    slot_start_local = datetime.combine(
         date_dt.date(),
         datetime.strptime(f"{hours:02d}:{minutes:02d}", "%H:%M").time(),
-    ).replace(tzinfo=timezone.utc)
+    ).replace(tzinfo=MOSCOW_TZ)
+    slot_start = slot_start_local.astimezone(timezone.utc)
     
-    now = datetime.now(timezone.utc)
-    if slot_start <= now:
+    now_local = now_moscow()
+    if slot_start_local <= now_local:
         await message.answer(
             "⚠️ Время слота должно быть в будущем.\n\n"
-            "Введите другое время:",
+            "Введите другое время:"
+            + MOSCOW_TIME_NOTE,
             parse_mode="HTML",
         )
         return
@@ -363,6 +374,7 @@ async def process_start_time(message: Message, state: FSMContext):
         f"🕒 Начало: {hours:02d}:{minutes:02d}\n\n"
         f"Выберите продолжительность:"
     )
+    text += MOSCOW_TIME_NOTE
     
     await message.answer(
         text=text,
@@ -389,8 +401,10 @@ async def select_slot_duration(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(SlotStates.confirming_slot)
     
-    date_label = format_date_ru(slot_start_dt)
-    time_range = format_time_range(slot_start_dt, slot_end_dt)
+    start_local = to_moscow(slot_start_dt)
+    end_local = to_moscow(slot_end_dt)
+    date_label = format_date_ru(start_local)
+    time_range = format_time_range(start_local, end_local)
     
     text = (
         f"➕ <b>Добавить слот</b>\n\n"
@@ -400,6 +414,7 @@ async def select_slot_duration(callback: CallbackQuery, state: FSMContext):
         f"⏱ {duration_minutes} минут\n\n"
         f"Всё верно?"
     )
+    text += MOSCOW_TIME_NOTE
     
     await callback.message.edit_text(
         text=text,
@@ -436,9 +451,11 @@ async def confirm_slot_creation(callback: CallbackQuery, state: FSMContext):
     
     if response.success:
         slot_start_dt = datetime.fromisoformat(start_at)
-        date_label = format_date_ru(slot_start_dt)
         slot_end_dt = datetime.fromisoformat(end_at)
-        time_range = format_time_range(slot_start_dt, slot_end_dt)
+        start_local = to_moscow(slot_start_dt)
+        end_local = to_moscow(slot_end_dt)
+        date_label = format_date_ru(start_local)
+        time_range = format_time_range(start_local, end_local)
         
         text = (
             f"✅ <b>Слот создан!</b>\n\n"
@@ -446,6 +463,7 @@ async def confirm_slot_creation(callback: CallbackQuery, state: FSMContext):
             f"🕒 {time_range}\n\n"
             f"Клиенты теперь могут записаться на это время."
         )
+        text += MOSCOW_TIME_NOTE
         await callback.message.edit_text(
             text=text,
             reply_markup=get_schedule_keyboard(has_free_slots=True),
@@ -534,9 +552,11 @@ async def start_delete_slot(callback: CallbackQuery, state: FSMContext):
     for slot in free_slots:
         start_dt = datetime.fromisoformat(slot["start_at"].replace('Z', '+00:00'))
         end_dt = datetime.fromisoformat(slot["end_at"].replace('Z', '+00:00'))
+        start_local = to_moscow(start_dt)
+        end_local = to_moscow(end_dt)
         
-        date_label = format_date_short_ru(start_dt)
-        time_range = format_time_range(start_dt, end_dt)
+        date_label = format_date_short_ru(start_local)
+        time_range = format_time_range(start_local, end_local)
         
         slot_options.append({
             "id": slot["id"],
@@ -549,6 +569,7 @@ async def start_delete_slot(callback: CallbackQuery, state: FSMContext):
         "❌ <b>Удаление слота</b>\n\n"
         "Выберите слот для удаления:"
     )
+    text += MOSCOW_TIME_NOTE
     
     await callback.message.edit_text(
         text=text,
@@ -719,9 +740,11 @@ async def fetch_and_show_bookings(callback: CallbackQuery, state: FSMContext, of
     for booking in bookings:
         start_at = datetime.fromisoformat(booking["start_at"].replace('Z', '+00:00'))
         end_at = datetime.fromisoformat(booking["end_at"].replace('Z', '+00:00'))
+        start_local = to_moscow(start_at)
+        end_local = to_moscow(end_at)
         
-        date_label = format_date_ru(start_at)
-        time_range = format_time_range(start_at, end_at)
+        date_label = format_date_ru(start_local)
+        time_range = format_time_range(start_local, end_local)
         
         client_name = booking.get("client_name", "Клиент")
         service_title = booking.get("service_title", "Консультация")
@@ -743,7 +766,7 @@ async def fetch_and_show_bookings(callback: CallbackQuery, state: FSMContext, of
         )
     
     await callback.message.edit_text(
-        text=text,
+        text=text + MOSCOW_TIME_NOTE,
         reply_markup=get_bookings_keyboard(offset, total, BOOKINGS_LIMIT),
         parse_mode="HTML",
     )

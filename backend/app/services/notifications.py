@@ -6,16 +6,16 @@ Currently logs events; can be extended for Telegram, email, etc.
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from flask import current_app
+from zoneinfo import ZoneInfo
 
 from app.models import Booking, Payment
 from app.models.profile import Profile
-from app.utils.timezone import get_default_tzinfo
 
 
 logger = logging.getLogger(__name__)
@@ -185,10 +185,10 @@ class NotificationService:
         booking_date = "—"
         booking_time = "—"
         if booking.slot and isinstance(booking.slot.start_at, datetime):
-            tzinfo = get_default_tzinfo()
+            tzinfo = ZoneInfo("Europe/Moscow")
             start_at = booking.slot.start_at
             if start_at.tzinfo is None:
-                start_at = start_at.replace(tzinfo=tzinfo)
+                start_at = start_at.replace(tzinfo=timezone.utc)
             local_dt = start_at.astimezone(tzinfo)
             booking_date = local_dt.strftime("%d.%m.%Y")
             booking_time = local_dt.strftime("%H:%M")
@@ -200,7 +200,8 @@ class NotificationService:
             f"Услуга: {service_name}\n"
             f"Дата: {booking_date}\n"
             f"Время: {booking_time}\n"
-            f"Оплата: {price_paid} ₽"
+            f"Оплата: {price_paid} ₽\n\n"
+            "Время указано по Москве (МСК)."
         )
 
     @staticmethod
@@ -227,4 +228,3 @@ class NotificationService:
             logger.warning("Telegram sendMessage error: %s", exc)
         except Exception as exc:
             logger.error("Unexpected Telegram sendMessage error: %s", exc)
-

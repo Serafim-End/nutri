@@ -12,6 +12,8 @@ from aiogram.fsm.context import FSMContext
 
 from api_client import get_api_client
 from states import DateExceptionStates
+from bot_texts import MOSCOW_TIME_NOTE
+from timezone_utils import now_moscow
 from keyboards import (
     get_exceptions_keyboard,
     get_exception_date_keyboard,
@@ -88,7 +90,7 @@ def format_time_ranges_list(ranges: list[dict]) -> str:
 def get_next_30_days() -> list[dict]:
     """Get list of next 30 days for date selection."""
     dates = []
-    today = datetime.now(timezone.utc).date()
+    today = now_moscow().date()
     
     for i in range(30):
         date = today + timedelta(days=i)
@@ -167,7 +169,7 @@ async def show_exceptions(callback: CallbackQuery, state: FSMContext):
                 ) + "\n"
     
     await callback.message.edit_text(
-        text=text,
+        text=text + MOSCOW_TIME_NOTE,
         reply_markup=get_exceptions_keyboard(has_exceptions=True),
         parse_mode="HTML",
     )
@@ -207,6 +209,7 @@ async def select_exception_date(callback: CallbackQuery, state: FSMContext):
     await state.set_state(DateExceptionStates.selecting_type)
     
     text = EXCEPTIONS_TITLE + EXCEPTIONS_SELECT_TYPE.format(date=date_label)
+    text += MOSCOW_TIME_NOTE
     
     await callback.message.edit_text(
         text=text,
@@ -229,6 +232,7 @@ async def select_type_off(callback: CallbackQuery, state: FSMContext):
     await state.set_state(DateExceptionStates.confirming_exception)
     
     text = EXCEPTIONS_TITLE + EXCEPTIONS_CONFIRM_OFF.format(date=date_label)
+    text += MOSCOW_TIME_NOTE
     
     await callback.message.edit_text(
         text=text,
@@ -251,6 +255,7 @@ async def select_type_custom(callback: CallbackQuery, state: FSMContext):
     await state.set_state(DateExceptionStates.waiting_custom_start_time)
     
     text = EXCEPTIONS_TITLE + EXCEPTIONS_CUSTOM_START_TIME.format(date=date_label)
+    text += MOSCOW_TIME_NOTE
     
     await callback.message.edit_text(
         text=text,
@@ -270,7 +275,8 @@ async def process_custom_start_time(message: Message, state: FSMContext):
     if not match:
         await message.answer(
             "⚠️ Неверный формат времени.\n\n"
-            "Введите время в формате <b>ЧЧ:ММ</b> (например: 10:00)",
+            "Введите время в формате <b>ЧЧ:ММ</b> (например: 10:00)"
+            + MOSCOW_TIME_NOTE,
             parse_mode="HTML",
         )
         return
@@ -290,6 +296,7 @@ async def process_custom_start_time(message: Message, state: FSMContext):
         date=date_label,
         start_time=start_time,
     )
+    text += MOSCOW_TIME_NOTE
     
     await message.answer(
         text=text,
@@ -309,7 +316,8 @@ async def process_custom_end_time(message: Message, state: FSMContext):
     if not match:
         await message.answer(
             "⚠️ Неверный формат времени.\n\n"
-            "Введите время в формате <b>ЧЧ:ММ</b> (например: 14:00)",
+            "Введите время в формате <b>ЧЧ:ММ</b> (например: 14:00)"
+            + MOSCOW_TIME_NOTE,
             parse_mode="HTML",
         )
         return
@@ -332,7 +340,8 @@ async def process_custom_end_time(message: Message, state: FSMContext):
     if end_minutes <= start_minutes:
         await message.answer(
             "⚠️ Время окончания должно быть позже времени начала.\n\n"
-            "Введите другое время:",
+            "Введите другое время:"
+            + MOSCOW_TIME_NOTE,
             parse_mode="HTML",
         )
         return
@@ -345,6 +354,7 @@ async def process_custom_end_time(message: Message, state: FSMContext):
         start_time=start_time,
         end_time=end_time,
     )
+    text += MOSCOW_TIME_NOTE
     
     await message.answer(
         text=text,
@@ -396,6 +406,7 @@ async def confirm_exception(callback: CallbackQuery, state: FSMContext):
         
         if exception_type == "off":
             text = EXCEPTIONS_TITLE + EXCEPTIONS_CREATED_OFF.format(date=date_label)
+            text += MOSCOW_TIME_NOTE
         else:
             start_time = data.get("exception_custom_start_time")
             end_time = data.get("exception_custom_end_time")
@@ -404,6 +415,7 @@ async def confirm_exception(callback: CallbackQuery, state: FSMContext):
                 start_time=start_time,
                 end_time=end_time,
             )
+            text += MOSCOW_TIME_NOTE
         
         await callback.message.edit_text(
             text=text,
@@ -494,7 +506,7 @@ async def start_delete_exception(callback: CallbackQuery, state: FSMContext):
     
     await state.set_state(DateExceptionStates.selecting_exception)
     
-    text = EXCEPTIONS_DELETE_TITLE + EXCEPTIONS_DELETE_SELECT
+    text = EXCEPTIONS_DELETE_TITLE + EXCEPTIONS_DELETE_SELECT + MOSCOW_TIME_NOTE
     
     await callback.message.edit_text(
         text=text,

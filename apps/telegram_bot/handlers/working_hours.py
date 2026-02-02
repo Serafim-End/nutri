@@ -60,6 +60,7 @@ from bot_texts import (
     WORKING_HOURS_TEMPLATE_SAVED,
     WORKING_HOURS_TEMPLATE_ERROR,
     DAY_NAMES,
+    MOSCOW_TIME_NOTE,
 )
 
 
@@ -108,6 +109,7 @@ def build_day_view(day_num: int, schedule: dict, notice: str | None = None) -> t
         text += WORKING_HOURS_NO_RANGES
 
     text += WORKING_HOURS_ADD_RANGE
+    text += MOSCOW_TIME_NOTE
     return text, time_ranges
 
 
@@ -167,7 +169,7 @@ async def show_working_hours(callback: CallbackQuery, state: FSMContext):
         text = WORKING_HOURS_TITLE + WORKING_HOURS_EMPTY
     
     await callback.message.edit_text(
-        text=text,
+        text=text + MOSCOW_TIME_NOTE,
         reply_markup=get_working_hours_keyboard(),
         parse_mode="HTML",
     )
@@ -213,6 +215,7 @@ async def start_add_time_range(callback: CallbackQuery, state: FSMContext):
         WORKING_HOURS_DAY_SELECTED.format(day_name=day_name) +
         WORKING_HOURS_START_TIME
     )
+    text += MOSCOW_TIME_NOTE
     
     await callback.message.edit_text(
         text=text,
@@ -232,7 +235,7 @@ async def process_start_time(message: Message, state: FSMContext):
     
     if not match:
         await message.answer(
-            WORKING_HOURS_INVALID_TIME,
+            WORKING_HOURS_INVALID_TIME + MOSCOW_TIME_NOTE,
             reply_markup=get_working_hours_input_keyboard(),
             parse_mode="HTML",
         )
@@ -253,6 +256,7 @@ async def process_start_time(message: Message, state: FSMContext):
         WORKING_HOURS_DAY_SELECTED.format(day_name=day_name) +
         WORKING_HOURS_END_TIME.format(start_time=start_time)
     )
+    text += MOSCOW_TIME_NOTE
     
     await message.answer(
         text=text,
@@ -272,7 +276,7 @@ async def process_end_time(message: Message, state: FSMContext):
     
     if not match:
         await message.answer(
-            WORKING_HOURS_INVALID_TIME,
+            WORKING_HOURS_INVALID_TIME + MOSCOW_TIME_NOTE,
             reply_markup=get_working_hours_input_keyboard(),
             parse_mode="HTML",
         )
@@ -294,7 +298,7 @@ async def process_end_time(message: Message, state: FSMContext):
     
     if end_minutes <= start_minutes:
         await message.answer(
-            WORKING_HOURS_END_BEFORE_START,
+            WORKING_HOURS_END_BEFORE_START + MOSCOW_TIME_NOTE,
             reply_markup=get_working_hours_input_keyboard(),
             parse_mode="HTML",
         )
@@ -311,6 +315,7 @@ async def process_end_time(message: Message, state: FSMContext):
             end_time=end_time,
         )
     )
+    text += MOSCOW_TIME_NOTE
     
     await message.answer(
         text=text,
