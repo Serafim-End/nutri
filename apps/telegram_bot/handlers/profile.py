@@ -17,6 +17,7 @@ from keyboards import (
     get_tags_keyboard,
     get_confirm_rules_keyboard,
     get_submit_profile_keyboard,
+    get_document_type_keyboard,
     CB_CREATE_PROFILE,
     CB_UPDATE_PROFILE,
     CB_SKIP_PHOTO,
@@ -29,6 +30,10 @@ from keyboards import (
     CB_CONFIRM_RULES,
     CB_SUBMIT_PROFILE,
     CB_CANCEL_PROFILE,
+    CB_DOC_TYPE_DIPLOMA,
+    CB_DOC_TYPE_CERTIFICATE,
+    CB_DOC_TYPE_OTHER,
+    CB_DOC_DONE,
 )
 
 
@@ -135,7 +140,7 @@ async def start_profile_flow(callback: CallbackQuery, state: FSMContext):
     
     text = (
         "📝 <b>Создание профиля нутрициолога</b>\n\n"
-        "Шаг 1 из 6: Введите ваше полное имя\n\n"
+        "Шаг 1 из 7: Введите ваше полное имя\n\n"
         f"Текущее: <b>{profile_data['full_name']}</b>\n\n"
         "Отправьте новое имя или нажмите /skip для сохранения текущего."
     )
@@ -171,7 +176,7 @@ async def process_full_name(message: Message, state: FSMContext):
     
     await message.answer(
         text=(
-            "📸 <b>Шаг 2 из 6: Фото профиля</b>\n\n"
+            "📸 <b>Шаг 2 из 7: Фото профиля</b>\n\n"
             "Отправьте фотографию для вашего профиля.\n"
             "Рекомендуется: качественное фото в профессиональном стиле."
         ),
@@ -255,7 +260,7 @@ async def move_to_bio_step(message: Message, state: FSMContext, is_callback: boo
     current_bio = profile_draft.get("bio", "")
     
     text = (
-        "📝 <b>Шаг 3 из 6: О себе</b>\n\n"
+        "📝 <b>Шаг 3 из 7: О себе</b>\n\n"
         "Расскажите о себе и своём опыте (до 300 символов).\n"
         "Это описание увидят клиенты.\n\n"
     )
@@ -314,7 +319,7 @@ async def move_to_specializations_step(message: Message, state: FSMContext):
     selected = profile_draft.get("specializations", [])
     
     text = (
-        "🏷️ <b>Шаг 4 из 6: Специализации</b>\n\n"
+        "🏷️ <b>Шаг 4 из 7: Специализации</b>\n\n"
         "Выберите ваши специализации (можно несколько).\n"
         "Это поможет клиентам найти вас.\n\n"
         f"Выбрано: {len(selected)}"
@@ -347,7 +352,7 @@ async def toggle_specialization(callback: CallbackQuery, state: FSMContext):
     await state.update_data(profile_draft=profile_draft)
     
     text = (
-        "🏷️ <b>Шаг 4 из 6: Специализации</b>\n\n"
+        "🏷️ <b>Шаг 4 из 7: Специализации</b>\n\n"
         "Выберите ваши специализации (можно несколько).\n\n"
         f"Выбрано: {len(selected)}"
     )
@@ -378,7 +383,7 @@ async def specializations_done(callback: CallbackQuery, state: FSMContext):
     selected_tags = profile_draft.get("tags", [])
     
     text = (
-        "🏷️ <b>Шаг 5 из 6: Теги (опционально)</b>\n\n"
+        "🏷️ <b>Шаг 5 из 7: Теги (опционально)</b>\n\n"
         "Добавьте теги для более точного поиска.\n"
         "Это необязательный шаг.\n\n"
         f"Выбрано: {len(selected_tags)}"
@@ -411,7 +416,7 @@ async def toggle_tag(callback: CallbackQuery, state: FSMContext):
     await state.update_data(profile_draft=profile_draft)
     
     text = (
-        "🏷️ <b>Шаг 5 из 6: Теги (опционально)</b>\n\n"
+        "🏷️ <b>Шаг 5 из 7: Теги (опционально)</b>\n\n"
         "Добавьте теги для более точного поиска.\n\n"
         f"Выбрано: {len(selected)}"
     )
@@ -442,45 +447,241 @@ async def tags_done(callback: CallbackQuery, state: FSMContext):
 async def confirm_rules(callback: CallbackQuery, state: FSMContext):
     """Confirm rules acceptance."""
     await callback.answer()
-    
-    # Move to final confirmation
-    await state.set_state(ProfileStates.confirming_submission)
-    
+
     data = await state.get_data()
     profile_draft = data.get("profile_draft", {})
-    
+    telegram_user_id = data.get("telegram_user_id", callback.from_user.id)
+
+    api = get_api_client()
+    upsert_response = await api.upsert_nutritionist(
+        telegram_user_id=telegram_user_id,
+        full_name=profile_draft.get("full_name", callback.from_user.full_name),
+        photo_url=profile_draft.get("photo_url"),
+        bio=profile_draft.get("bio"),
+        specializations=profile_draft.get("specializations", []),
+        tags=profile_draft.get("tags", []),
+        submit_for_verification=False,
+    )
+
+    if not upsert_response.success:
+        await callback.message.edit_text(
+            text=f"❌ Ошибка сохранения профиля: {upsert_response.error}\n\nПопробуйте ещё раз.",
+            reply_markup=get_nutritionist_menu_keyboard(has_profile=False),
+        )
+        return
+
+    nutritionist = upsert_response.data.get("nutritionist") if upsert_response.data else None
+    await state.update_data(nutritionist=nutritionist)
+
+    # Move to documents step
+    await state.set_state(ProfileStates.selecting_document_type)
+    await state.update_data(current_doc_type=None, uploaded_docs=[])
+
+    await callback.message.edit_text(
+        text=(
+            "📄 <b>Шаг 6 из 7: Документы</b>\n\n"
+            "Загрузите диплом и/или сертификаты.\n"
+            "Поддерживаются: PDF, JPG, PNG.\n"
+            "Минимум один документ обязателен.\n\n"
+            "Выберите тип документа и отправьте файл."
+        ),
+        reply_markup=get_document_type_keyboard(),
+        parse_mode="HTML",
+    )
+
+
+@router.callback_query(
+    F.data.in_({CB_DOC_TYPE_DIPLOMA, CB_DOC_TYPE_CERTIFICATE, CB_DOC_TYPE_OTHER}),
+    ProfileStates.selecting_document_type,
+)
+async def select_document_type(callback: CallbackQuery, state: FSMContext):
+    """Select document type and prompt for upload."""
+    await callback.answer()
+
+    if callback.data == CB_DOC_TYPE_DIPLOMA:
+        doc_type = "diploma"
+        label = "Диплом"
+    elif callback.data == CB_DOC_TYPE_CERTIFICATE:
+        doc_type = "certificate"
+        label = "Сертификат"
+    else:
+        doc_type = "other"
+        label = "Другое"
+
+    await state.update_data(current_doc_type=doc_type)
+    await state.set_state(ProfileStates.waiting_document_upload)
+
+    await callback.message.edit_text(
+        text=(
+            f"📎 <b>Тип документа:</b> {label}\n\n"
+            "Отправьте файл (PDF/JPG/PNG).\n"
+            "Можно отправить фото документа."
+        ),
+        parse_mode="HTML",
+    )
+
+
+@router.message(ProfileStates.waiting_document_upload, F.document)
+async def process_document_file(message: Message, state: FSMContext, bot: Bot):
+    """Handle document file upload."""
+    data = await state.get_data()
+    nutritionist = data.get("nutritionist", {})
+    nutritionist_id = nutritionist.get("nutritionist_id")
+    doc_type = data.get("current_doc_type") or "other"
+
+    if not nutritionist_id:
+        await message.answer("❌ Профиль не найден.")
+        return
+
+    document = message.document
+    try:
+        file = await bot.get_file(document.file_id)
+        file_bytes = await bot.download_file(file.file_path)
+        filename = document.file_name or file.file_path.split("/")[-1] or "document"
+
+        api = get_api_client()
+        response = await api.upload_document(
+            nutritionist_id=nutritionist_id,
+            file_bytes=file_bytes.read(),
+            filename=filename,
+            document_type=doc_type,
+        )
+
+        if response.success:
+            uploaded_docs = data.get("uploaded_docs", [])
+            doc = response.data.get("document") if response.data else None
+            if doc:
+                uploaded_docs.append(doc)
+            await state.update_data(uploaded_docs=uploaded_docs, current_doc_type=None)
+            await state.set_state(ProfileStates.selecting_document_type)
+            await message.answer(
+                text=(
+                    "✅ Документ загружен.\n"
+                    f"Загружено: {len(uploaded_docs)}"
+                ),
+                reply_markup=get_document_type_keyboard(),
+            )
+        else:
+            await message.answer(f"❌ Ошибка загрузки: {response.error}")
+    except Exception as e:
+        logger.error(f"Document upload error: {e}")
+        await message.answer("❌ Не удалось загрузить документ. Попробуйте ещё раз.")
+
+
+@router.message(ProfileStates.waiting_document_upload, F.photo)
+async def process_document_photo(message: Message, state: FSMContext, bot: Bot):
+    """Handle document photo upload."""
+    data = await state.get_data()
+    nutritionist = data.get("nutritionist", {})
+    nutritionist_id = nutritionist.get("nutritionist_id")
+    doc_type = data.get("current_doc_type") or "other"
+
+    if not nutritionist_id:
+        await message.answer("❌ Профиль не найден.")
+        return
+
+    photo = message.photo[-1]
+    try:
+        file = await bot.get_file(photo.file_id)
+        file_bytes = await bot.download_file(file.file_path)
+        filename = file.file_path.split("/")[-1] or f"{photo.file_id}.jpg"
+
+        api = get_api_client()
+        response = await api.upload_document(
+            nutritionist_id=nutritionist_id,
+            file_bytes=file_bytes.read(),
+            filename=filename,
+            document_type=doc_type,
+        )
+
+        if response.success:
+            uploaded_docs = data.get("uploaded_docs", [])
+            doc = response.data.get("document") if response.data else None
+            if doc:
+                uploaded_docs.append(doc)
+            await state.update_data(uploaded_docs=uploaded_docs, current_doc_type=None)
+            await state.set_state(ProfileStates.selecting_document_type)
+            await message.answer(
+                text=(
+                    "✅ Документ загружен.\n"
+                    f"Загружено: {len(uploaded_docs)}"
+                ),
+                reply_markup=get_document_type_keyboard(),
+            )
+        else:
+            await message.answer(f"❌ Ошибка загрузки: {response.error}")
+    except Exception as e:
+        logger.error(f"Document photo upload error: {e}")
+        await message.answer("❌ Не удалось загрузить документ. Попробуйте ещё раз.")
+
+
+@router.message(ProfileStates.waiting_document_upload)
+async def process_document_invalid(message: Message):
+    await message.answer("⚠️ Пожалуйста, отправьте файл или фото документа.")
+
+
+@router.callback_query(F.data == CB_DOC_DONE, ProfileStates.selecting_document_type)
+async def documents_done(callback: CallbackQuery, state: FSMContext):
+    """Finish document upload and move to final review."""
+    await callback.answer()
+    data = await state.get_data()
+    uploaded_docs = data.get("uploaded_docs", [])
+
+    if not uploaded_docs:
+        await callback.answer("⚠️ Загрузите хотя бы один документ", show_alert=True)
+        return
+
+    await show_submission_summary(callback.message, state, is_callback=True)
+
+
+async def show_submission_summary(message: Message, state: FSMContext, is_callback: bool = False):
+    """Show final summary before submission."""
+    await state.set_state(ProfileStates.confirming_submission)
+
+    data = await state.get_data()
+    profile_draft = data.get("profile_draft", {})
+    uploaded_docs = data.get("uploaded_docs", [])
+
     # Build summary
     full_name = profile_draft.get("full_name", "Не указано")
     bio = profile_draft.get("bio", "Не указано")
     specs = profile_draft.get("specializations", [])
     tags = profile_draft.get("tags", [])
     has_photo = bool(profile_draft.get("photo_url") or profile_draft.get("photo_file_id"))
-    
+
     # Get labels for specs and tags
     spec_labels = [s["label"] for s in SPECIALIZATIONS if s["id"] in specs]
     tag_labels = [t["label"] for t in TAGS if t["id"] in tags]
-    
+
     text = (
-        "✅ <b>Шаг 6 из 6: Проверка</b>\n\n"
+        "✅ <b>Шаг 7 из 7: Проверка</b>\n\n"
         f"<b>Имя:</b> {full_name}\n"
         f"<b>Фото:</b> {'✅ Загружено' if has_photo else '❌ Не загружено'}\n"
+        f"<b>Документы:</b> {len(uploaded_docs)}\n"
         f"<b>О себе:</b> {bio[:100]}{'...' if len(bio) > 100 else ''}\n\n"
         f"<b>Специализации:</b>\n• " + "\n• ".join(spec_labels) + "\n\n"
     )
-    
+
     if tag_labels:
         text += f"<b>Теги:</b>\n• " + "\n• ".join(tag_labels) + "\n\n"
-    
+
     text += (
         "✓ Правила приняты\n\n"
         "Отправить профиль на модерацию?"
     )
-    
-    await callback.message.edit_text(
-        text=text,
-        reply_markup=get_submit_profile_keyboard(),
-        parse_mode="HTML",
-    )
+
+    if is_callback:
+        await message.edit_text(
+            text=text,
+            reply_markup=get_submit_profile_keyboard(),
+            parse_mode="HTML",
+        )
+    else:
+        await message.answer(
+            text=text,
+            reply_markup=get_submit_profile_keyboard(),
+            parse_mode="HTML",
+        )
 
 
 @router.callback_query(F.data == CB_SUBMIT_PROFILE, ProfileStates.confirming_submission)
@@ -506,7 +707,12 @@ async def submit_profile(callback: CallbackQuery, state: FSMContext):
     
     if response.success:
         nutritionist = response.data.get("nutritionist")
-        await state.update_data(nutritionist=nutritionist, profile_draft=None)
+        await state.update_data(
+            nutritionist=nutritionist,
+            profile_draft=None,
+            uploaded_docs=None,
+            current_doc_type=None,
+        )
         await state.set_state(None)
         
         text = (

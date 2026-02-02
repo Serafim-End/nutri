@@ -8,7 +8,7 @@ import os
 import logging
 from functools import wraps
 from datetime import datetime, timedelta, timezone
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from pydantic import ValidationError
 
 from app.extensions import db
@@ -21,10 +21,11 @@ from app.models import (
     GoogleCalendar,
     SupportTicket,
     Review,
+    NutritionistDocument,
 )
 from app.schemas.nutritionist import SlotCreateRequest
 from app.services.session_tracking import log_user_session
-from app.services.media_storage import save_image
+from app.services.media_storage import save_image, save_file
 
 
 logger = logging.getLogger(__name__)
@@ -498,6 +499,69 @@ def upload_photo(nutritionist_id: str):
         "photo_url": photo_url,
         "message": "Photo uploaded",
     })
+
+
+@bot_bp.route("/nutritionists/<nutritionist_id>/documents/upload", methods=["POST"])
+@require_service_token
+def upload_document(nutritionist_id: str):
+    """
+    Upload document for nutritionist verification.
+
+    Request:
+        POST /api/bot/nutritionists/<id>/documents/upload
+        X-Service-Token: <token>
+        Content-Type: multipart/form-data
+        file: <file>
+        type: diploma|certificate|other
+
+    Response:
+        201: { "document": {...} }
+    """
+    nutritionist = NutritionistProfile.query.get(nutritionist_id)
+    if not nutritionist:
+        return jsonify({"error": "Nutritionist not found"}), 404
+
+    if "file" not in request.files:
+        return jsonify({"error": "No file provided"}), 400
+
+    document_type = (request.form.get("type") or "").strip()
+    if document_type not in ("diploma", "certificate", "other"):
+        return jsonify({"error": "Invalid document type"}), 400
+
+    file_storage = request.files["file"]
+    allowed_exts = current_app.config.get("DOCUMENT_ALLOWED_EXTS") or []
+    allowed_exts = [ext.strip().lower() for ext in allowed_exts if ext.strip()]
+    max_bytes = current_app.config.get("DOCUMENT_MAX_BYTES")
+
+    try:
+        file_url, relative_path, file_size = save_file(
+            file_storage,
+            f"nutritionists/{nutritionist_id}/documents",
+            allowed_exts=allowed_exts,
+            max_bytes=max_bytes,
+        )
+    except ValueError as exc:
+        logger.error("Bot document upload failed: %s", exc)
+        msg = str(exc)
+        if msg == "Unsupported file type":
+            return jsonify({"error": msg}), 400
+        if msg == "File too large":
+            return jsonify({"error": msg}), 413
+        return jsonify({"error": msg}), 500
+
+    document = NutritionistDocument(
+        nutritionist_id=nutritionist_id,
+        type=document_type,
+        file_path=file_url,
+        status="uploaded",
+    )
+    db.session.add(document)
+    db.session.commit()
+
+    return jsonify({
+        "document": document.to_dict(),
+        "message": "Document uploaded",
+    }), 201
 
 
 @bot_bp.route("/support/messages", methods=["POST"])

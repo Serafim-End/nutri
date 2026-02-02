@@ -188,6 +188,11 @@ class Config:
     MEDIA_ROOT = os.environ.get("MEDIA_ROOT", "/app/media")
     MEDIA_URL = os.environ.get("MEDIA_URL", "/media")
     MEDIA_BASE_URL = os.environ.get("MEDIA_BASE_URL", "")
+    DOCUMENT_MAX_BYTES = int(os.environ.get("DOCUMENT_MAX_BYTES", "10485760"))  # 10MB
+    DOCUMENT_ALLOWED_EXTS = os.environ.get(
+        "DOCUMENT_ALLOWED_EXTS",
+        ".pdf,.jpg,.jpeg,.png",
+    ).split(",")
 
 
 class DevelopmentConfig(Config):

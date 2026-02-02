@@ -26,7 +26,13 @@ class ProfileStates(StatesGroup):
     
     # Confirming rules and restrictions
     confirming_rules = State()
-    
+
+    # Selecting document type
+    selecting_document_type = State()
+
+    # Waiting for document upload
+    waiting_document_upload = State()
+
     # Final confirmation before submission
     confirming_submission = State()
 
@@ -127,4 +133,3 @@ class DateExceptionStates(StatesGroup):
     
     # Selecting exception to edit/delete
     selecting_exception = State()
-

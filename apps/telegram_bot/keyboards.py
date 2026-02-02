@@ -61,6 +61,10 @@ CB_TAG_DONE = "tag_done"
 CB_CONFIRM_RULES = "confirm_rules"
 CB_SUBMIT_PROFILE = "submit_profile"
 CB_CANCEL_PROFILE = "cancel_profile"
+CB_DOC_TYPE_DIPLOMA = "doc_type:diploma"
+CB_DOC_TYPE_CERTIFICATE = "doc_type:certificate"
+CB_DOC_TYPE_OTHER = "doc_type:other"
+CB_DOC_DONE = "doc_done"
 
 # Service flow
 CB_SKIP_DESCRIPTION = "skip_description"
@@ -262,6 +266,34 @@ def get_personal_cabinet_keyboard() -> InlineKeyboardMarkup:
         )
     )
     
+    return builder.as_markup()
+
+
+def get_document_type_keyboard() -> InlineKeyboardMarkup:
+    """Document type selection with finish action."""
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text="🎓 Диплом",
+            callback_data=CB_DOC_TYPE_DIPLOMA,
+        ),
+        InlineKeyboardButton(
+            text="📄 Сертификат",
+            callback_data=CB_DOC_TYPE_CERTIFICATE,
+        ),
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="📁 Другое",
+            callback_data=CB_DOC_TYPE_OTHER,
+        ),
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="✅ Завершить загрузку",
+            callback_data=CB_DOC_DONE,
+        ),
+    )
     return builder.as_markup()
 
 

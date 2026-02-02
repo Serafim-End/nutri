@@ -77,6 +77,7 @@ export function NutritionistDetailPage() {
   })
   const [scheduleInputs, setScheduleInputs] = useState<Record<string, string>>({})
   const [scheduleError, setScheduleError] = useState<string | null>(null)
+  const [documentNotes, setDocumentNotes] = useState<Record<string, string>>({})
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['admin', 'nutritionist', id],
@@ -262,6 +263,18 @@ export function NutritionistDetailPage() {
       setActionNote('')
     },
   })
+
+  const reviewDocumentMutation = useMutation({
+    mutationFn: (payload: { id: string; status: 'accepted' | 'rejected'; note?: string }) =>
+      adminApi.reviewDocument(payload.id, payload.status, payload.note),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id] })
+    },
+  })
+
+  const updateDocumentNote = (docId: string, value: string) => {
+    setDocumentNotes((prev) => ({ ...prev, [docId]: value }))
+  }
 
   const handleAction = async () => {
     if (!activeAction) return
@@ -1031,6 +1044,43 @@ export function NutritionistDetailPage() {
                       </svg>
                       Download
                     </button>
+                    <div className="mt-3 space-y-2">
+                      <input
+                        type="text"
+                        value={documentNotes[doc.id] || ''}
+                        onChange={(e) => updateDocumentNote(doc.id, e.target.value)}
+                        placeholder="Review note (optional)"
+                        className="w-full rounded-lg bg-slate-900/60 border border-slate-800/50 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-accent-500/40"
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() =>
+                            reviewDocumentMutation.mutate({
+                              id: doc.id,
+                              status: 'accepted',
+                              note: documentNotes[doc.id]?.trim() || undefined,
+                            })
+                          }
+                          disabled={reviewDocumentMutation.isPending}
+                          className="flex-1 px-3 py-2 rounded-lg text-sm font-medium bg-success-500/10 text-success-400 border border-success-500/20 hover:bg-success-500/20 transition-colors disabled:opacity-50"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() =>
+                            reviewDocumentMutation.mutate({
+                              id: doc.id,
+                              status: 'rejected',
+                              note: documentNotes[doc.id]?.trim() || undefined,
+                            })
+                          }
+                          disabled={reviewDocumentMutation.isPending}
+                          className="flex-1 px-3 py-2 rounded-lg text-sm font-medium bg-error-500/10 text-error-400 border border-error-500/20 hover:bg-error-500/20 transition-colors disabled:opacity-50"
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
                     {doc.review_note && (
                       <p className="mt-2 text-xs text-slate-400 bg-slate-800/30 rounded-lg p-2">
                         Note: {doc.review_note}

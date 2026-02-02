@@ -149,6 +149,12 @@ def upsert_nutritionist():
 
     # Submit for verification if requested
     if schema.submit_for_verification:
+        doc_count = NutritionistDocument.query.filter_by(
+            nutritionist_id=nutritionist.nutritionist_id
+        ).count()
+        if doc_count == 0:
+            return jsonify({"error": "Documents required for verification"}), 400
+
         if nutritionist.verification_status in ("draft", "needs_update"):
             nutritionist.verification_status = "pending"
             nutritionist.submitted_at = datetime.utcnow()
