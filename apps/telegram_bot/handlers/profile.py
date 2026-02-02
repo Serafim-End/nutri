@@ -34,6 +34,7 @@ from keyboards import (
     CB_DOC_TYPE_CERTIFICATE,
     CB_DOC_TYPE_OTHER,
     CB_DOC_DONE,
+    CB_DOC_SKIP,
 )
 
 
@@ -627,6 +628,13 @@ async def documents_done(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     uploaded_docs = data.get("uploaded_docs", [])
 
+    await show_submission_summary(callback.message, state, is_callback=True)
+
+
+@router.callback_query(F.data == CB_DOC_SKIP, ProfileStates.selecting_document_type)
+async def documents_skip(callback: CallbackQuery, state: FSMContext):
+    """Skip document upload and move to final review."""
+    await callback.answer()
     await show_submission_summary(callback.message, state, is_callback=True)
 
 

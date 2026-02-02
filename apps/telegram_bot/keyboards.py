@@ -65,6 +65,7 @@ CB_DOC_TYPE_DIPLOMA = "doc_type:diploma"
 CB_DOC_TYPE_CERTIFICATE = "doc_type:certificate"
 CB_DOC_TYPE_OTHER = "doc_type:other"
 CB_DOC_DONE = "doc_done"
+CB_DOC_SKIP = "doc_skip"
 
 # Service flow
 CB_SKIP_DESCRIPTION = "skip_description"
@@ -292,6 +293,10 @@ def get_document_type_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(
             text="✅ Завершить загрузку",
             callback_data=CB_DOC_DONE,
+        ),
+        InlineKeyboardButton(
+            text="➡️ Пропустить",
+            callback_data=CB_DOC_SKIP,
         ),
     )
     return builder.as_markup()
