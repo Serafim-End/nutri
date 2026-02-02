@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { format, parseISO } from 'date-fns'
-import { ru } from 'date-fns/locale'
 import { publicApi, bookingApi, paymentApi } from '../lib/api'
 import { useCountdown } from '../hooks/useCountdown'
 import SlotPicker from '../components/SlotPicker'
+import MoscowTimeNote from '../components/MoscowTimeNote'
 import type { AvailabilitySlot, Booking, PaymentIntent, Service } from '../types'
 import {
   PageContainer,
@@ -26,6 +25,7 @@ import {
 } from '../design-system'
 import { PageLoader } from '../design-system/components/Loader'
 import clsx from 'clsx'
+import { formatMoscowDateLong, formatMoscowTime } from '../utils/moscowTime'
 
 type BookingState = 'select_slot' | 'pending_payment' | 'paid' | 'cancelled' | 'expired'
 
@@ -97,11 +97,12 @@ function BookingSuccess({
           <div className="text-center text-white">
             <Text size="sm" className="text-white/60">Дата консультации</Text>
             <Text weight="semibold" size="lg" className="text-white">
-              {format(parseISO(booking.slot.start_at), 'EEEE, d MMMM', { locale: ru })}
+              {formatMoscowDateLong(booking.slot.start_at)}
             </Text>
             <Text size="xl" weight="bold" className="text-white">
-              {format(parseISO(booking.slot.start_at), 'HH:mm')}
+              {formatMoscowTime(booking.slot.start_at)}
             </Text>
+            <MoscowTimeNote className="mt-2 text-white/70" align="center" />
           </div>
 
           <div className="mt-4 pt-4 border-t border-white/10 text-center">
@@ -393,15 +394,16 @@ export default function BookingPage() {
                   <Inline justify="between">
                     <Text color="secondary">Дата</Text>
                     <Text weight="medium">
-                      {format(parseISO(currentBooking.slot.start_at), 'EEEE, d MMMM', { locale: ru })}
+                      {formatMoscowDateLong(currentBooking.slot.start_at)}
                     </Text>
                   </Inline>
                   <Inline justify="between">
                     <Text color="secondary">Время</Text>
                     <Text weight="medium">
-                      {format(parseISO(currentBooking.slot.start_at), 'HH:mm')}
+                      {formatMoscowTime(currentBooking.slot.start_at)}
                     </Text>
                   </Inline>
+                  <MoscowTimeNote className="mt-2" />
                 </>
               )}
               <div className="pt-3 border-t border-border-light">
@@ -518,9 +520,10 @@ export default function BookingPage() {
           <div className="mb-3 px-3 py-2 bg-primary-50 rounded-lg border border-primary-100">
             <Text size="sm" className="text-primary-800">
               <span className="font-medium">Выбрано:</span>{' '}
-              {format(parseISO(selectedSlot.start_at), 'EEEE, d MMMM', { locale: ru })} в{' '}
-              {format(parseISO(selectedSlot.start_at), 'HH:mm')}
+              {formatMoscowDateLong(selectedSlot.start_at)} в{' '}
+              {formatMoscowTime(selectedSlot.start_at)}
             </Text>
+            <MoscowTimeNote className="mt-1 text-primary-700" />
           </div>
         )}
         <Button

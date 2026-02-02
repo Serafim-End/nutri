@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { format, parseISO } from 'date-fns'
-import { ru } from 'date-fns/locale'
 import { bookingApi, paymentApi } from '../lib/api'
 import type { Booking, Payment } from '../types'
+import MoscowTimeNote from '../components/MoscowTimeNote'
+import { formatMoscowDateLong, formatMoscowDateTime, formatMoscowTime } from '../utils/moscowTime'
 import {
   Stack,
   Card,
@@ -17,10 +17,7 @@ import {
 type Mode = 'success' | 'fail'
 type Status = 'checking' | 'success' | 'failed' | 'pending' | 'error'
 
-const formatDate = (value?: string | null) => {
-  if (!value) return '—'
-  return format(parseISO(value), 'dd.MM.yyyy HH:mm')
-}
+const formatDate = (value?: string | null) => formatMoscowDateTime(value)
 
 export default function PaymentReturnPage({ mode }: { mode: Mode }) {
   const [searchParams] = useSearchParams()
@@ -186,10 +183,10 @@ export default function PaymentReturnPage({ mode }: { mode: Mode }) {
             <div className="text-center text-white">
               <Text size="sm" className="text-white/60">Дата консультации</Text>
               <Text weight="semibold" size="lg" className="text-white">
-                {format(parseISO(booking.slot.start_at), 'EEEE, d MMMM', { locale: ru })}
+                {formatMoscowDateLong(booking.slot.start_at)}
               </Text>
               <Text size="xl" weight="bold" className="text-white">
-                {format(parseISO(booking.slot.start_at), 'HH:mm')}
+                {formatMoscowTime(booking.slot.start_at)}
               </Text>
             </div>
           )}
@@ -205,6 +202,7 @@ export default function PaymentReturnPage({ mode }: { mode: Mode }) {
               Статус: {payment.status} · {formatDate(payment.created_at)}
             </div>
           )}
+          <MoscowTimeNote className="mt-3 text-white/70" align="center" />
         </Card>
       )}
 

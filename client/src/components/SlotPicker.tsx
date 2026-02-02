@@ -1,9 +1,13 @@
 import { useMemo } from 'react'
-import { format, parseISO } from 'date-fns'
-import { ru } from 'date-fns/locale'
 import type { AvailabilitySlot } from '../types'
 import { Stack, Text, NoSlotsState } from '../design-system'
 import clsx from 'clsx'
+import MoscowTimeNote from './MoscowTimeNote'
+import {
+  formatMoscowDateKeyLong,
+  formatMoscowTime,
+  getMoscowDateKey,
+} from '../utils/moscowTime'
 
 interface SlotPickerProps {
   slots: AvailabilitySlot[]
@@ -21,7 +25,8 @@ export default function SlotPicker({
     const groups: Record<string, AvailabilitySlot[]> = {}
 
     slots.forEach((slot) => {
-      const date = format(parseISO(slot.start_at), 'yyyy-MM-dd')
+      const date = getMoscowDateKey(slot.start_at)
+      if (!date) return
       if (!groups[date]) {
         groups[date] = []
       }
@@ -31,7 +36,7 @@ export default function SlotPicker({
     // Sort slots within each group
     Object.keys(groups).forEach((date) => {
       groups[date].sort(
-        (a, b) => parseISO(a.start_at).getTime() - parseISO(b.start_at).getTime()
+        (a, b) => Date.parse(a.start_at) - Date.parse(b.start_at)
       )
     })
 
@@ -47,16 +52,16 @@ export default function SlotPicker({
   return (
     <Stack gap={6}>
       {sortedDates.map((date) => {
-        const dateObj = parseISO(date)
+        const dateLabel = formatMoscowDateKeyLong(date)
         return (
           <div key={date}>
             <Text weight="medium" className="mb-3">
-              {format(dateObj, 'EEEE, d MMMM', { locale: ru })}
+              {dateLabel}
             </Text>
             <div className="grid grid-cols-3 gap-2">
               {groupedSlots[date].map((slot) => {
                 const isSelected = selectedSlot?.id === slot.id
-                const startTime = format(parseISO(slot.start_at), 'HH:mm')
+                const startTime = formatMoscowTime(slot.start_at)
 
                 return (
                   <button
@@ -79,6 +84,7 @@ export default function SlotPicker({
           </div>
         )
       })}
+      <MoscowTimeNote className="mt-2" />
     </Stack>
   )
 }

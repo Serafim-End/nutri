@@ -1,8 +1,8 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
-import { format, parseISO } from 'date-fns'
-import { ru } from 'date-fns/locale'
 import type { Booking, PaymentIntent } from '../types'
+import MoscowTimeNote from '../components/MoscowTimeNote'
+import { formatMoscowDateLong, formatMoscowTime } from '../utils/moscowTime'
 import {
   Stack,
   Card,
@@ -65,11 +65,12 @@ export default function PaymentSuccessPage() {
             <div className="text-center text-white">
               <Text size="sm" className="text-white/60">Дата консультации</Text>
               <Text weight="semibold" size="lg" className="text-white">
-                {format(parseISO(state.booking.slot.start_at), 'EEEE, d MMMM', { locale: ru })}
+                {formatMoscowDateLong(state.booking.slot.start_at)}
               </Text>
               <Text size="xl" weight="bold" className="text-white">
-                {format(parseISO(state.booking.slot.start_at), 'HH:mm')}
+                {formatMoscowTime(state.booking.slot.start_at)}
               </Text>
+              <MoscowTimeNote className="mt-2 text-white/70" align="center" />
             </div>
           )}
 

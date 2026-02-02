@@ -1,10 +1,10 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { format, parseISO } from 'date-fns'
-import { ru } from 'date-fns/locale'
 import { clientApi, bookingApi, paymentApi } from '../lib/api'
 import { useCountdown } from '../hooks/useCountdown'
 import type { Booking } from '../types'
+import MoscowTimeNote from '../components/MoscowTimeNote'
+import { formatMoscowDateLong, formatMoscowTime } from '../utils/moscowTime'
 import {
   PageContainer,
   Section,
@@ -119,16 +119,19 @@ function BookingCard({ booking }: { booking: Booking }) {
 
       {/* Время слота */}
       {booking.slot && (
-        <Inline gap={2} className="mb-3 text-text-secondary">
-          <Icons.Calendar size="sm" className="text-text-tertiary" />
-          <Text size="sm" color="secondary">
-            {format(parseISO(booking.slot.start_at), 'EEEE, d MMMM', { locale: ru })}
-          </Text>
-          <span className="text-text-tertiary">•</span>
-          <Text size="sm" weight="medium">
-            {format(parseISO(booking.slot.start_at), 'HH:mm')}
-          </Text>
-        </Inline>
+        <>
+          <Inline gap={2} className="mb-1 text-text-secondary">
+            <Icons.Calendar size="sm" className="text-text-tertiary" />
+            <Text size="sm" color="secondary">
+              {formatMoscowDateLong(booking.slot.start_at)}
+            </Text>
+            <span className="text-text-tertiary">•</span>
+            <Text size="sm" weight="medium">
+              {formatMoscowTime(booking.slot.start_at)}
+            </Text>
+          </Inline>
+          <MoscowTimeNote className="mb-3" />
+        </>
       )}
 
       {/* Цена */}
