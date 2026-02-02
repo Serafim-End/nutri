@@ -482,7 +482,7 @@ async def confirm_rules(callback: CallbackQuery, state: FSMContext):
             "📄 <b>Шаг 6 из 7: Документы</b>\n\n"
             "Загрузите диплом и/или сертификаты.\n"
             "Поддерживаются: PDF, JPG, PNG.\n"
-            "Минимум один документ обязателен.\n\n"
+            "Этот шаг необязателен.\n\n"
             "Выберите тип документа и отправьте файл."
         ),
         reply_markup=get_document_type_keyboard(),
@@ -626,10 +626,6 @@ async def documents_done(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     data = await state.get_data()
     uploaded_docs = data.get("uploaded_docs", [])
-
-    if not uploaded_docs:
-        await callback.answer("⚠️ Загрузите хотя бы один документ", show_alert=True)
-        return
 
     await show_submission_summary(callback.message, state, is_callback=True)
 
