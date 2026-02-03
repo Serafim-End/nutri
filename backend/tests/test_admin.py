@@ -277,3 +277,33 @@ class TestAdminRejectNutritionist:
             assert test_nutritionist_pending.verification_status == "rejected"
             assert test_nutritionist_pending.is_active is False
 
+
+class TestAdminDeleteNutritionist:
+    """Test DELETE /api/admin/nutritionists/<id> endpoint."""
+
+    def test_delete_unauthorized(self, client, test_nutritionist_pending):
+        """Test deleting nutritionist without auth."""
+        nutri_id = str(test_nutritionist_pending.nutritionist_id)
+        response = client.delete(f"/api/admin/nutritionists/{nutri_id}")
+        assert response.status_code == 401
+
+    def test_delete_not_found(self, client, admin_headers):
+        """Test deleting non-existent nutritionist."""
+        fake_id = str(uuid4())
+        response = client.delete(f"/api/admin/nutritionists/{fake_id}", headers=admin_headers)
+        assert response.status_code == 404
+
+    def test_delete_nutritionist(self, client, admin_headers, test_nutritionist_pending, session, app):
+        """Test deleting nutritionist and profile."""
+        nutri_uuid = test_nutritionist_pending.nutritionist_id
+        nutri_id = str(nutri_uuid)
+        response = client.delete(f"/api/admin/nutritionists/{nutri_id}", headers=admin_headers)
+        assert response.status_code == 200
+        assert "deleted" in response.json.get("message", "").lower()
+
+        with app.app_context():
+            session.expire_all()
+            assert session.query(NutritionistProfile.nutritionist_id).filter_by(
+                nutritionist_id=nutri_uuid
+            ).first() is None
+            assert session.query(Profile.id).filter_by(id=nutri_uuid).first() is None

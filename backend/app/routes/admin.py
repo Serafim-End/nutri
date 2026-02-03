@@ -6,8 +6,10 @@ Handles administrative functions like nutritionist verification and booking mana
 import os
 import csv
 import logging
+import shutil
 from datetime import datetime, date
 from io import StringIO
+from urllib.parse import urlparse
 from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt, create_access_token
 from sqlalchemy import or_, and_
@@ -27,6 +29,10 @@ from app.models import (
     WorkingHoursTemplate,
     SupportTicket,
     UserSession,
+    Intake,
+    ClientFilterState,
+    DateException,
+    GoogleCalendar,
 )
 from app.schemas.nutritionist import ServiceCreateRequest, WorkingHoursTemplateUpdateRequest
 from app.services.notifications import NotificationService
@@ -49,6 +55,62 @@ def require_admin():
     if role != "admin":
         return jsonify({"error": "Admin access required"}), 403
     return None
+
+
+def _resolve_media_path(path_or_url: str) -> str | None:
+    if not path_or_url:
+        return None
+    media_root = current_app.config.get("MEDIA_ROOT", "/app/media")
+    media_url = (current_app.config.get("MEDIA_URL", "/media") or "").rstrip("/")
+    parsed = urlparse(path_or_url)
+    candidate = parsed.path if parsed.scheme or parsed.netloc else path_or_url
+
+    if media_url and candidate.startswith(media_url):
+        relative = candidate[len(media_url):].lstrip("/")
+        if not relative:
+            return None
+        full_path = os.path.join(media_root, relative)
+    elif os.path.isabs(candidate):
+        full_path = candidate
+    else:
+        full_path = os.path.join(media_root, candidate)
+
+    media_root = os.path.normpath(media_root)
+    full_path = os.path.normpath(full_path)
+    try:
+        if os.path.commonpath([media_root, full_path]) != media_root:
+            return None
+    except ValueError:
+        return None
+    return full_path
+
+
+def _cleanup_media_paths(paths: list[str]) -> None:
+    for path_or_url in paths:
+        resolved = _resolve_media_path(path_or_url)
+        if not resolved:
+            continue
+        try:
+            if os.path.isfile(resolved):
+                os.remove(resolved)
+        except OSError as exc:
+            logger.warning("Failed to remove media file %s: %s", resolved, exc)
+
+
+def _cleanup_nutritionist_media_dir(nutritionist_id: str) -> None:
+    media_root = current_app.config.get("MEDIA_ROOT", "/app/media")
+    target = os.path.normpath(os.path.join(media_root, "nutritionists", str(nutritionist_id)))
+    media_root = os.path.normpath(media_root)
+    try:
+        if os.path.commonpath([media_root, target]) != media_root:
+            return
+    except ValueError:
+        return
+    if os.path.isdir(target):
+        try:
+            shutil.rmtree(target)
+        except OSError as exc:
+            logger.warning("Failed to remove media directory %s: %s", target, exc)
 
 
 @admin_bp.route("/auth/login", methods=["POST"])
@@ -493,6 +555,121 @@ def disable_nutritionist(nutritionist_id: str):
         "nutritionist": nutritionist.to_dict(include_profile=True),
         "message": "Nutritionist disabled successfully",
     })
+
+
+@admin_bp.route("/nutritionists/<nutritionist_id>", methods=["DELETE"])
+@jwt_required()
+def delete_nutritionist(nutritionist_id: str):
+    """
+    Delete a nutritionist and all related data.
+
+    Request:
+        DELETE /api/admin/nutritionists/<id>
+        Authorization: Bearer <admin_token>
+
+    Response:
+        200: { "message": "Nutritionist deleted permanently" }
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    nutritionist = NutritionistProfile.query.get(nutritionist_id)
+    if not nutritionist:
+        return jsonify({"error": "Nutritionist not found"}), 404
+
+    document_paths = [
+        doc.file_path
+        for doc in NutritionistDocument.query.filter_by(nutritionist_id=nutritionist_id).all()
+    ]
+    photo_url = nutritionist.profile.photo_url if nutritionist.profile else None
+
+    booking_ids = [
+        row[0]
+        for row in db.session.query(Booking.id)
+        .filter(
+            or_(
+                Booking.nutritionist_id == nutritionist_id,
+                Booking.client_id == nutritionist_id,
+            )
+        )
+        .all()
+    ]
+
+    try:
+        if booking_ids:
+            Review.query.filter(Review.booking_id.in_(booking_ids)).delete(
+                synchronize_session=False
+            )
+            Payment.query.filter(Payment.booking_id.in_(booking_ids)).delete(
+                synchronize_session=False
+            )
+            SupportTicket.query.filter(SupportTicket.booking_id.in_(booking_ids)).delete(
+                synchronize_session=False
+            )
+            Booking.query.filter(Booking.id.in_(booking_ids)).delete(
+                synchronize_session=False
+            )
+
+        Review.query.filter(
+            or_(
+                Review.nutritionist_id == nutritionist_id,
+                Review.client_id == nutritionist_id,
+            )
+        ).delete(synchronize_session=False)
+        SupportTicket.query.filter(
+            SupportTicket.profile_id == nutritionist_id
+        ).delete(synchronize_session=False)
+
+        Service.query.filter_by(nutritionist_id=nutritionist_id).delete(
+            synchronize_session=False
+        )
+        AvailabilitySlot.query.filter_by(nutritionist_id=nutritionist_id).delete(
+            synchronize_session=False
+        )
+        NutritionistDocument.query.filter_by(nutritionist_id=nutritionist_id).delete(
+            synchronize_session=False
+        )
+        WorkingHoursTemplate.query.filter_by(nutritionist_id=nutritionist_id).delete(
+            synchronize_session=False
+        )
+        DateException.query.filter_by(nutritionist_id=nutritionist_id).delete(
+            synchronize_session=False
+        )
+        GoogleCalendar.query.filter_by(nutritionist_id=nutritionist_id).delete(
+            synchronize_session=False
+        )
+
+        UserSession.query.filter_by(profile_id=nutritionist_id).delete(
+            synchronize_session=False
+        )
+        ClientFilterState.query.filter_by(client_id=nutritionist_id).delete(
+            synchronize_session=False
+        )
+        Intake.query.filter_by(client_id=nutritionist_id).delete(
+            synchronize_session=False
+        )
+
+        NutritionistProfile.query.filter_by(nutritionist_id=nutritionist_id).delete(
+            synchronize_session=False
+        )
+        Profile.query.filter_by(id=nutritionist_id).delete(synchronize_session=False)
+
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        logger.error("Failed to delete nutritionist %s: %s", nutritionist_id, exc)
+        return jsonify({"error": "Failed to delete nutritionist"}), 500
+
+    media_paths = list(document_paths)
+    if photo_url:
+        media_paths.append(photo_url)
+    _cleanup_media_paths(media_paths)
+    _cleanup_nutritionist_media_dir(nutritionist_id)
+
+    logger.info("Nutritionist %s deleted by admin", nutritionist_id)
+
+    return jsonify({"message": "Nutritionist deleted permanently"})
 
 
 @admin_bp.route("/documents/<document_id>/url", methods=["GET"])

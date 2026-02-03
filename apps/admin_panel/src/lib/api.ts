@@ -177,6 +177,10 @@ export const adminApi = {
     const response = await api.post(`/admin/nutritionists/${id}/disable`)
     return response.data
   },
+  deleteNutritionist: async (id: string) => {
+    const response = await api.delete(`/admin/nutritionists/${id}`)
+    return response.data
+  },
 
   getDocumentUrl: async (id: string) => {
     const response = await api.get(`/admin/documents/${id}/url`)

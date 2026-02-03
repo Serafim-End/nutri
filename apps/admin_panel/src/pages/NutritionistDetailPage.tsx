@@ -6,7 +6,7 @@ import { Nutritionist, NutritionistDocument, AdminService, WorkingHoursTemplate 
 import { format } from 'date-fns'
 import clsx from 'clsx'
 
-type ActionType = 'approve' | 'reject' | 'needs_update' | 'disable' | 'activate' | null
+type ActionType = 'approve' | 'reject' | 'needs_update' | 'disable' | 'activate' | 'delete' | null
 
 const statusColors: Record<string, string> = {
   pending: 'bg-warning-500/10 text-warning-400 border-warning-500/20',
@@ -264,6 +264,15 @@ export function NutritionistDetailPage() {
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: () => adminApi.deleteNutritionist(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionists'] })
+      queryClient.invalidateQueries({ queryKey: ['admin', 'nutritionist', id] })
+      navigate('/nutritionists')
+    },
+  })
+
   const reviewDocumentMutation = useMutation({
     mutationFn: (payload: { id: string; status: 'accepted' | 'rejected'; note?: string }) =>
       adminApi.reviewDocument(payload.id, payload.status, payload.note),
@@ -299,6 +308,9 @@ export function NutritionistDetailPage() {
         case 'activate':
           await activateMutation.mutateAsync()
           break
+        case 'delete':
+          await deleteMutation.mutateAsync()
+          break
       }
     } finally {
       setIsSubmitting(false)
@@ -318,6 +330,7 @@ export function NutritionistDetailPage() {
   const canModerate = nutritionist?.verification_status === 'pending' || nutritionist?.verification_status === 'needs_update'
   const canDisable = nutritionist?.verification_status === 'approved' && nutritionist?.is_active
   const canActivate = nutritionist?.verification_status === 'approved' && !nutritionist?.is_active
+  const canDelete = true
   const trimmedName = nameDraft.trim()
 
   if (isLoading) {
@@ -893,10 +906,29 @@ export function NutritionistDetailPage() {
                 </button>
               )}
 
-              {!canModerate && !canDisable && !canActivate && (
+              {!canModerate && !canDisable && !canActivate && !canDelete && (
                 <p className="text-center text-slate-500 py-4 text-sm">
                   No actions available for this status
                 </p>
+              )}
+
+              {canDelete && (
+                <button
+                  onClick={() => setActiveAction('delete')}
+                  className={clsx(
+                    'w-full px-4 py-3 rounded-xl text-sm font-medium transition-all',
+                    activeAction === 'delete'
+                      ? 'bg-error-500 text-white'
+                      : 'bg-error-500/10 text-error-400 hover:bg-error-500/20 border border-error-500/20'
+                  )}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete Permanently
+                  </span>
+                </button>
               )}
             </div>
 
@@ -947,6 +979,11 @@ export function NutritionistDetailPage() {
                     This will activate the nutritionist's profile and make them visible to clients.
                   </p>
                 )}
+                {activeAction === 'delete' && (
+                  <p className="text-sm text-error-400 mb-4">
+                    This will permanently delete the nutritionist and all related data. This action cannot be undone.
+                  </p>
+                )}
 
                 <div className="flex gap-2">
                   <button
@@ -971,7 +1008,8 @@ export function NutritionistDetailPage() {
                       activeAction === 'reject' && 'bg-error-500 text-white hover:bg-error-600',
                       activeAction === 'needs_update' && 'bg-accent-500 text-white hover:bg-accent-600',
                       activeAction === 'disable' && 'bg-warning-500 text-slate-900 hover:bg-warning-400',
-                      activeAction === 'activate' && 'bg-success-500 text-white hover:bg-success-600'
+                      activeAction === 'activate' && 'bg-success-500 text-white hover:bg-success-600',
+                      activeAction === 'delete' && 'bg-error-500 text-white hover:bg-error-600'
                     )}
                   >
                     {isSubmitting ? (
