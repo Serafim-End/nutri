@@ -34,7 +34,6 @@ const DEFAULT_OPTIONS: FilterOptions = {
   topics: [
     { id: 'nutrition_basics', label: 'Основы питания' },
     { id: 'meal_planning', label: 'Планирование рациона' },
-    { id: 'supplements', label: 'Добавки и витамины' },
     { id: 'weight_management', label: 'Контроль веса' },
     { id: 'sports_performance', label: 'Спортивные результаты' },
     { id: 'chronic_conditions', label: 'Хронические заболевания' },

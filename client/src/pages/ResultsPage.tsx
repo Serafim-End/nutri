@@ -173,7 +173,16 @@ export default function ResultsPage() {
     return count
   }
 
+  const countPrimaryFilters = (filters: SearchFilters): number => {
+    let count = 0
+    if (filters.goals.length > 0) count += filters.goals.length
+    if (filters.topics.length > 0) count += filters.topics.length
+    if (filters.budget_max_rub !== null) count += 1
+    return count
+  }
+
   const activeFilterCount = currentFilters ? countActiveFilters(currentFilters) : 0
+  const primaryFilterCount = currentFilters ? countPrimaryFilters(currentFilters) : 0
 
   const handleRestartOnboarding = useCallback(() => {
     resetIntake()
@@ -213,16 +222,16 @@ export default function ResultsPage() {
               onClick={() => setIsDrawerOpen(true)}
               className={clsx(
                 'relative flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all',
-                activeFilterCount > 0
+                primaryFilterCount > 0
                   ? 'bg-primary-500 text-white shadow-sm'
                   : 'bg-neutral-100 text-text-secondary hover:bg-neutral-200'
               )}
             >
               <Icons.Filter size="md" />
               <span className="text-sm">Фильтры</span>
-              {activeFilterCount > 0 && (
+              {primaryFilterCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-surface-primary text-primary-600 text-xs font-bold rounded-full flex items-center justify-center shadow">
-                  {activeFilterCount}
+                  {primaryFilterCount}
                 </span>
               )}
             </button>
