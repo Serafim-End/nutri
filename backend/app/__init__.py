@@ -111,6 +111,15 @@ def create_app(config_class=Config):
             return jsonify({"error": "Invalid path"}), 400
         return send_from_directory(media_root, safe_path)
 
+    @app.route("/docs/<path:filename>")
+    def docs(filename: str):
+        """Serve static documents (legal, public offer, etc.)."""
+        docs_dir = os.path.join(os.path.dirname(__file__), "..", "static", "docs")
+        safe_path = os.path.normpath(filename)
+        if safe_path.startswith(".."):
+            return jsonify({"error": "Invalid path"}), 400
+        return send_from_directory(docs_dir, safe_path)
+
     # Database health check endpoint
     @app.route("/health/db")
     def health_db():

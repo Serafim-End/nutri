@@ -26,6 +26,7 @@ import {
 import { PageLoader } from '../design-system/components/Loader'
 import clsx from 'clsx'
 import { formatMoscowDateLong, formatMoscowTime } from '../utils/moscowTime'
+import { BOOKING_OFFER_URL } from '../lib/constants'
 
 type BookingState = 'select_slot' | 'pending_payment' | 'paid' | 'cancelled' | 'expired'
 
@@ -454,6 +455,29 @@ export default function BookingPage() {
             >
               Отменить
             </Button>
+            {BOOKING_OFFER_URL && (
+              <Text
+                as="p"
+                size="xs"
+                color="secondary"
+                className="text-center mt-1"
+              >
+                Оплачивая, вы соглашаетесь с{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.Telegram?.WebApp?.openLink) {
+                      window.Telegram.WebApp.openLink(BOOKING_OFFER_URL)
+                    } else {
+                      window.open(BOOKING_OFFER_URL, '_blank')
+                    }
+                  }}
+                  className="text-primary-600 underline hover:text-primary-700 cursor-pointer bg-transparent border-none p-0 font-inherit text-inherit"
+                >
+                  условиями оферты
+                </button>
+              </Text>
+            )}
           </Stack>
         </Footer>
       </PageContainer>

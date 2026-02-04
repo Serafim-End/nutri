@@ -9,6 +9,7 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
 
 from api_client import get_api_client
+from config import get_config
 from states import ProfileStates
 from keyboards import (
     get_nutritionist_menu_keyboard,
@@ -108,6 +109,12 @@ RULES_TEXT = """📋 <b>Правила и ограничения</b>
 ➖ Отказать в верификации профиля
 ➖ Удалить профиль без компенсации
 ➖ Ограничить повторную регистрацию"""
+
+
+def get_rules_text() -> str:
+    """Rules text with link to public offer document."""
+    url = get_config().backend_url + "/docs/public-offer.pdf"
+    return RULES_TEXT + '\n\n📄 <a href="' + url + '">Публичная оферта о сотрудничестве</a>'
 
 
 @router.callback_query(F.data.in_({CB_CREATE_PROFILE, CB_UPDATE_PROFILE}))
@@ -438,7 +445,7 @@ async def tags_done(callback: CallbackQuery, state: FSMContext):
     await state.set_state(ProfileStates.confirming_rules)
     
     await callback.message.edit_text(
-        text=RULES_TEXT,
+        text=get_rules_text(),
         reply_markup=get_confirm_rules_keyboard(),
         parse_mode="HTML",
     )
