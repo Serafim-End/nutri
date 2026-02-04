@@ -68,6 +68,7 @@ export interface Booking {
   created_at: string
   paid_at: string | null
   cancelled_at: string | null
+  has_review?: boolean
   service?: Service
   slot?: AvailabilitySlot
   nutritionist?: NutritionistProfile
