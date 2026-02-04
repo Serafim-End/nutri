@@ -193,6 +193,7 @@ services:
       - WEBHOOK_HOST=0.0.0.0
       - WEBHOOK_PATH=/webhook
       - BACKEND_URL=http://backend:8000
+      - PUBLIC_BACKEND_URL=https://api.nutrutioncoach.com
     depends_on:
       backend:
         condition: service_healthy

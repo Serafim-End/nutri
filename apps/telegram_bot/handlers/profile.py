@@ -113,7 +113,7 @@ RULES_TEXT = """📋 <b>Правила и ограничения</b>
 
 def get_rules_text() -> str:
     """Rules text with link to public offer document."""
-    url = get_config().backend_url + "/docs/public-offer.pdf"
+    url = get_config().public_backend_url + "/docs/public-offer.pdf"
     return RULES_TEXT + '\n\n📄 <a href="' + url + '">Публичная оферта о сотрудничестве</a>'
 
 

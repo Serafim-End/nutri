@@ -29,6 +29,7 @@ class BotConfig:
     
     # Backend API
     backend_url: str
+    public_backend_url: str  # Public URL for links shown to users
     service_token: str
     
     # Mode: polling (dev) or webhook (prod)
@@ -55,6 +56,8 @@ class BotConfig:
             raise ValueError("TELEGRAM_BOT_TOKEN environment variable is required")
         
         backend_url = os.environ.get("BACKEND_URL", "http://localhost:5000")
+        # Public URL for links shown to users (defaults to backend_url if not set)
+        public_backend_url = os.environ.get("PUBLIC_BACKEND_URL", "").strip() or backend_url
         service_token = os.environ.get("BOT_SERVICE_TOKEN", "")
         if not service_token:
             raise ValueError("BOT_SERVICE_TOKEN environment variable is required")
@@ -78,6 +81,7 @@ class BotConfig:
         return cls(
             bot_token=bot_token,
             backend_url=backend_url.rstrip("/"),
+            public_backend_url=public_backend_url.rstrip("/"),
             service_token=service_token,
             mode=mode,
             webhook_url=webhook_url,
