@@ -74,6 +74,7 @@ class Booking(db.Model):
             "created_at": self.created_at.isoformat(),
             "paid_at": self.paid_at.isoformat() if self.paid_at else None,
             "cancelled_at": self.cancelled_at.isoformat() if self.cancelled_at else None,
+            "has_review": self.review is not None,
         }
         if include_relations:
             if self.service:
@@ -84,5 +85,4 @@ class Booking(db.Model):
             if self.nutritionist_profile:
                 data["nutritionist"] = self.nutritionist_profile.to_dict(include_profile=True)
         return data
-
 

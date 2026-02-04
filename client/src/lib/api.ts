@@ -282,6 +282,17 @@ export const bookingApi = {
   },
 
   /**
+   * Create a review for a completed booking.
+   */
+  createReview: async (
+    bookingId: string,
+    payload: { rating: number; comment?: string | null }
+  ): Promise<{ review: Review }> => {
+    const { data } = await api.post(`/bookings/${bookingId}/review`, payload)
+    return data
+  },
+
+  /**
    * Mark a booking as paid (DEV shortcut).
    * Routes through payment abstraction layer.
    * @deprecated Use paymentApi.simulatePayment() for new code
