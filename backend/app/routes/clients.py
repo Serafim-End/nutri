@@ -3,18 +3,41 @@ Client Routes
 Handles client intake forms, nutritionist matching, and filter management.
 """
 
+from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from pydantic import ValidationError
 
 from app.extensions import db
-from app.models import Intake, Profile, ClientFilterState
+from app.models import Intake, Profile, ClientFilterState, Booking, AvailabilitySlot
 from app.schemas.client import IntakeCreateRequest
 from app.services.matching import MatchingService
 from app.services.filters import normalize_filters_from_intake, validate_filters, get_empty_filters
 
 
 clients_bp = Blueprint("clients", __name__)
+
+
+def _auto_complete_paid_bookings(client_id: str) -> int:
+    """Mark paid bookings as completed once their slot end time has passed."""
+    now = datetime.now(timezone.utc)
+    bookings_to_complete = (
+        Booking.query.join(AvailabilitySlot, Booking.slot_id == AvailabilitySlot.id)
+        .filter(
+            Booking.client_id == client_id,
+            Booking.status == "paid",
+            AvailabilitySlot.end_at <= now,
+        )
+        .all()
+    )
+    if not bookings_to_complete:
+        return 0
+
+    for booking in bookings_to_complete:
+        booking.status = "completed"
+
+    db.session.commit()
+    return len(bookings_to_complete)
 
 
 @clients_bp.route("/intakes", methods=["POST"])
@@ -243,9 +266,9 @@ def list_client_bookings():
       401:
         description: Требуется авторизация
     """
-    from app.models import Booking
-
     current_user_id = get_jwt_identity()
+
+    _auto_complete_paid_bookings(current_user_id)
 
     bookings = Booking.query.filter_by(client_id=current_user_id).order_by(
         Booking.created_at.desc()
@@ -284,9 +307,9 @@ def list_my_bookings():
       401:
         description: Требуется авторизация
     """
-    from app.models import Booking
-
     current_user_id = get_jwt_identity()
+
+    _auto_complete_paid_bookings(current_user_id)
 
     bookings = Booking.query.filter_by(client_id=current_user_id).order_by(
         Booking.created_at.desc()
