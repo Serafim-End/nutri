@@ -155,7 +155,7 @@ export default function NutritionistPage() {
         {/* Карточка с описанием */}
         <Card variant="elevated" padding="lg" className="mb-6 animate-slide-up">
           <Heading level="h2" size="md" className="mb-3">О специалисте</Heading>
-          <Text color="secondary" className="leading-relaxed">
+          <Text color="secondary" className="leading-relaxed whitespace-pre-wrap">
             {nutritionist.bio || 'Профессиональный нутрициолог, готовый помочь вам достичь ваших целей в области здоровья.'}
           </Text>
 
