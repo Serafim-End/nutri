@@ -12,6 +12,7 @@ import { BookingsPage } from '@/pages/BookingsPage'
 import { PaymentsPage } from '@/pages/PaymentsPage'
 import { ReviewsPage } from '@/pages/ReviewsPage'
 import { SupportPage } from '@/pages/SupportPage'
+import { SupportTicketDetailPage } from '@/pages/SupportTicketDetailPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 
 import { Layout } from '@/components/Layout'
@@ -54,6 +55,7 @@ function App() {
         <Route path="payments" element={<PaymentsPage />} />
         <Route path="reviews" element={<ReviewsPage />} />
         <Route path="support" element={<SupportPage />} />
+        <Route path="support/:id" element={<SupportTicketDetailPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
 

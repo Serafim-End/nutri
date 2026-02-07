@@ -1786,6 +1786,62 @@ def close_support_ticket(ticket_id: str):
     return jsonify({"ticket": ticket.to_dict()})
 
 
+@admin_bp.route("/support/tickets/<ticket_id>", methods=["GET"])
+@jwt_required()
+def get_support_ticket(ticket_id: str):
+    """
+    Get support ticket detail with author profile, last 100 sessions, and linked booking (admin only).
+    """
+    auth_error = require_admin()
+    if auth_error:
+        return auth_error
+
+    ticket = SupportTicket.query.get(ticket_id)
+    if not ticket:
+        return jsonify({"error": "Support ticket not found"}), 404
+
+    ticket_data = ticket.to_dict()
+
+    author = None
+    sessions = []
+    if ticket.profile_id:
+        profile = Profile.query.get(ticket.profile_id)
+        if profile:
+            author = profile.to_dict()
+            sessions = (
+                UserSession.query.filter_by(profile_id=profile.id)
+                .order_by(UserSession.started_at.desc())
+                .limit(100)
+                .all()
+            )
+            sessions = [s.to_dict() for s in sessions]
+
+    booking_data = None
+    if ticket.booking_id:
+        booking = Booking.query.get(ticket.booking_id)
+        if booking:
+            booking_data = booking.to_dict()
+            if booking.client:
+                booking_data["client"] = booking.client.to_dict()
+            if booking.nutritionist_profile:
+                booking_data["nutritionist"] = booking.nutritionist_profile.to_dict(
+                    include_profile=True
+                )
+            if booking.slot:
+                booking_data["slot"] = booking.slot.to_dict()
+            if booking.service:
+                booking_data["service"] = booking.service.to_dict()
+            if booking.payment:
+                booking_data["payment"] = booking.payment.to_dict()
+
+    return jsonify({
+        "ticket": ticket_data,
+        "author": author,
+        "sessions": sessions,
+        "booking": booking_data,
+    })
+
+
 @admin_bp.route("/reviews", methods=["GET"])
 @jwt_required()
 def list_reviews_admin():

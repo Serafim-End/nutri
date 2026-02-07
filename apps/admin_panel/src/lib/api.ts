@@ -284,6 +284,11 @@ export const adminApi = {
     return response.data
   },
 
+  getSupportTicketDetail: async (id: string) => {
+    const response = await api.get(`/admin/support/tickets/${id}`)
+    return response.data
+  },
+
   closeSupportTicket: async (id: string) => {
     const response = await api.post(`/admin/support/tickets/${id}/close`)
     return response.data

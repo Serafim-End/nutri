@@ -217,11 +217,21 @@ export interface SupportTicket {
   id: string
   author_id: string
   author_name: string | null
+  telegram_user_id: number | null
+  telegram_username: string | null
   role: 'client' | 'nutritionist'
   text: string
   booking_id: string | null
   status: 'open' | 'closed'
   created_at: string
+  updated_at: string | null
+}
+
+export interface SupportTicketDetailResponse {
+  ticket: SupportTicket
+  author: AdminUserEntry | null
+  sessions: AdminUserSession[]
+  booking: Booking | null
 }
 
 export interface Review {

@@ -53,14 +53,24 @@ class SupportTicket(db.Model):
         author_name = self.author_name
         if not author_name and self.profile:
             author_name = self.profile.full_name
+        telegram_user_id = self.telegram_user_id
+        telegram_username = None
+        if self.profile:
+            telegram_user_id = self.profile.telegram_user_id
+            telegram_username = self.profile.telegram_username
+        elif self.telegram_user_id:
+            telegram_user_id = self.telegram_user_id
 
         return {
             "id": str(self.id),
             "author_id": author_id,
             "author_name": author_name,
+            "telegram_user_id": telegram_user_id,
+            "telegram_username": telegram_username,
             "role": self.role,
             "text": self.text,
             "booking_id": str(self.booking_id) if self.booking_id else None,
             "status": self.status,
             "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

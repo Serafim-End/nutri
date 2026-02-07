@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '@/lib/api'
 import { SupportTicket } from '@/types'
@@ -18,6 +19,7 @@ const roleColors: Record<string, string> = {
 }
 
 export function SupportPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [filter, setFilter] = useState<StatusFilter>('all')
   const [closingId, setClosingId] = useState<string | null>(null)
@@ -132,7 +134,11 @@ export function SupportPage() {
               </thead>
               <tbody className="divide-y divide-slate-800/50">
                 {tickets.map((ticket) => (
-                  <tr key={ticket.id} className="hover:bg-slate-900/30 transition-colors">
+                  <tr
+                    key={ticket.id}
+                    onClick={() => navigate(`/support/${ticket.id}`)}
+                    className="hover:bg-slate-900/30 transition-colors cursor-pointer"
+                  >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center flex-shrink-0">
@@ -183,7 +189,7 @@ export function SupportPage() {
                     <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">
                       {ticket.created_at ? format(new Date(ticket.created_at), 'MMM d, yyyy HH:mm') : '—'}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                       {ticket.status === 'open' ? (
                         <button
                           onClick={() => handleClose(ticket.id)}
