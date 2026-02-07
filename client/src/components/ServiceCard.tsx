@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react'
 import type { Service } from '../types'
 import { Inline, Text, Icons } from '../design-system'
 import clsx from 'clsx'
@@ -8,7 +9,36 @@ interface ServiceCardProps {
   onSelect: (service: Service) => void
 }
 
+function useIsClamped(ref: React.RefObject<HTMLElement | null>, expanded: boolean, description: string | null) {
+  const [isClamped, setIsClamped] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || expanded) {
+      setIsClamped(false)
+      return
+    }
+
+    const checkClamped = () => {
+      setIsClamped(el.scrollHeight > el.clientHeight)
+    }
+
+    checkClamped()
+
+    const observer = new ResizeObserver(checkClamped)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [ref, expanded, description])
+
+  return isClamped
+}
+
 export default function ServiceCard({ service, selected, onSelect }: ServiceCardProps) {
+  const [expanded, setExpanded] = useState(false)
+  const descRef = useRef<HTMLParagraphElement>(null)
+  const isClamped = useIsClamped(descRef, expanded, service.description)
+  const showToggle = isClamped || expanded
+
   return (
     <button
       onClick={() => onSelect(service)}
@@ -26,9 +56,30 @@ export default function ServiceCard({ service, selected, onSelect }: ServiceCard
             {service.title}
           </Text>
           {service.description && (
-            <Text size="sm" color="secondary" lineClamp={2} className="mt-1">
-              {service.description}
-            </Text>
+            <div className="mt-1">
+              <Text
+                ref={descRef}
+                as="p"
+                size="sm"
+                color="secondary"
+                lineClamp={expanded ? undefined : 2}
+                className="mt-0"
+              >
+                {service.description}
+              </Text>
+              {showToggle && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setExpanded((prev) => !prev)
+                  }}
+                  className="mt-0.5 text-sm text-primary-600 hover:text-primary-700 hover:underline"
+                >
+                  {expanded ? 'скрыть' : 'показать полностью'}
+                </button>
+              )}
+            </div>
           )}
           <Inline gap={1} className="mt-2 text-text-tertiary">
             <Icons.Clock size="sm" />
